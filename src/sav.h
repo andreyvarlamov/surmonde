@@ -45,7 +45,8 @@ void __debugbreak(); // usually in <intrin.h>
 
 #define global_var static
 #define local_persist static
-#define api_func
+#define sav_func
+#define api_func static
 #define internal_func static
 
 // SECTION Math
@@ -600,6 +601,9 @@ inline v4 GetColorV4(SavColor c) { v4 result = V4(c.r / 255.0f, c.g / 255.0f, c.
 #define SAV_COLOR_YELLOW MakeColor(0xFFFF00FF)
 #define SAV_COLOR_YELLOWGREEN MakeColor(0x9ACD32FF)
 
+#define SAV_COLOR_CROWBLACK MakeColor(0x0D0907FF)
+#define SAV_COLOR_ASHGRAY MakeColor(0x666362FF)
+
 // SECTION SAV header
 struct GameMemory
 {
@@ -624,6 +628,13 @@ struct SavTexture
 {
     u32 id;
     i32 w, h;
+};
+
+struct SavTextureAtlas
+{
+    SavTexture texture;
+    i32 cellW, cellH;
+    int cellHorizontalCount, cellVerticalCount;
 };
 
 struct SavRenderTexture
@@ -661,106 +672,108 @@ struct Camera2D
     int zoomLogStepsCount;
 };
 
-api_func GameMemory AllocGameMemory(size_t size);
-api_func MemoryArena AllocArena(size_t size);
+sav_func GameMemory AllocGameMemory(size_t size);
+sav_func MemoryArena AllocArena(size_t size);
 
-api_func void InitWindow(const char *title, int width, int height);
-api_func void Quit();
-api_func void PollEvents();
+sav_func void InitWindow(const char *title, int width, int height);
+sav_func void Quit();
+sav_func void PollEvents();
 
-api_func void SetTargetFPS(f32 fps);
-api_func void BeginFrameTiming();
-api_func void EndFrameTiming();
-api_func u64 GetCurrentFrame();
-api_func f64 GetDeltaFixed();
-api_func f64 GetDeltaPrev();
-api_func f64 GetDeltaAvg();
-api_func f64 GetFPSPrev();
-api_func f64 GetFPSAvg();
+sav_func void SetTargetFPS(f32 fps);
+sav_func void BeginFrameTiming();
+sav_func void EndFrameTiming();
+sav_func u64 GetCurrentFrame();
+sav_func f64 GetDeltaFixed();
+sav_func f64 GetDeltaPrev();
+sav_func f64 GetDeltaAvg();
+sav_func f64 GetFPSPrev();
+sav_func f64 GetFPSAvg();
 
-api_func b32 WindowShouldClose();
-api_func void SetWindowTitle(const char *title);
-api_func v2 GetWindowSize();
-api_func b32 WindowSizeChanged();
-api_func void SetWindowBorderless(b32 borderless);
-api_func void ToggleWindowBorderless();
+sav_func b32 WindowShouldClose();
+sav_func void SetWindowTitle(const char *title);
+sav_func v2 GetWindowSize();
+sav_func b32 WindowSizeChanged();
+sav_func void SetWindowBorderless(b32 borderless);
+sav_func void ToggleWindowBorderless();
 
-api_func b32 KeyDown(int key);
-api_func b32 KeyPressed(int key);
-api_func b32 KeyReleased(int key);
-api_func b32 KeyRepeat(int key);
-api_func b32 KeyPressedOrRepeat(int key);
-api_func b32 GetMouseRelativeMode();
-api_func void SetMouseRelativeMode(b32 enabled);
-api_func v2 MousePos();
-api_func v2 MouseRelPos();
-api_func b32 MouseDown(int button);
-api_func b32 MousePressed(int button);
-api_func b32 MouseReleased(int button);
-api_func b32 MouseClicks(int button, int clicks);
-api_func i32 MouseWheel();
+sav_func b32 KeyDown(int key);
+sav_func b32 KeyPressed(int key);
+sav_func b32 KeyReleased(int key);
+sav_func b32 KeyRepeat(int key);
+sav_func b32 KeyPressedOrRepeat(int key);
+sav_func b32 GetMouseRelativeMode();
+sav_func void SetMouseRelativeMode(b32 enabled);
+sav_func v2 MousePos();
+sav_func v2 MouseRelPos();
+sav_func b32 MouseDown(int button);
+sav_func b32 MousePressed(int button);
+sav_func b32 MouseReleased(int button);
+sav_func b32 MouseClicks(int button, int clicks);
+sav_func i32 MouseWheel();
 
-api_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath);
-api_func void DeleteShader(SavShader *shader);
-api_func void BeginShaderMode(SavShader shader);
-api_func void EndShaderMode();
-api_func void SetShaderMatricesBindingPoint(SavShader shader, const char *uboName);
-api_func void SetUniformMat4(const char *uniformName, f32 *value);
-api_func void SetUniformVec3(const char *uniformName, f32 *value);
-api_func void SetUniformVec4(const char *uniformName, f32 *value);
-api_func void SetUniformI(const char *uniformName, int value);
+sav_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath);
+sav_func void DeleteShader(SavShader *shader);
+sav_func void BeginShaderMode(SavShader shader);
+sav_func void EndShaderMode();
+sav_func void SetShaderMatricesBindingPoint(SavShader shader, const char *uboName);
+sav_func void SetUniformMat4(const char *uniformName, f32 *value);
+sav_func void SetUniformVec3(const char *uniformName, f32 *value);
+sav_func void SetUniformVec4(const char *uniformName, f32 *value);
+sav_func void SetUniformI(const char *uniformName, int value);
 
-api_func void PushProjection(m4 projection);
-api_func void PushModelView(m4 modelView);
-api_func void PopProjection();
-api_func void PopModelView();
-api_func void BeginCameraMode(Camera2D *camera);
-api_func void EndCameraMode();
-api_func v2 CameraWorldToScreen(Camera2D *camera, v2 world);
-api_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen);
-api_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta);
-api_func v2 ScreenToRectCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 screenCoords);
-api_func v2 RectToScreenCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 rectCoords);
-api_func void CameraIncreaseLogZoom(Camera2D *camera, f32 zoomDelta);
-api_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int stepCount);
-api_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps);
+sav_func void PushProjection(m4 projection);
+sav_func void PushModelView(m4 modelView);
+sav_func void PopProjection();
+sav_func void PopModelView();
+sav_func void BeginCameraMode(Camera2D *camera);
+sav_func void EndCameraMode();
+sav_func v2 CameraWorldToScreen(Camera2D *camera, v2 world);
+sav_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen);
+sav_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta);
+sav_func v2 ScreenToRectCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 screenCoords);
+sav_func v2 RectToScreenCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 rectCoords);
+sav_func void CameraIncreaseLogZoom(Camera2D *camera, f32 zoomDelta);
+sav_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int stepCount);
+sav_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps);
 
-api_func SavImage SavLoadImage(const char *path);
-api_func void SavFreeImage(SavImage *image);
-api_func SavTexture SavLoadTexture(const char *path);
-api_func SavTexture SavLoadTextureFromImage(SavImage image);
-api_func SavTexture SavLoadTextureFromData(void *data, int width, int height);
-api_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode);
-api_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMode);
-api_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filterNearest);
-api_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture);
-api_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextureScreenRect);
-api_func void EndTextureMode();
-api_func void BindTextureSlot(int slot, SavTexture texture);
-api_func void UnbindTextureSlot(int slot);
+sav_func SavImage SavLoadImage(const char *path);
+sav_func void SavFreeImage(SavImage *image);
+sav_func SavTexture SavLoadTexture(const char *path);
+sav_func SavTexture SavLoadTextureFromImage(SavImage image);
+sav_func SavTexture SavLoadTextureFromData(void *data, int width, int height);
+sav_func SavTextureAtlas SavLoadTextureAtlas(const char *path, int cellHorizontalCount, int cellHorizontalWidth);
+sav_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode);
+sav_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMode);
+sav_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filterNearest);
+sav_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture);
+sav_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextureScreenRect);
+sav_func void EndTextureMode();
+sav_func void BindTextureSlot(int slot, SavTexture texture);
+sav_func void UnbindTextureSlot(int slot);
 
-api_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount);
-api_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount);
+sav_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount);
+sav_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount);
 
-api_func void ClearBackground(SavColor c);
-api_func void BeginDraw();
-api_func void EndDraw();
-api_func void FlipTexCoords(v2 *texCoords);
-api_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords);
-api_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords);
-api_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color);
-api_func void DrawRect(Rect rect, SavColor color);
-api_func void SavSwapBuffers();
+sav_func void ClearBackground(SavColor c);
+sav_func void BeginDraw();
+sav_func void EndDraw();
+sav_func void SavSwapBuffers();
+sav_func void FlipTexCoords(v2 *texCoords);
+sav_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords);
+sav_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords);
+sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color);
+sav_func void DrawRect(Rect rect, SavColor color);
+sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, SavColor bgColor, SavColor fgColor, Rect destRect);
 
-api_func char *SavReadTextFile(const char *path);
-api_func void SavFreeString(char **text);
+sav_func char *SavReadTextFile(const char *path);
+sav_func void SavFreeString(char **text);
 
-api_func const char *TextFormat(const char *format, ...);
-api_func void TraceLog(const char *format, ...);
-api_func void TraceError(const char *format, ...);
+sav_func const char *TextFormat(const char *format, ...);
+sav_func void TraceLog(const char *format, ...);
+sav_func void TraceError(const char *format, ...);
 
-api_func int GetRandomValue(int min, int max);
-api_func f32 GetRandomFloat();
+sav_func int GetRandomValue(int min, int max);
+sav_func f32 GetRandomFloat();
 
 #ifdef SAV_IMPLEMENTATION
 
@@ -877,7 +890,7 @@ internal_func void *win32AllocMemory(size_t size)
 }
 
 // SECTION Memory management
-api_func GameMemory AllocGameMemory(size_t size)
+sav_func GameMemory AllocGameMemory(size_t size)
 {
     GameMemory gameMemory;
     gameMemory.size = size;
@@ -885,7 +898,7 @@ api_func GameMemory AllocGameMemory(size_t size)
     return gameMemory;
 }
 
-api_func MemoryArena AllocArena(size_t size)
+sav_func MemoryArena AllocArena(size_t size)
 {
     void *allocatedMemory = win32AllocMemory(size);
     return MakeMemoryArena((u8 *)allocatedMemory, size);
@@ -894,7 +907,7 @@ api_func MemoryArena AllocArena(size_t size)
 internal_func SavShader buildBasicShader();
 
 // SECTION Window fundamentals
-api_func void InitWindow(const char *title, int width, int height)
+sav_func void InitWindow(const char *title, int width, int height)
 {
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
     {
@@ -1012,7 +1025,7 @@ api_func void InitWindow(const char *title, int width, int height)
     }
 }
 
-api_func void Quit()
+sav_func void Quit()
 {
     if (_sdlState.sleepIsGranular)
     {
@@ -1027,7 +1040,7 @@ api_func void Quit()
     SDL_Quit();
 }
 
-api_func void PollEvents()
+sav_func void PollEvents()
 {
     for (int i = 0; i < SDL_NUM_SCANCODES; i++)
     {
@@ -1103,7 +1116,7 @@ api_func void PollEvents()
 }
 
 // Timing
-api_func void SetTargetFPS(f32 fps)
+sav_func void SetTargetFPS(f32 fps)
 {
     _sdlState.limitFps = true;
     _sdlState.targetFps = fps;
@@ -1121,7 +1134,7 @@ internal_func inline f64 getAvgDelta(f64 *samples, int sampleCount)
     return accum / TIME_STAT_AVG_COUNT;
 }
 
-api_func void BeginFrameTiming()
+sav_func void BeginFrameTiming()
 {
     if (_sdlState.lastCounter != 0)
     {
@@ -1145,7 +1158,7 @@ api_func void BeginFrameTiming()
     _sdlState.currentFrame++;
 }
 
-api_func void EndFrameTiming()
+sav_func void EndFrameTiming()
 {
     if (_sdlState.limitFps)
     {
@@ -1178,27 +1191,27 @@ api_func void EndFrameTiming()
     }
 }
 
-api_func u64 GetCurrentFrame()
+sav_func u64 GetCurrentFrame()
 {
     return _sdlState.currentFrame;
 }
 
-api_func f64 GetDeltaFixed()
+sav_func f64 GetDeltaFixed()
 {
     return _sdlState.targetDelta;
 }
 
-api_func f64 GetDeltaPrev()
+sav_func f64 GetDeltaPrev()
 {
     return _sdlState.prevDelta;
 }
 
-api_func f64 GetDeltaAvg()
+sav_func f64 GetDeltaAvg()
 {
     return _sdlState.avgDelta;
 }
 
-api_func f64 GetFPSPrev()
+sav_func f64 GetFPSPrev()
 {
     if (_sdlState.prevDelta > 0.0)
     {
@@ -1210,7 +1223,7 @@ api_func f64 GetFPSPrev()
     }
 }
 
-api_func f64 GetFPSAvg()
+sav_func f64 GetFPSAvg()
 {
     if (_sdlState.avgDelta > 0.0)
     {
@@ -1223,27 +1236,27 @@ api_func f64 GetFPSAvg()
 }
 
 // Window util
-api_func b32 WindowShouldClose()
+sav_func b32 WindowShouldClose()
 {
     return _sdlState.shouldClose;
 }
 
-api_func void SetWindowTitle(const char *title)
+sav_func void SetWindowTitle(const char *title)
 {
     SDL_SetWindowTitle(_sdlState.window, title);
 }
 
-api_func v2 GetWindowSize()
+sav_func v2 GetWindowSize()
 {
     return _sdlState.windowSize;
 }
 
-api_func b32 WindowSizeChanged()
+sav_func b32 WindowSizeChanged()
 {
     return _sdlState.windowSizeChanged;
 }
 
-api_func void SetWindowBorderless(b32 borderless)
+sav_func void SetWindowBorderless(b32 borderless)
 {
     if (borderless)
     {
@@ -1272,80 +1285,80 @@ api_func void SetWindowBorderless(b32 borderless)
     }
 }
 
-api_func void ToggleWindowBorderless()
+sav_func void ToggleWindowBorderless()
 {
     _sdlState.borderless = !_sdlState.borderless;
     SetWindowBorderless(_sdlState.borderless);
 }
 
 // Input
-api_func b32 KeyDown(int key)
+sav_func b32 KeyDown(int key)
 {
     return (b32) _inputState.currentKeyStates[key];
 }
 
-api_func b32 KeyPressed(int key)
+sav_func b32 KeyPressed(int key)
 {
     return (b32) (_inputState.currentKeyStates[key] && !_inputState.previousKeyStates[key]);
 }
 
-api_func b32 KeyReleased(int key)
+sav_func b32 KeyReleased(int key)
 {
     return (b32) (!_inputState.currentKeyStates[key] && _inputState.previousKeyStates[key]);
 }
 
-api_func b32 KeyRepeat(int key)
+sav_func b32 KeyRepeat(int key)
 {
     return (b32) _inputState.repeatKeyStates[key];
 }
 
-api_func b32 KeyPressedOrRepeat(int key)
+sav_func b32 KeyPressedOrRepeat(int key)
 {
     return (b32) ((_inputState.currentKeyStates[key] && !_inputState.previousKeyStates[key]) || _inputState.repeatKeyStates[key]);
 }
 
-api_func b32 GetMouseRelativeMode()
+sav_func b32 GetMouseRelativeMode()
 {
     return (b32) SDL_GetRelativeMouseMode();
 }
 
-api_func void SetMouseRelativeMode(b32 enabled)
+sav_func void SetMouseRelativeMode(b32 enabled)
 {
     _inputState.isRelMouse = enabled;
     SDL_SetRelativeMouseMode((SDL_bool) _inputState.isRelMouse);
 }
 
-api_func v2 MousePos()
+sav_func v2 MousePos()
 {
     return _inputState.mousePos;
 }
 
-api_func v2 MouseRelPos()
+sav_func v2 MouseRelPos()
 {
     return _inputState.mouseRelPos;
 }
 
-api_func b32 MouseDown(int button)
+sav_func b32 MouseDown(int button)
 {
     return (b32) _inputState.currentMouseButtonStates[button];
 }
 
-api_func b32 MousePressed(int button)
+sav_func b32 MousePressed(int button)
 {
     return (b32) (_inputState.currentMouseButtonStates[button] && !_inputState.previousMouseButtonStates[button]);
 }
 
-api_func b32 MouseReleased(int button)
+sav_func b32 MouseReleased(int button)
 {
     return (b32) (!_inputState.currentMouseButtonStates[button] && _inputState.previousMouseButtonStates[button]);
 }
 
-api_func b32 MouseClicks(int button, int clicks)
+sav_func b32 MouseClicks(int button, int clicks)
 {
     return (b32) (_inputState.clickMouseButtonStates[button] == clicks);
 }
 
-api_func i32 MouseWheel()
+sav_func i32 MouseWheel()
 {
     return _inputState.mouseWheel;
 }
@@ -1435,7 +1448,7 @@ internal_func SavShader buildBasicShader()
     return result;
 }
 
-api_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath)
+sav_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath)
 {
     traceLogEngine("INFO", "Building custom shader program with shaders: %s, %s", vertPath, fragPath);
     
@@ -1453,13 +1466,13 @@ api_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath)
     return result;
 }
 
-api_func void DeleteShader(SavShader *shader)
+sav_func void DeleteShader(SavShader *shader)
 {
     glDeleteProgram(shader->id);
     shader->id = 0;
 }
 
-api_func void BeginShaderMode(SavShader shader)
+sav_func void BeginShaderMode(SavShader shader)
 {
     Assert(!_glState.shaderModeActive);
     _glState.currentShader = shader;
@@ -1467,7 +1480,7 @@ api_func void BeginShaderMode(SavShader shader)
     _glState.shaderModeActive = true;
 }
 
-api_func void EndShaderMode()
+sav_func void EndShaderMode()
 {
     Assert(_glState.shaderModeActive);
     _glState.currentShader = _glState.defaultShader;
@@ -1475,7 +1488,7 @@ api_func void EndShaderMode()
     _glState.shaderModeActive = false;
 }
 
-api_func void SetShaderMatricesBindingPoint(SavShader shader, const char *uboName)
+sav_func void SetShaderMatricesBindingPoint(SavShader shader, const char *uboName)
 {
     u32 blockIndex = glGetUniformBlockIndex(shader.id, uboName);
     glUniformBlockBinding(shader.id, blockIndex, _glState.matricesUboBindingPoint);
@@ -1496,25 +1509,25 @@ internal_func int getUniformLocation(u32 shader, const char *uniformName)
     return uniformLocation;
 }
 
-api_func void SetUniformMat4(const char *uniformName, f32 *value)
+sav_func void SetUniformMat4(const char *uniformName, f32 *value)
 {
     int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
     glUniformMatrix4fv(uniformLocation, 1, false, value);
 }
 
-api_func void SetUniformVec3(const char *uniformName, f32 *value)
+sav_func void SetUniformVec3(const char *uniformName, f32 *value)
 {
     int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
     glUniform3fv(uniformLocation, 1, value);
 }
 
-api_func void SetUniformVec4(const char *uniformName, f32 *value)
+sav_func void SetUniformVec4(const char *uniformName, f32 *value)
 {
     int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
     glUniform4fv(uniformLocation, 1, value);
 }
 
-api_func void SetUniformI(const char *uniformName, int value)
+sav_func void SetUniformI(const char *uniformName, int value)
 {
     int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
     glUniform1i(uniformLocation, value);
@@ -1530,84 +1543,84 @@ internal_func inline void setCurrentMvp()
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
-api_func void PushProjection(m4 projection)
+sav_func void PushProjection(m4 projection)
 {
     Assert(_glState.projectionStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
     _glState.projectionStack[++_glState.projectionStackCurrent] = projection;
     setCurrentMvp();
 }
 
-api_func void PushModelView(m4 modelView)
+sav_func void PushModelView(m4 modelView)
 {
     Assert(_glState.modelViewStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
     _glState.modelViewStack[++_glState.modelViewStackCurrent] = modelView;
     setCurrentMvp();
 }
 
-api_func void PopProjection()
+sav_func void PopProjection()
 {
     Assert(_glState.projectionStackCurrent > 0);
     --_glState.projectionStackCurrent;
     setCurrentMvp();
 }
 
-api_func void PopModelView()
+sav_func void PopModelView()
 {
     Assert(_glState.modelViewStackCurrent > 0);
     --_glState.modelViewStackCurrent;
     setCurrentMvp();
 }
 
-api_func void BeginCameraMode(Camera2D *camera)
+sav_func void BeginCameraMode(Camera2D *camera)
 {
     Assert(!_glState.cameraModeActive);
     PushModelView(GetCamera2DView(camera->target, camera->zoom, camera->rotation, camera->offset));
     _glState.cameraModeActive = true;
 }
 
-api_func void EndCameraMode()
+sav_func void EndCameraMode()
 {
     Assert(_glState.cameraModeActive);
     PopModelView();
     _glState.cameraModeActive = false;
 }
 
-api_func v2 CameraWorldToScreen(Camera2D *camera, v2 world)
+sav_func v2 CameraWorldToScreen(Camera2D *camera, v2 world)
 {
     m4 view = GetCamera2DView(camera->target, camera->zoom, camera->rotation, camera->offset);
     v4 result = view * V4(world.x, world.y, 0.0f, 1.0f);
     return V2(result.x, result.y);
 }
 
-api_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen)
+sav_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen)
 {
     m4 viewInv = GetCamera2DViewInv(camera->target, camera->zoom, camera->rotation, camera->offset);
     v4 result = viewInv * V4(screen.x, screen.y, 0.0f, 1.0f);
     return V2(result.x, result.y);
 }
 
-api_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta)
+sav_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta)
 {
     m4 viewInvRel = GetCamera2DViewInvRel(camera->zoom, camera->rotation);
     v4 result = viewInvRel * V4(screenDelta.x, screenDelta.y, 0.0f, 1.0f);
     return V2(result.x, result.y);
 }
 
-api_func v2 ScreenToRectCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 screenCoords)
+sav_func v2 ScreenToRectCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 screenCoords)
 {
     v2 rectCoords = V2(((screenCoords.x - screenRect.x) / screenRect.w) * scaledW,
         ((screenCoords.y - screenRect.y) / screenRect.h) * scaledH);
     return rectCoords;
 }
 
-api_func v2 RectToScreenCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 rectCoords)
+sav_func v2 RectToScreenCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 rectCoords)
 {
     v2 screenCoords = V2((rectCoords.x / scaledW) * screenRect.w + screenRect.x,
         (rectCoords.y / scaledH) * screenRect.h + screenRect.y);
     return screenCoords;
 }
 
-api_func void CameraIncreaseLogZoom(Camera2D *camera, f32 zoomDelta)
+sav_func void CameraIncreaseLogZoom(Camera2D *camera, f32 zoomDelta)
 {
     camera->zoomLog += zoomDelta;
     if (camera->zoomLog > 1.0f)
@@ -1621,7 +1634,7 @@ api_func void CameraIncreaseLogZoom(Camera2D *camera, f32 zoomDelta)
     camera->zoom = ExponentialInterpolation(camera->zoomMin, camera->zoomMax, camera->zoomLog);
 }
 
-api_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int stepCount)
+sav_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int stepCount)
 {
     Assert(stepCount > 1 && stepCount < CAMERA_MAX_ZOOM_STEPS);
     f32 stepDelta = 1.0f / (stepCount - 1);
@@ -1651,7 +1664,7 @@ api_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int ste
     CameraIncreaseLogZoomSteps(camera, 0);
 }
 
-api_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps)
+sav_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps)
 {
     camera->zoomLogStepsCurrent += steps;
     if (camera->zoomLogStepsCurrent < 0) camera->zoomLogStepsCurrent = 0;
@@ -1660,7 +1673,7 @@ api_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps)
 }
 
 // SECTION: Image/texture loading
-api_func SavImage SavLoadImage(const char *path)
+sav_func SavImage SavLoadImage(const char *path)
 {
     SDL_Surface *originalSurface = IMG_Load(path);
     if (!originalSurface)
@@ -1708,14 +1721,14 @@ api_func SavImage SavLoadImage(const char *path)
     return image;
 }
 
-api_func void SavFreeImage(SavImage *image)
+sav_func void SavFreeImage(SavImage *image)
 {
     SDL_FreeSurface((SDL_Surface *) image->_dataToFree);
     image->data = 0;
     image->_dataToFree = 0;
 }
 
-api_func void SavSaveImage(const char *path, void *data, int width, int height, b32 flip, u32 rMask, u32 gMask, u32 bMask, u32 aMask)
+sav_func void SavSaveImage(const char *path, void *data, int width, int height, b32 flip, u32 rMask, u32 gMask, u32 bMask, u32 aMask)
 {
     SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(data,
                                                     width,
@@ -1749,7 +1762,7 @@ api_func void SavSaveImage(const char *path, void *data, int width, int height, 
     }
 }
 
-api_func SavTexture SavLoadTexture(const char *path)
+sav_func SavTexture SavLoadTexture(const char *path)
 {
     SavImage image = SavLoadImage(path);
     SavTexture texture = SavLoadTextureFromImage(image);
@@ -1757,12 +1770,12 @@ api_func SavTexture SavLoadTexture(const char *path)
     return texture;
 }
 
-api_func SavTexture SavLoadTextureFromImage(SavImage image)
+sav_func SavTexture SavLoadTextureFromImage(SavImage image)
 {
     return SavLoadTextureFromData(image.data, image.w, image.h);
 }
 
-api_func SavTexture SavLoadTextureFromData(void *data, int width, int height)
+sav_func SavTexture SavLoadTextureFromData(void *data, int width, int height)
 {
     u32 id;
     glGenTextures(1, &id);
@@ -1786,7 +1799,18 @@ api_func SavTexture SavLoadTextureFromData(void *data, int width, int height)
     return texture;
 }
 
-api_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode)
+sav_func SavTextureAtlas SavLoadTextureAtlas(const char *path, int cellHorizontalCount, int cellVerticalCount)
+{
+    SavTextureAtlas result;
+    result.texture = SavLoadTexture(path);
+    result.cellHorizontalCount = cellHorizontalCount;
+    result.cellVerticalCount = cellVerticalCount;
+    result.cellW = result.texture.w / cellHorizontalCount;
+    result.cellH = result.texture.h / cellVerticalCount;
+    return result;
+}
+
+sav_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode)
 {
     glBindTexture(GL_TEXTURE_2D, texture.id);
     switch (wrapMode)
@@ -1808,7 +1832,7 @@ api_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-api_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMode)
+sav_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMode)
 {
     glBindTexture(GL_TEXTURE_2D, texture.id);
     switch (filterMode)
@@ -1830,7 +1854,7 @@ api_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMo
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-api_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filterNearest)
+sav_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filterNearest)
 {
     u32 fbo;
     u32 texture;
@@ -1872,7 +1896,7 @@ api_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filter
     return renderTexture;
 }
 
-api_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture)
+sav_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture)
 {
     glDeleteTextures(1, &renderTexture->texture.id);
     glDeleteRenderbuffers(1, &renderTexture->depthRbo);
@@ -1885,7 +1909,7 @@ api_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture)
     renderTexture->texture.h = 0;
 }
 
-api_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextureScreenRect)
+sav_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextureScreenRect)
 {
     Assert(!_glState.textureModeActive);
     Assert(!_glState.drawModeActive);
@@ -1901,7 +1925,7 @@ api_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextur
     _glState.canDraw = true;
 }
 
-api_func void EndTextureMode()
+sav_func void EndTextureMode()
 {
     Assert(_glState.textureModeActive);
     PopProjection(); 
@@ -1910,20 +1934,20 @@ api_func void EndTextureMode()
     _glState.canDraw = false;
 }
 
-api_func void BindTextureSlot(int slot, SavTexture texture)
+sav_func void BindTextureSlot(int slot, SavTexture texture)
 {
     glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_2D, texture.id);
 }
 
-api_func void UnbindTextureSlot(int slot)
+sav_func void UnbindTextureSlot(int slot)
 {
     glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
 }
 
 // SECTION Graphics: batch
-api_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount)
+sav_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount)
 {
     size_t BytesPerVertex = (3 + 4 + 4) * sizeof(float);
     
@@ -1953,7 +1977,7 @@ api_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount,
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-api_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount)
+sav_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount)
 {
     Assert(_glState.canDraw);
     Assert(positions);
@@ -1981,14 +2005,14 @@ api_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *ind
 }
 
 // SECTION Graphics: drawing
-api_func void ClearBackground(SavColor c)
+sav_func void ClearBackground(SavColor c)
 {
     v4 cv4 = GetColorV4(c);
     glClearColor(cv4.r, cv4.g, cv4.b, cv4.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
-api_func void BeginDraw()
+sav_func void BeginDraw()
 {
     Assert(!_glState.drawModeActive);
 
@@ -2004,7 +2028,7 @@ api_func void BeginDraw()
     _glState.canDraw = true;
 }
 
-api_func void EndDraw()
+sav_func void EndDraw()
 {
     Assert(_glState.drawModeActive);
     PopProjection();
@@ -2012,7 +2036,12 @@ api_func void EndDraw()
     _glState.canDraw = false;
 }
 
-api_func void FlipTexCoords(v2 *texCoords)
+sav_func void SavSwapBuffers()
+{
+    SDL_GL_SwapWindow(_sdlState.window);
+}
+
+sav_func void FlipTexCoords(v2 *texCoords)
 {
     for (int i = 0; i < 4; i++)
     {
@@ -2020,7 +2049,7 @@ api_func void FlipTexCoords(v2 *texCoords)
     }
 }
 
-api_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords)
+sav_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords)
 {
     f32 oneOverWidth = 1.0f / texture.w;
     f32 oneOverHeight = 1.0f / texture.h;
@@ -2032,14 +2061,14 @@ api_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords)
     }
 }
 
-api_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords)
+sav_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords)
 {
     RectGetPoints(rect, texCoords);
     NormalizeTexCoords(texture, texCoords);
     FlipTexCoords(texCoords);
 }
 
-api_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color)
+sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color)
 {
     v3 absOrigin = V3(dest.x, dest.y, 0.0f);
     
@@ -2071,7 +2100,7 @@ api_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin,
     glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
 }
 
-api_func void DrawRect(Rect rect, SavColor color)
+sav_func void DrawRect(Rect rect, SavColor color)
 {
     v3 positions[4];
     RectGetPoints(rect, positions);
@@ -2083,13 +2112,18 @@ api_func void DrawRect(Rect rect, SavColor color)
     DrawVertexBatch(positions, texCoords, colors, indices, ArrayCount(positions), ArrayCount(indices));
 }
 
-api_func void SavSwapBuffers()
+sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, SavColor bgColor, SavColor fgColor, Rect destRect)
 {
-    SDL_GL_SwapWindow(_sdlState.window);
+    int atlasPxX = x * atlas.cellW;
+    int atlasPxY = y * atlas.cellH;
+    Rect atlasRect = MakeRect((f32) atlasPxX, (f32) atlasPxY, (f32) atlas.cellW, (f32) atlas.cellH);
+
+    DrawRect(destRect, bgColor);
+    DrawTexture(atlas.texture, destRect, atlasRect, {}, 0.0f, fgColor);
 }
 
 // SECTION File IO
-api_func char *SavReadTextFile(const char *path)
+sav_func char *SavReadTextFile(const char *path)
 {
     FILE *file;
     fopen_s(&file, path, "rb");
@@ -2120,14 +2154,14 @@ api_func char *SavReadTextFile(const char *path)
     return 0;
 }
 
-api_func void SavFreeString(char **text)
+sav_func void SavFreeString(char **text)
 {
     free(*text);
     *text = 0;
 }
 
 // SECTION Util
-api_func const char *TextFormat(const char *format, ...)
+sav_func const char *TextFormat(const char *format, ...)
 {
     // TODO: There are quite a few cases where this won't work, maybe do as macro
     local_persist char result[STRING_BUFFER];
@@ -2140,7 +2174,7 @@ api_func const char *TextFormat(const char *format, ...)
     return result;
 }
 
-api_func void TraceLog(const char *format, ...)
+sav_func void TraceLog(const char *format, ...)
 {
     char formatBuf[STRING_BUFFER];
     sprintf_s(formatBuf, "GAME: INFO: [F %06zu] %s\n", _sdlState.currentFrame, format);
@@ -2151,7 +2185,7 @@ api_func void TraceLog(const char *format, ...)
     va_end(varArgs);
 }
 
-api_func void TraceError(const char *format, ...)
+sav_func void TraceError(const char *format, ...)
 {
     char formatBuf[STRING_BUFFER];
     sprintf_s(formatBuf, "GAME: ERROR: [F %06zu] %s\n", _sdlState.currentFrame, format);
@@ -2163,7 +2197,7 @@ api_func void TraceError(const char *format, ...)
 }
 
 // SECTION Random
-api_func int GetRandomValue(int min, int max)
+sav_func int GetRandomValue(int min, int max)
 {
     if (max - min <= 0)
     {
@@ -2172,7 +2206,7 @@ api_func int GetRandomValue(int min, int max)
     return (min + rand() % (max - min));
 }
 
-api_func f32 GetRandomFloat()
+sav_func f32 GetRandomFloat()
 {
     return (rand() / (f32) RAND_MAX);
 }
