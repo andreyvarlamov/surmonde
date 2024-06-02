@@ -1,17 +1,17 @@
 #ifndef SAV_CORE_H
 #define SAV_CORE_H
 
-// TODO: Not sure if this is the best way to do this (to stop reporting on {0} initializers used in raylib)
-#pragma clang diagnostic ignored "-Wmissing-field-initializers"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#pragma clang diagnostic ignored "-Wmissing-braces"
+// #pragma clang diagnostic ignored "-Wmissing-field-initializers"
+// #pragma clang diagnostic ignored "-Wunused-variable"
+// #pragma clang diagnostic ignored "-Wmissing-braces"
 
 #include <cstdint>
 #include <cstring>
 #include <cmath>
+#include <cfloat>
 #include <sdl2/SDL_scancode.h>
 
-// Types and macros
+// SECTION Types and macros
 typedef int8_t   i8;
 typedef int16_t  i16;
 typedef int32_t  i32;
@@ -45,13 +45,44 @@ void __debugbreak(); // usually in <intrin.h>
 
 #define global_var static
 #define local_persist static
+#define api_func
 #define internal_func static
 
-// Math
+// SECTION Math
 #define PI 3.14159265358979311599796346854
 
-inline f32 ToRad(f32 d) { return (d * PI / 180.0f); }
-inline f32 ToDeg(f32 r) { return (r / PI * 180.0f); }
+inline f32 ToRad(f32 d) { return (f32) (d * PI / 180.0f); }
+inline f32 ToDeg(f32 r) { return (f32) (r / PI * 180.0f); }
+
+inline f32 ExponentialInterpolation(f32 min, f32 max, f32 t)
+{
+    f32 logMin = log(min);
+    f32 logMax = log(max);
+    f32 lerp = logMin + (logMax - logMin) * t;
+    f32 result = exp(lerp);
+    return result;
+}
+
+inline f32 ExponentialInterpolationWhereIs(f32 min, f32 max, f32 v)
+{
+    f32 logMin = log(min);
+    f32 logMax = log(max);
+    f32 logV = log(v);
+    f32 result;
+    if (logV >= logMax)
+    {
+        result = 1.0f;
+    }
+    else if (logV <= logMin)
+    {
+        result = 0.0f;
+    }
+    else
+    {
+        result = (logV - logMin) / (logMax - logMin);
+    }
+    return result;
+}
 
 union v2 { struct { f32 x, y; }; f32 e[2]; };
 union v3 { struct { f32 x, y, z; }; struct { f32 r, g, b; }; f32 e[3]; };
@@ -131,8 +162,7 @@ inline v2i &operator/=(v2i &v, i32 s) { v = v / s; return v; }
 inline b32 operator==(v2i a, v2i b) { return (a.x == b.x && a.y == b.y); }
 inline i32 VecLengthSq(v2i v) { return (v.x * v.x + v.y * v.y); }
 
-inline m3
-operator*(m3 a, m3 b)
+inline m3 operator*(m3 a, m3 b)
 {
     m3 result = {};
     for (int i = 0; i < 3; ++i)
@@ -155,24 +185,22 @@ inline v3 operator*(m3 m, v3 v)
     return result;
 }
 
-inline m4
-operator*(m4 a, m4 b)
+inline m4 operator*(m4 a, m4 b)
 {
     m4 result = {};
     for (int i = 0; i < 4; ++i)
     {
         for (int j = 0; j < 4; ++j)
         {
-            result.e[j][i] = (a.e[0][j]*b.e[j][0] +
-                              a.e[1][j]*b.e[j][1] +
-                              a.e[2][j]*b.e[j][2] +
-                              a.e[3][j]*b.e[j][3]);
+            result.e[j][i] = (a.e[0][i]*b.e[j][0] +
+                              a.e[1][i]*b.e[j][1] +
+                              a.e[2][i]*b.e[j][2] +
+                              a.e[3][i]*b.e[j][3]);
         }
     }
     return result;
 }
-inline v4
-operator*(m4 m, v4 v)
+inline v4 operator*(m4 m, v4 v)
 {
     v4 result = {};
     result.x = m.e[0][0] * v.x + m.e[1][0] * v.y + m.e[2][0] * v.z + m.e[3][0] * v.w;
@@ -216,9 +244,122 @@ inline m4 GetOrthographicProjection(f32 left, f32 right, f32 bottom, f32 top, f3
     return result;
 }
 
-struct Rect { f32 x, y, w, h; }; Rect MakeRect(f32 x, f32 y, f32 w, f32 h);
+inline m4 GetCamera2DView(v2 target, f32 s, f32 rot, v2 offset)
+{
+    /*
+     * This is this but hardcoded:
+       m4 translation = Mat4GetTranslation(-V3(target));
+       m4 scale = GetScale(V3(s, s, 1.0f));
+       m4 rotation = M4(GetRotationAroundAxis(V3(0,0,1), ToRad(rot)));
+       m4 offset = GetTranslation(V3(offset));
+       m4 calc = offset * rotation * scale * translation;
+    */
+    m4 result = M4(1);
+    f32 cosRot = cosf(ToRad(rot));
+    f32 sinRot = sinf(ToRad(rot));
+    v2 t = -target;
+    result.e[0][0] = s * cosRot;
+    result.e[0][1] = s * sinRot;
+    result.e[1][0] = -s * sinRot;
+    result.e[1][1] = s * cosRot;
+    result.e[3][0] = s * t.x * cosRot - s * t.y * sinRot + offset.x;
+    result.e[3][1] = s * t.x * sinRot + s * t.y * cosRot + offset.y;
+    return result;
+}
 
-// Memory arena
+inline m4 GetCamera2DViewInv(v2 target, f32 s, f32 rot, v2 offset)
+{
+    /*
+     * This is this but hardcoded:
+       m4 offsetInv = GetTranslation(-V3(offset));
+       m4 rotationInv = M4(GetRotationAroundAxis(V3(0,0,1), ToRad(-rot)));
+       m4 scaleInv = GetScale(V3(1.0f/s, 1.0f/s, 1.0f));
+       m4 translationInv = GetTranslation(V3(target));
+       m4 calcInv = translationInv * scaleInv * rotationInv * offsetInv;
+    */
+    m4 result = M4(1);
+    f32 cosRot = cosf(ToRad(rot));
+    f32 sinRot = sinf(ToRad(rot));
+    v2 t = -target;
+    f32 oneOverS = 1.0f / s;
+    result.e[0][0] = oneOverS * cosRot;
+    result.e[0][1] = -oneOverS * sinRot;
+    result.e[1][0] = oneOverS * sinRot;
+    result.e[1][1] = oneOverS * cosRot;
+    result.e[3][0] = -offset.x * cosRot * oneOverS - offset.y * sinRot * oneOverS - t.x;
+    result.e[3][1] = offset.x * sinRot * oneOverS - offset.y * cosRot * oneOverS - t.y;
+    return result;
+}
+
+inline m4 GetCamera2DViewInvRel(f32 s, f32 rot)
+{
+    /*
+     * This is this but hardcoded:
+       m4 rotationInv = M4(GetRotationAroundAxis(V3(0,0,1), ToRad(-rot)));
+       m4 scaleInv = GetScale(V3(1.0f/s, 1.0f/s, 1.0f));
+       m4 CcalcInv = scaleInv * rotationInv;
+    */
+    m4 result = M4(1);
+    f32 cosRot = cosf(ToRad(rot));
+    f32 sinRot = sinf(ToRad(rot));
+    f32 oneOverS = 1.0f / s;
+    result.e[0][0] = oneOverS * cosRot;
+    result.e[0][1] = -oneOverS * sinRot;
+    result.e[1][0] = oneOverS * sinRot;
+    result.e[1][1] = oneOverS * cosRot;
+    return result;
+}
+
+inline void Rotate4PointsAroundOrigin(v2 *positions, v2 origin, f32 rotation)
+{
+    f32 c = cosf(ToRad(rotation));
+    f32 s = sinf(ToRad(rotation));
+    for (int i = 0; i < 4; i++)
+    {
+        positions[i] -= origin;
+        f32 x = positions[i].x;
+        f32 y = positions[i].y;
+        positions[i] = V2(c*x - s*y, s*x + c*y);
+        positions[i] += origin;
+    }
+}
+
+inline void Rotate4PointsAroundOrigin(v3 *positions, v3 origin, f32 rotation)
+{
+    f32 c = cosf(ToRad(rotation));
+    f32 s = sinf(ToRad(rotation));
+    for (int i = 0; i < 4; i++)
+    {
+        positions[i] -= origin;
+        f32 x = positions[i].x;
+        f32 y = positions[i].y;
+        positions[i] = V3(c*x - s*y, s*x + c*y, 0.0f);
+        positions[i] += origin;
+    }
+}
+
+struct Rect { f32 x, y, w, h; };
+inline Rect MakeRect(f32 x, f32 y, f32 w, f32 h) { Rect r; r.x = x; r.y = y; r.w = w; r.h = h; return r; };
+inline Rect RectMinMax(v2 min, v2 max) { return { min.x, min.y, max.x - min.x, max.y - min.y }; }
+inline v2 RectGetMin(Rect r) { return { r.x, r.y }; }
+inline v2 RectGetMax(Rect r) { return { r.x + r.w, r.y + r.h }; }
+inline v2 RectGetMid(Rect r) { return { r.x + r.w * 0.5f, r.y + r.h * 0.5f }; }
+inline void RectGetPoints(Rect r, v2 *points)
+{
+    points[0] = { r.x, r.y };
+    points[1] = { r.x, r.y + r.h };
+    points[2] = { r.x + r.w, r.y + r.h };
+    points[3] = { r.x + r.w, r.y };
+}
+inline void RectGetPoints(Rect r, v3 *points)
+{
+    points[0] = { r.x, r.y, 0.0f };
+    points[1] = { r.x, r.y + r.h, 0.0f };
+    points[2] = { r.x + r.w, r.y + r.h, 0.0f };
+    points[3] = { r.x + r.w, r.y, 0.0f };
+}
+
+// SECTION Memory arena
 struct MemoryArena
 {
     u8 *base;
@@ -303,56 +444,323 @@ inline void MemoryArenaReset(MemoryArena *arena)
     arena->frozenPrevUsed = 0;
 }
 
-// SAV functions
-void InitWindow(const char *title, int width, int height);
-void Quit();
-void PollEvents();
+// SECTION Colors
+union SavColor { struct { u8 a; u8 b; u8 g; u8 r; }; u32 c32; };
+inline SavColor MakeColor(u8 r, u8 g, u8 b, u8 a) { SavColor c; c.r = r; c.g = g; c.b = b; c.a = a; return c; }
+inline SavColor MakeColor(f32 r, f32 g, f32 b, f32 a) { SavColor c; c.r = (u8) (r * 255.0f); c.g = (u8) (g * 255.0f); c.b = (u8) (b * 255.0f); c.a = (u8) (a * 255.0f); return c; }
+inline SavColor MakeColor(u32 c32) { SavColor c; c.c32 = c32; return c; }
+inline v4 GetColorV4(SavColor c) { v4 result = V4(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f); return result; }
 
-void SetTargetFPS(f32 fps);
-void BeginFrameTiming();
-void EndFrameTiming();
-u64 GetCurrentFrame();
-f64 GetDeltaFixed();
-f64 GetDeltaPrev();
-f64 GetDeltaAvg();
-f64 GetFPSPrev();
-f64 GetFPSAvg();
+#define SAV_COLOR_ALICEBLUE MakeColor(0xF0F8FFFF)
+#define SAV_COLOR_ANTIQUEWHITE MakeColor(0xFAEBD7FF)
+#define SAV_COLOR_AQUA MakeColor(0x00FFFFFF)
+#define SAV_COLOR_AQUAMARINE MakeColor(0x7FFFD4FF)
+#define SAV_COLOR_AZURE MakeColor(0xF0FFFFFF)
+#define SAV_COLOR_BEIGE MakeColor(0xF5F5DCFF)
+#define SAV_COLOR_BISQUE MakeColor(0xFFE4C4FF)
+#define SAV_COLOR_BLACK MakeColor(0x000000FF)
+#define SAV_COLOR_BLANCHEDALMOND MakeColor(0xFFEBCDFF)
+#define SAV_COLOR_BLUE MakeColor(0x0000FFFF)
+#define SAV_COLOR_BLUEVIOLET MakeColor(0x8A2BE2FF)
+#define SAV_COLOR_BROWN MakeColor(0xA52A2AFF)
+#define SAV_COLOR_BURLYWOOD MakeColor(0xDEB887FF)
+#define SAV_COLOR_CADETBLUE MakeColor(0x5F9EA0FF)
+#define SAV_COLOR_CHARTREUSE MakeColor(0x7FFF00FF)
+#define SAV_COLOR_CHOCOLATE MakeColor(0xD2691EFF)
+#define SAV_COLOR_CORAL MakeColor(0xFF7F50FF)
+#define SAV_COLOR_CORNFLOWERBLUE MakeColor(0x6495EDFF)
+#define SAV_COLOR_CORNSILK MakeColor(0xFFF8DCFF)
+#define SAV_COLOR_CRIMSON MakeColor(0xDC143CFF)
+#define SAV_COLOR_CYAN MakeColor(0x00FFFFFF)
+#define SAV_COLOR_DARKBLUE MakeColor(0x00008BFF)
+#define SAV_COLOR_DARKCYAN MakeColor(0x008B8BFF)
+#define SAV_COLOR_DARKGOLDENROD MakeColor(0xB8860BFF)
+#define SAV_COLOR_DARKGRAY MakeColor(0xA9A9A9FF)
+#define SAV_COLOR_DARKGREEN MakeColor(0x006400FF)
+#define SAV_COLOR_DARKGREY MakeColor(0xA9A9A9FF)
+#define SAV_COLOR_DARKKHAKI MakeColor(0xBDB76BFF)
+#define SAV_COLOR_DARKMAGENTA MakeColor(0x8B008BFF)
+#define SAV_COLOR_DARKOLIVEGREEN MakeColor(0x556B2FFF)
+#define SAV_COLOR_DARKORANGE MakeColor(0xFF8C00FF)
+#define SAV_COLOR_DARKORCHID MakeColor(0x9932CCFF)
+#define SAV_COLOR_DARKRED MakeColor(0x8B0000FF)
+#define SAV_COLOR_DARKSALMON MakeColor(0xE9967AFF)
+#define SAV_COLOR_DARKSEAGREEN MakeColor(0x8FBC8FFF)
+#define SAV_COLOR_DARKSLATEBLUE MakeColor(0x483D8BFF)
+#define SAV_COLOR_DARKSLATEGRAY MakeColor(0x2F4F4FFF)
+#define SAV_COLOR_DARKSLATEGREY MakeColor(0x2F4F4FFF)
+#define SAV_COLOR_DARKTURQUOISE MakeColor(0x00CED1FF)
+#define SAV_COLOR_DARKVIOLET MakeColor(0x9400D3FF)
+#define SAV_COLOR_DEEPPINK MakeColor(0xFF1493FF)
+#define SAV_COLOR_DEEPSKYBLUE MakeColor(0x00BFFFFF)
+#define SAV_COLOR_DIMGRAY MakeColor(0x696969FF)
+#define SAV_COLOR_DIMGREY MakeColor(0x696969FF)
+#define SAV_COLOR_DODGERBLUE MakeColor(0x1E90FFFF)
+#define SAV_COLOR_FIREBRICK MakeColor(0xB22222FF)
+#define SAV_COLOR_FLORALWHITE MakeColor(0xFFFAF0FF)
+#define SAV_COLOR_FORESTGREEN MakeColor(0x228B22FF)
+#define SAV_COLOR_FUCHSIA MakeColor(0xFF00FFFF)
+#define SAV_COLOR_GAINSBORO MakeColor(0xDCDCDCFF)
+#define SAV_COLOR_GHOSTWHITE MakeColor(0xF8F8FFFF)
+#define SAV_COLOR_GOLD MakeColor(0xFFD700FF)
+#define SAV_COLOR_GOLDENROD MakeColor(0xDAA520FF)
+#define SAV_COLOR_GRAY MakeColor(0x808080FF)
+#define SAV_COLOR_GREEN MakeColor(0x008000FF)
+#define SAV_COLOR_GREENYELLOW MakeColor(0xADFF2FFF)
+#define SAV_COLOR_GREY MakeColor(0x808080FF)
+#define SAV_COLOR_HONEYDEW MakeColor(0xF0FFF0FF)
+#define SAV_COLOR_HOTPINK MakeColor(0xFF69B4FF)
+#define SAV_COLOR_INDIANRED MakeColor(0xCD5C5CFF)
+#define SAV_COLOR_INDIGO MakeColor(0x4B0082FF)
+#define SAV_COLOR_IVORY MakeColor(0xFFFFF0FF)
+#define SAV_COLOR_KHAKI MakeColor(0xF0E68CFF)
+#define SAV_COLOR_LAVENDER MakeColor(0xE6E6FAFF)
+#define SAV_COLOR_LAVENDERBLUSH MakeColor(0xFFF0F5FF)
+#define SAV_COLOR_LAWNGREEN MakeColor(0x7CFC00FF)
+#define SAV_COLOR_LEMONCHIFFON MakeColor(0xFFFACDFF)
+#define SAV_COLOR_LIGHTBLUE MakeColor(0xADD8E6FF)
+#define SAV_COLOR_LIGHTCORAL MakeColor(0xF08080FF)
+#define SAV_COLOR_LIGHTCYAN MakeColor(0xE0FFFFFF)
+#define SAV_COLOR_LIGHTGOLDENRODYELLOW MakeColor(0xFAFAD2FF)
+#define SAV_COLOR_LIGHTGRAY MakeColor(0xD3D3D3FF)
+#define SAV_COLOR_LIGHTGREEN MakeColor(0x90EE90FF)
+#define SAV_COLOR_LIGHTGREY MakeColor(0xD3D3D3FF)
+#define SAV_COLOR_LIGHTPINK MakeColor(0xFFB6C1FF)
+#define SAV_COLOR_LIGHTSALMON MakeColor(0xFFA07AFF)
+#define SAV_COLOR_LIGHTSEAGREEN MakeColor(0x20B2AAFF)
+#define SAV_COLOR_LIGHTSKYBLUE MakeColor(0x87CEFAFF)
+#define SAV_COLOR_LIGHTSLATEGRAY MakeColor(0x778899FF)
+#define SAV_COLOR_LIGHTSLATEGREY MakeColor(0x778899FF)
+#define SAV_COLOR_LIGHTSTEELBLUE MakeColor(0xB0C4DEFF)
+#define SAV_COLOR_LIGHTYELLOW MakeColor(0xFFFFE0FF)
+#define SAV_COLOR_LIME MakeColor(0x00FF00FF)
+#define SAV_COLOR_LIMEGREEN MakeColor(0x32CD32FF)
+#define SAV_COLOR_LINEN MakeColor(0xFAF0E6FF)
+#define SAV_COLOR_MAGENTA MakeColor(0xFF00FFFF)
+#define SAV_COLOR_MAROON MakeColor(0x800000FF)
+#define SAV_COLOR_MEDIUMAQUAMARINE MakeColor(0x66CDAAFF)
+#define SAV_COLOR_MEDIUMBLUE MakeColor(0x0000CDFF)
+#define SAV_COLOR_MEDIUMORCHID MakeColor(0xBA55D3FF)
+#define SAV_COLOR_MEDIUMPURPLE MakeColor(0x9370DBFF)
+#define SAV_COLOR_MEDIUMSEAGREEN MakeColor(0x3CB371FF)
+#define SAV_COLOR_MEDIUMSLATEBLUE MakeColor(0x7B68EEFF)
+#define SAV_COLOR_MEDIUMSPRINGGREEN MakeColor(0x00FA9AFF)
+#define SAV_COLOR_MEDIUMTURQUOISE MakeColor(0x48D1CCFF)
+#define SAV_COLOR_MEDIUMVIOLETRED MakeColor(0xC71585FF)
+#define SAV_COLOR_MIDNIGHTBLUE MakeColor(0x191970FF)
+#define SAV_COLOR_MINTCREAM MakeColor(0xF5FFFAFF)
+#define SAV_COLOR_MISTYROSE MakeColor(0xFFE4E1FF)
+#define SAV_COLOR_MOCCASIN MakeColor(0xFFE4B5FF)
+#define SAV_COLOR_NAVAJOWHITE MakeColor(0xFFDEADFF)
+#define SAV_COLOR_NAVY MakeColor(0x000080FF)
+#define SAV_COLOR_OLDLACE MakeColor(0xFDF5E6FF)
+#define SAV_COLOR_OLIVE MakeColor(0x808000FF)
+#define SAV_COLOR_OLIVEDRAB MakeColor(0x6B8E23FF)
+#define SAV_COLOR_ORANGE MakeColor(0xFFA500FF)
+#define SAV_COLOR_ORANGERED MakeColor(0xFF4500FF)
+#define SAV_COLOR_ORCHID MakeColor(0xDA70D6FF)
+#define SAV_COLOR_PALEGOLDENROD MakeColor(0xEEE8AAFF)
+#define SAV_COLOR_PALEGREEN MakeColor(0x98FD98FF)
+#define SAV_COLOR_PALETURQUOISE MakeColor(0xAFEEEEFF)
+#define SAV_COLOR_PALEVIOLETRED MakeColor(0xDB7093FF)
+#define SAV_COLOR_PAPAYAWHIP MakeColor(0xFFEFD5FF)
+#define SAV_COLOR_PEACHPUFF MakeColor(0xFFDAB9FF)
+#define SAV_COLOR_PERU MakeColor(0xCD853FFF)
+#define SAV_COLOR_PINK MakeColor(0xFFC0CDFF)
+#define SAV_COLOR_PLUM MakeColor(0xDDA0DDFF)
+#define SAV_COLOR_POWDERBLUE MakeColor(0xB0E0E6FF)
+#define SAV_COLOR_PURPLE MakeColor(0x800080FF)
+#define SAV_COLOR_RED MakeColor(0xFF0000FF)
+#define SAV_COLOR_ROSYBROWN MakeColor(0xBC8F8FFF)
+#define SAV_COLOR_ROYALBLUE MakeColor(0x4169E1FF)
+#define SAV_COLOR_SADDLEBROWN MakeColor(0x8B4513FF)
+#define SAV_COLOR_SALMON MakeColor(0xFA8072FF)
+#define SAV_COLOR_SANDYBROWN MakeColor(0xF4A460FF)
+#define SAV_COLOR_SEAGREEN MakeColor(0x2E8B57FF)
+#define SAV_COLOR_SEASHELL MakeColor(0xFFF5EEFF)
+#define SAV_COLOR_SIENNA MakeColor(0xA0522DFF)
+#define SAV_COLOR_SILVER MakeColor(0xC0C0C0FF)
+#define SAV_COLOR_SKYBLUE MakeColor(0x87CEEBFF)
+#define SAV_COLOR_SLATEBLUE MakeColor(0x6A5ACDFF)
+#define SAV_COLOR_SLATEGRAY MakeColor(0x708090FF)
+#define SAV_COLOR_SLATEGREY MakeColor(0x708090FF)
+#define SAV_COLOR_SNOW MakeColor(0xFFFAFAFF)
+#define SAV_COLOR_SPRINGGREEN MakeColor(0x00FF7FFF)
+#define SAV_COLOR_STEELBLUE MakeColor(0x4682B4FF)
+#define SAV_COLOR_TAN MakeColor(0xD2B48CFF)
+#define SAV_COLOR_TEAL MakeColor(0x008080FF)
+#define SAV_COLOR_THISTLE MakeColor(0xD8BFD8FF)
+#define SAV_COLOR_TOMATO MakeColor(0xFF6347FF)
+#define SAV_COLOR_TURQUOISE MakeColor(0x40E0D0FF)
+#define SAV_COLOR_SADDLEBROWN MakeColor(0x8B4513FF)
+#define SAV_COLOR_VIOLET MakeColor(0xEE82EEFF)
+#define SAV_COLOR_WHEAT MakeColor(0xF5DEB3FF)
+#define SAV_COLOR_WHITE MakeColor(0xFFFFFFFF)
+#define SAV_COLOR_WHITESMOKE MakeColor(0xF5F5F5FF)
+#define SAV_COLOR_YELLOW MakeColor(0xFFFF00FF)
+#define SAV_COLOR_YELLOWGREEN MakeColor(0x9ACD32FF)
 
-b32 WindowShouldClose();
-void SetWindowTitle(const char *title);
-v2 GetWindowSize();
-b32 WindowSizeChanged();
-void SetWindowBorderless(b32 borderless);
-void ToggleWindowBorderless();
+// SECTION SAV header
+struct GameMemory
+{
+    void *data;
+    size_t size;
+};
 
-b32 KeyDown(int key);
-b32 KeyPressed(int key);
-b32 KeyReleased(int key);
-b32 KeyRepeat(int key);
-b32 KeyPressedOrRepeat(int key);
-b32 GetMouseRelativeMode();
-void SetMouseRelativeMode(b32 enabled);
-v2 MousePos();
-v2 MouseRelPos();
-b32 MouseDown(int button);
-b32 MousePressed(int button);
-b32 MouseReleased(int button);
-b32 MouseClicks(int button, int clicks);
-i32 MouseWheel();
+struct SavImage
+{
+    void *data;
+    int w, h, pitch;
+    void *_dataToFree;
+};
 
-void PrepareGpuData(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount, u32 *matricesUbo, u32 matricesUboBindingPoint);
-void PushProjection(m4 projection);
-void PushModelView(m4 modelView);
-void PopProjection();
-void PopModelView();
-void BeginDraw();
-void DrawTexture();
-void EndDraw();
-void SavSwapBuffers();
+struct SavShader
+{
+    // TODO: Should keep track of shader uniform locations
+    u32 id;
+};
 
-const char *TextFormat(const char *format, ...);
-void TraceLog(const char *format, ...);
-void TraceError(const char *format, ...);
+struct SavTexture
+{
+    u32 id;
+    i32 w, h;
+};
+
+struct SavRenderTexture
+{
+    u32 fbo;
+    u32 depthRbo;
+    SavTexture texture;
+};
+
+enum TexWrapMode
+{
+    SAV_CLAMP_TO_EDGE,
+    SAV_REPEAT
+};
+
+enum TexFilterMode
+{
+    SAV_LINEAR,
+    SAV_NEAREST
+};
+
+#define CAMERA_MAX_ZOOM_STEPS 16
+
+struct Camera2D
+{
+    v2 target;
+    v2 offset;
+    f32 rotation;
+    f32 zoom;
+    f32 zoomMin;
+    f32 zoomMax;
+    f32 zoomLog;
+    f32 zoomLogSteps[CAMERA_MAX_ZOOM_STEPS];
+    int zoomLogStepsCurrent;
+    int zoomLogStepsCount;
+};
+
+api_func GameMemory AllocGameMemory(size_t size);
+api_func MemoryArena AllocArena(size_t size);
+
+api_func void InitWindow(const char *title, int width, int height);
+api_func void Quit();
+api_func void PollEvents();
+
+api_func void SetTargetFPS(f32 fps);
+api_func void BeginFrameTiming();
+api_func void EndFrameTiming();
+api_func u64 GetCurrentFrame();
+api_func f64 GetDeltaFixed();
+api_func f64 GetDeltaPrev();
+api_func f64 GetDeltaAvg();
+api_func f64 GetFPSPrev();
+api_func f64 GetFPSAvg();
+
+api_func b32 WindowShouldClose();
+api_func void SetWindowTitle(const char *title);
+api_func v2 GetWindowSize();
+api_func b32 WindowSizeChanged();
+api_func void SetWindowBorderless(b32 borderless);
+api_func void ToggleWindowBorderless();
+
+api_func b32 KeyDown(int key);
+api_func b32 KeyPressed(int key);
+api_func b32 KeyReleased(int key);
+api_func b32 KeyRepeat(int key);
+api_func b32 KeyPressedOrRepeat(int key);
+api_func b32 GetMouseRelativeMode();
+api_func void SetMouseRelativeMode(b32 enabled);
+api_func v2 MousePos();
+api_func v2 MouseRelPos();
+api_func b32 MouseDown(int button);
+api_func b32 MousePressed(int button);
+api_func b32 MouseReleased(int button);
+api_func b32 MouseClicks(int button, int clicks);
+api_func i32 MouseWheel();
+
+api_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath);
+api_func void DeleteShader(SavShader *shader);
+api_func void BeginShaderMode(SavShader shader);
+api_func void EndShaderMode();
+api_func void SetShaderMatricesBindingPoint(SavShader shader, const char *uboName);
+api_func void SetUniformMat4(const char *uniformName, f32 *value);
+api_func void SetUniformVec3(const char *uniformName, f32 *value);
+api_func void SetUniformVec4(const char *uniformName, f32 *value);
+api_func void SetUniformI(const char *uniformName, int value);
+
+api_func void PushProjection(m4 projection);
+api_func void PushModelView(m4 modelView);
+api_func void PopProjection();
+api_func void PopModelView();
+api_func void BeginCameraMode(Camera2D *camera);
+api_func void EndCameraMode();
+api_func v2 CameraWorldToScreen(Camera2D *camera, v2 world);
+api_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen);
+api_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta);
+api_func v2 ScreenToRectCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 screenCoords);
+api_func v2 RectToScreenCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 rectCoords);
+api_func void CameraIncreaseLogZoom(Camera2D *camera, f32 zoomDelta);
+api_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int stepCount);
+api_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps);
+
+api_func SavImage SavLoadImage(const char *path);
+api_func void SavFreeImage(SavImage *image);
+api_func SavTexture SavLoadTexture(const char *path);
+api_func SavTexture SavLoadTextureFromImage(SavImage image);
+api_func SavTexture SavLoadTextureFromData(void *data, int width, int height);
+api_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode);
+api_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMode);
+api_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filterNearest);
+api_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture);
+api_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextureScreenRect);
+api_func void EndTextureMode();
+api_func void BindTextureSlot(int slot, SavTexture texture);
+api_func void UnbindTextureSlot(int slot);
+
+api_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount);
+api_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount);
+
+api_func void ClearBackground(SavColor c);
+api_func void BeginDraw();
+api_func void EndDraw();
+api_func void FlipTexCoords(v2 *texCoords);
+api_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords);
+api_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords);
+api_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color);
+api_func void DrawRect(Rect rect, SavColor color);
+api_func void SavSwapBuffers();
+
+api_func char *SavReadTextFile(const char *path);
+api_func void SavFreeString(char **text);
+
+api_func const char *TextFormat(const char *format, ...);
+api_func void TraceLog(const char *format, ...);
+api_func void TraceError(const char *format, ...);
+
+api_func int GetRandomValue(int min, int max);
+api_func f32 GetRandomFloat();
 
 #ifdef SAV_IMPLEMENTATION
 
@@ -363,18 +771,25 @@ void TraceError(const char *format, ...);
 #include <glad/glad.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <ctime>
 
+// SECTION SAV settings
 #define TIME_STAT_AVG_COUNT 32
 #define PRINT_FRAME_TIME_UTIL 0
 #define STRING_BUFFER 1024
 #define MVP_MATRIX_STACK_COUNT 32
 
+// SECTION Sav internal data
 struct SdlState
 {
     SDL_Window *window;
     v2 windowSize;
+    v2 windowOriginalSize;
     b32 windowSizeChanged;
     b32 shouldClose;
+    b32 borderless;
+    Rect windowRectBeforeBorderless;
 
     u64 perfCounterFreq;
     u64 lastCounter;
@@ -394,22 +809,32 @@ struct SdlState
 
 struct GlState
 {
-    sav_shader defaultShader;
-    u32 defaultVBO;
-    u32 defaultVAO;
-    u32 defaultEBO;
+    SavShader defaultShader;
+    u32 defaultVbo;
+    u32 defaultVao;
+    u32 defaultEbo;
     int maxVertexCount;
     int maxIndexCount;
-    u32 matricesUBO;
-    u32 matricesUBOBindingPoint;
+    u32 matricesUbo;
+    u32 matricesUboBindingPoint;
+
+    SavTexture defaultTexture;
 
     m4 projectionStack[MVP_MATRIX_STACK_COUNT];
     m4 modelViewStack[MVP_MATRIX_STACK_COUNT];
     int projectionStackCurrent;
     int modelViewStackCurrent;
 
+    b32 cameraModeActive;
+    b32 shaderModeActive;
+    b32 textureModeActive;
     b32 drawModeActive;
     b32 canDraw;
+
+    Rect currentRenderTextureScreenRect;
+    SavRenderTexture currentRenderTexture;
+
+    SavShader currentShader;
 };
 
 struct InputState
@@ -430,26 +855,51 @@ global_var SdlState _sdlState;
 global_var GlState _glState;
 global_var InputState _inputState;
 
-// Internal functions
-inline f64 getAvgDelta(f64 *samples, int sampleCount)
+internal_func void traceLogEngine(const char *severity, const char *format, ...)
 {
-    f64 accum = 0.0f;
-    for (int i = 0; i < sampleCount; i++)
-    {
-        accum += samples[i];
-    }
-    return accum / TIME_STAT_AVG_COUNT;
+    char formatBuf[STRING_BUFFER];
+    sprintf_s(formatBuf, "ENGINE: %s: [F %06zu] %s\n", severity, _sdlState.currentFrame, format);
+
+    va_list varArgs;
+    va_start(varArgs, format);
+    vprintf_s(formatBuf, varArgs);
+    va_end(varArgs);
 }
 
-void TraceLogEngine(const char *severity, const char *format, ...);
+internal_func void *win32AllocMemory(size_t size)
+{
+    void *memory = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (memory == NULL)
+    {
+        traceLogEngine("ERROR", "Win32: Could not VirtualAlloc (%zu bytes).\n", size);
+    }
+    return memory;
+}
 
-// Window fundamentals
-void InitWindow(const char *title, int width, int height)
+// SECTION Memory management
+api_func GameMemory AllocGameMemory(size_t size)
+{
+    GameMemory gameMemory;
+    gameMemory.size = size;
+    gameMemory.data = win32AllocMemory(gameMemory.size);
+    return gameMemory;
+}
+
+api_func MemoryArena AllocArena(size_t size)
+{
+    void *allocatedMemory = win32AllocMemory(size);
+    return MakeMemoryArena((u8 *)allocatedMemory, size);
+}
+
+internal_func SavShader buildBasicShader();
+
+// SECTION Window fundamentals
+api_func void InitWindow(const char *title, int width, int height)
 {
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
     {
         SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
-        
+
         SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -471,15 +921,20 @@ void InitWindow(const char *title, int width, int height)
                 InvalidCodePath;
             }
 
+            int actualWidth, actualHeight;
+            SDL_GetWindowSize(_sdlState.window, &actualWidth, &actualHeight);
+            _sdlState.windowSize = V2((f32) actualWidth, (f32) actualHeight);
+            _sdlState.windowOriginalSize = _sdlState.windowSize;
+
             SDL_GLContext glContext = SDL_GL_CreateContext(_sdlState.window);
 
             if (glContext)
             {
                 gladLoadGLLoader(SDL_GL_GetProcAddress);
-                TraceLogEngine("INFO", "OpenGL loaded");
-                TraceLogEngine("INFO", "Vendor: %s", glGetString(GL_VENDOR));
-                TraceLogEngine("INFO", "Renderer: %s", glGetString(GL_RENDERER));
-                TraceLogEngine("INFO", "Version: %s", glGetString(GL_VERSION));
+                traceLogEngine("INFO", "OpenGL loaded");
+                traceLogEngine("INFO", "Vendor: %s", glGetString(GL_VENDOR));
+                traceLogEngine("INFO", "Renderer: %s", glGetString(GL_RENDERER));
+                traceLogEngine("INFO", "Version: %s", glGetString(GL_VERSION));
 
                 _sdlState.perfCounterFreq = SDL_GetPerformanceFrequency();
 
@@ -487,39 +942,52 @@ void InitWindow(const char *title, int width, int height)
                 MMRESULT devCapsGetResult = timeGetDevCaps(&devCaps, sizeof(devCaps));
                 if (devCapsGetResult == MMSYSERR_NOERROR)
                 {
-                    TraceLogEngine("INFO", "Available DevCaps range: [%u, %u] ms", devCaps.wPeriodMin, devCaps.wPeriodMax);
+                    traceLogEngine("INFO", "Available DevCaps range: [%u, %u] ms", devCaps.wPeriodMin, devCaps.wPeriodMax);
                 }
 
                 _sdlState.desiredSchedulerMs = 1;
                 _sdlState.sleepIsGranular = (timeBeginPeriod(_sdlState.desiredSchedulerMs) == TIMERR_NOERROR);
-                TraceLogEngine("INFO", "Sleep is granular: %d", _sdlState.sleepIsGranular);
+                traceLogEngine("INFO", "Sleep is granular: %d", _sdlState.sleepIsGranular);
 
-                // TODO: Don't do the following things in this function
+                srand((unsigned) time(NULL));
+
+                // TODO: Don't blend mode in this function
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
                 u32 white = 0xFFFFFFFF;
                 SavTexture defaultTexture = SavLoadTextureFromData(&white, 1, 1);
-                _glState.defaultTextureId = defaultTexture.id;
+                _glState.defaultTexture = defaultTexture;
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
 
                 _glState.maxVertexCount = 65536;
                 _glState.maxIndexCount = 393216;
-                _glState.matricesUBOBindingPoint = 0;
-                PrepareGpuData(&_glState.defaultVBO,
-                               &_glState.defaultVAO,
-                               &_glState.defaultEBO,
-                               _glState.maxVertexCount,
-                               _glState.maxIndexCount,
-                               &_glState.matricesUBO,
-                               _glState.matricesUBOBindingPoint);
+                _glState.matricesUboBindingPoint = 0;
+                PrepareVertexBatch(&_glState.defaultVbo,
+                    &_glState.defaultVao,
+                    &_glState.defaultEbo,
+                    _glState.maxVertexCount,
+                    _glState.maxIndexCount);
 
-                _glState.defaultShader = BuildBasicShader();
+                size_t matricesUboSize = sizeof(m4);
+                glGenBuffers(1, &_glState.matricesUbo);
+                Assert(_glState.matricesUbo);
+                glBindBuffer(GL_UNIFORM_BUFFER, _glState.matricesUbo);
+                glBufferData(GL_UNIFORM_BUFFER, sizeof(m4), NULL, GL_DYNAMIC_DRAW);
+                glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+                glBindBufferBase(GL_UNIFORM_BUFFER, _glState.matricesUboBindingPoint, _glState.matricesUbo);
+
+                _glState.defaultShader = buildBasicShader();
                 _glState.currentShader = _glState.defaultShader;
-                UseProgram(_glState.currentShader.glid);
+                glUseProgram(_glState.currentShader.id);
                 SetShaderMatricesBindingPoint(_glState.defaultShader, "Matrices");
 
-                _glState.projectionStackCurr = -1;
-                _glState.modelViewStackCurr = -1;
+                // SetUniformI("texture0", 0);
+
+                _glState.projectionStackCurrent = -1;
+                _glState.modelViewStackCurrent = -1;
                 PushProjection(M4(1));
                 PushModelView(M4(1));
 
@@ -544,7 +1012,7 @@ void InitWindow(const char *title, int width, int height)
     }
 }
 
-void Quit()
+api_func void Quit()
 {
     if (_sdlState.sleepIsGranular)
     {
@@ -559,7 +1027,7 @@ void Quit()
     SDL_Quit();
 }
 
-void PollEvents()
+api_func void PollEvents()
 {
     for (int i = 0; i < SDL_NUM_SCANCODES; i++)
     {
@@ -635,15 +1103,25 @@ void PollEvents()
 }
 
 // Timing
-void SetTargetFPS(f32 fps)
+api_func void SetTargetFPS(f32 fps)
 {
     _sdlState.limitFps = true;
     _sdlState.targetFps = fps;
     _sdlState.targetDelta = 1.0 / _sdlState.targetFps;
-    TraceLogEngine("INFO", "Target FPS: %.0f (%.6f ms)", _sdlState.targetFps, _sdlState.targetDelta);
+    traceLogEngine("INFO", "Target FPS: %.0f (%.6f ms)", _sdlState.targetFps, _sdlState.targetDelta);
 }
 
-void BeginFrameTiming()
+internal_func inline f64 getAvgDelta(f64 *samples, int sampleCount)
+{
+    f64 accum = 0.0f;
+    for (int i = 0; i < sampleCount; i++)
+    {
+        accum += samples[i];
+    }
+    return accum / TIME_STAT_AVG_COUNT;
+}
+
+api_func void BeginFrameTiming()
 {
     if (_sdlState.lastCounter != 0)
     {
@@ -667,8 +1145,7 @@ void BeginFrameTiming()
     _sdlState.currentFrame++;
 }
 
-
-void EndFrameTiming()
+api_func void EndFrameTiming()
 {
     if (_sdlState.limitFps)
     {
@@ -677,7 +1154,7 @@ void EndFrameTiming()
 
         #if (PRINT_FRAME_TIME_UTIL == 1)
         f64 frameTimeUtilization = elapsedMs / _sdlState.targetDelta;
-        TraceLogEngine("INFO", "Frame time utilization: %f", frameTimeUtilization * 100.0);
+        traceLogEngine("INFO", "Frame time utilization: %f", frameTimeUtilization * 100.0);
         #endif
 
         u64 targetElapsed = (u64) (_sdlState.targetDelta * _sdlState.perfCounterFreq);
@@ -690,7 +1167,7 @@ void EndFrameTiming()
             counterElapsed = SDL_GetPerformanceCounter() - _sdlState.lastCounter;
             if (counterElapsed > targetElapsed)
             {
-                TraceLogEngine("WARNING", "SLEEP MISSED TARGET BY %f SEC", (f64) (counterElapsed - targetElapsed) / _sdlState.perfCounterFreq);
+                traceLogEngine("WARNING", "SLEEP MISSED TARGET BY %f SEC", (f64) (counterElapsed - targetElapsed) / _sdlState.perfCounterFreq);
             }
         }
 
@@ -701,27 +1178,27 @@ void EndFrameTiming()
     }
 }
 
-u64 GetCurrentFrame()
+api_func u64 GetCurrentFrame()
 {
     return _sdlState.currentFrame;
 }
 
-f64 GetDeltaFixed()
+api_func f64 GetDeltaFixed()
 {
     return _sdlState.targetDelta;
 }
 
-f64 GetDeltaPrev()
+api_func f64 GetDeltaPrev()
 {
     return _sdlState.prevDelta;
 }
 
-f64 GetDeltaAvg()
+api_func f64 GetDeltaAvg()
 {
     return _sdlState.avgDelta;
 }
 
-f64 GetFPSPrev()
+api_func f64 GetFPSPrev()
 {
     if (_sdlState.prevDelta > 0.0)
     {
@@ -733,7 +1210,7 @@ f64 GetFPSPrev()
     }
 }
 
-f64 GetFPSAvg()
+api_func f64 GetFPSAvg()
 {
     if (_sdlState.avgDelta > 0.0)
     {
@@ -746,27 +1223,27 @@ f64 GetFPSAvg()
 }
 
 // Window util
-b32 WindowShouldClose()
+api_func b32 WindowShouldClose()
 {
     return _sdlState.shouldClose;
 }
 
-void SetWindowTitle(const char *title)
+api_func void SetWindowTitle(const char *title)
 {
     SDL_SetWindowTitle(_sdlState.window, title);
 }
 
-v2 GetWindowSize()
+api_func v2 GetWindowSize()
 {
     return _sdlState.windowSize;
 }
 
-b32 WindowSizeChanged()
+api_func b32 WindowSizeChanged()
 {
     return _sdlState.windowSizeChanged;
 }
 
-void SetWindowBorderless(b32 borderless)
+api_func void SetWindowBorderless(b32 borderless)
 {
     if (borderless)
     {
@@ -795,87 +1272,658 @@ void SetWindowBorderless(b32 borderless)
     }
 }
 
-void ToggleWindowBorderless()
+api_func void ToggleWindowBorderless()
 {
     _sdlState.borderless = !_sdlState.borderless;
     SetWindowBorderless(_sdlState.borderless);
 }
 
 // Input
-b32 KeyDown(int key)
+api_func b32 KeyDown(int key)
 {
     return (b32) _inputState.currentKeyStates[key];
 }
 
-b32 KeyPressed(int key)
+api_func b32 KeyPressed(int key)
 {
     return (b32) (_inputState.currentKeyStates[key] && !_inputState.previousKeyStates[key]);
 }
 
-b32 KeyReleased(int key)
+api_func b32 KeyReleased(int key)
 {
     return (b32) (!_inputState.currentKeyStates[key] && _inputState.previousKeyStates[key]);
 }
 
-b32 KeyRepeat(int key)
+api_func b32 KeyRepeat(int key)
 {
     return (b32) _inputState.repeatKeyStates[key];
 }
 
-b32 KeyPressedOrRepeat(int key)
+api_func b32 KeyPressedOrRepeat(int key)
 {
     return (b32) ((_inputState.currentKeyStates[key] && !_inputState.previousKeyStates[key]) || _inputState.repeatKeyStates[key]);
 }
 
-b32 GetMouseRelativeMode()
+api_func b32 GetMouseRelativeMode()
 {
     return (b32) SDL_GetRelativeMouseMode();
 }
 
-void SetMouseRelativeMode(b32 enabled)
+api_func void SetMouseRelativeMode(b32 enabled)
 {
     _inputState.isRelMouse = enabled;
     SDL_SetRelativeMouseMode((SDL_bool) _inputState.isRelMouse);
 }
 
-v2 MousePos()
+api_func v2 MousePos()
 {
     return _inputState.mousePos;
 }
 
-v2 MouseRelPos()
+api_func v2 MouseRelPos()
 {
     return _inputState.mouseRelPos;
 }
 
-b32 MouseDown(int button)
+api_func b32 MouseDown(int button)
 {
     return (b32) _inputState.currentMouseButtonStates[button];
 }
 
-b32 MousePressed(int button)
+api_func b32 MousePressed(int button)
 {
     return (b32) (_inputState.currentMouseButtonStates[button] && !_inputState.previousMouseButtonStates[button]);
 }
 
-b32 MouseReleased(int button)
+api_func b32 MouseReleased(int button)
 {
     return (b32) (!_inputState.currentMouseButtonStates[button] && _inputState.previousMouseButtonStates[button]);
 }
 
-b32 MouseClicks(int button, int clicks)
+api_func b32 MouseClicks(int button, int clicks)
 {
     return (b32) (_inputState.clickMouseButtonStates[button] == clicks);
 }
 
-i32 MouseWheel()
+api_func i32 MouseWheel()
 {
     return _inputState.mouseWheel;
 }
 
-// Graphics
-void PrepareGpuData(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount,
-    u32 *matricesUbo, u32 matricesUboBindingPoint)
+// SECTION: Graphics: shaders
+internal_func u32 buildShadersFromStr(const char *vertSource, const char *fragSource)
+{
+    u32 vertShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertShader, 1, &vertSource, NULL);
+    glCompileShader(vertShader);
+
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertShader, 512, NULL, infoLog);
+        traceLogEngine("ERROR", "Vertex shader compilation error:\n%s\n\n", infoLog);
+    }
+
+    u32 fragShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragShader, 1, &fragSource, NULL);
+    glCompileShader(fragShader);
+
+    glGetShaderiv(fragShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragShader, 512, NULL, infoLog);
+        traceLogEngine("ERROR", "Fragment shader compilation error:\n%s\n\n", infoLog);
+    }
+
+    u32 program = glCreateProgram();
+    glAttachShader(program, vertShader);
+    glAttachShader(program, fragShader);
+    glLinkProgram(program);
+
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(program, 512, NULL, infoLog);
+        traceLogEngine("ERROR", "Linking error:\n%s\n\n", infoLog);
+    }
+    glDeleteShader(vertShader);
+    glDeleteShader(fragShader);
+
+    return program;
+}
+
+internal_func SavShader buildBasicShader()
+{
+    traceLogEngine("INFO", "Building basic shader program");
+
+    const char *vertSource =
+        "#version 330 core\n"
+        "layout (location = 0) in vec3 vertPosition;\n"
+        "layout (location = 1) in vec4 vertTexCoord;\n"
+        "layout (location = 2) in vec4 vertColor;\n"
+        "out vec4 fragTexCoord;\n"
+        "out vec4 fragColor;\n"
+        "layout (std140) uniform Matrices\n"
+        "{\n"
+        "   mat4 mvp;\n"
+        "};\n"
+        "void main()\n"
+        "{\n"
+        "   fragTexCoord = vertTexCoord;\n"
+        "   fragColor = vertColor;\n"
+        "   gl_Position = mvp * vec4(vertPosition, 1.0);\n"
+        "}\0";
+
+    const char *fragSource =
+        "#version 330 core\n"
+        "in vec4 fragTexCoord;\n"
+        "in vec4 fragColor;\n"
+        "out vec4 finalColor;\n"
+        "uniform sampler2D texture0;\n"
+        "void main()\n"
+        "{\n"
+        "   vec4 texelColor = texture(texture0, fragTexCoord.xy);\n"
+        "   finalColor = fragColor * texelColor;\n"
+        "}\n\0";
+
+    u32 shaderID = buildShadersFromStr(vertSource, fragSource);
+
+    SavShader result;
+    result.id = shaderID;
+    return result;
+}
+
+api_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath)
+{
+    traceLogEngine("INFO", "Building custom shader program with shaders: %s, %s", vertPath, fragPath);
+    
+    char *vertSource = SavReadTextFile(vertPath);
+    char *fragSource = SavReadTextFile(fragPath);
+
+    u32 shaderID = buildShadersFromStr(vertSource, fragSource);
+
+    SavFreeString(&vertSource);
+    SavFreeString(&fragSource);
+
+    SavShader result;
+    result.id = shaderID;
+
+    return result;
+}
+
+api_func void DeleteShader(SavShader *shader)
+{
+    glDeleteProgram(shader->id);
+    shader->id = 0;
+}
+
+api_func void BeginShaderMode(SavShader shader)
+{
+    Assert(!_glState.shaderModeActive);
+    _glState.currentShader = shader;
+    glUseProgram(_glState.currentShader.id);
+    _glState.shaderModeActive = true;
+}
+
+api_func void EndShaderMode()
+{
+    Assert(_glState.shaderModeActive);
+    _glState.currentShader = _glState.defaultShader;
+    glUseProgram(_glState.currentShader.id);
+    _glState.shaderModeActive = false;
+}
+
+api_func void SetShaderMatricesBindingPoint(SavShader shader, const char *uboName)
+{
+    u32 blockIndex = glGetUniformBlockIndex(shader.id, uboName);
+    glUniformBlockBinding(shader.id, blockIndex, _glState.matricesUboBindingPoint);
+}
+
+internal_func int getUniformLocation(u32 shader, const char *uniformName)
+{
+    int uniformLocation = glGetUniformLocation(_glState.currentShader.id, uniformName);
+
+    #ifdef SAV_DEBUG
+    if (uniformLocation == -1)
+    {
+        GLenum error = glGetError();
+        TraceLog("Failed to get uniform \"%s\" for ShaderID %d. Error code: %d", UniformName, shader, error);
+    }
+    #endif
+
+    return uniformLocation;
+}
+
+api_func void SetUniformMat4(const char *uniformName, f32 *value)
+{
+    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    glUniformMatrix4fv(uniformLocation, 1, false, value);
+}
+
+api_func void SetUniformVec3(const char *uniformName, f32 *value)
+{
+    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    glUniform3fv(uniformLocation, 1, value);
+}
+
+api_func void SetUniformVec4(const char *uniformName, f32 *value)
+{
+    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    glUniform4fv(uniformLocation, 1, value);
+}
+
+api_func void SetUniformI(const char *uniformName, int value)
+{
+    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    glUniform1i(uniformLocation, value);
+}
+
+// SECTION Graphics: MVP, Camera
+internal_func inline void setCurrentMvp()
+{
+    m4 mvp = _glState.projectionStack[_glState.projectionStackCurrent] * _glState.modelViewStack[_glState.modelViewStackCurrent];
+    
+    glBindBuffer(GL_UNIFORM_BUFFER, _glState.matricesUbo);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(m4), &mvp);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+api_func void PushProjection(m4 projection)
+{
+    Assert(_glState.projectionStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
+    _glState.projectionStack[++_glState.projectionStackCurrent] = projection;
+    setCurrentMvp();
+}
+
+api_func void PushModelView(m4 modelView)
+{
+    Assert(_glState.modelViewStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
+    _glState.modelViewStack[++_glState.modelViewStackCurrent] = modelView;
+    setCurrentMvp();
+}
+
+api_func void PopProjection()
+{
+    Assert(_glState.projectionStackCurrent > 0);
+    --_glState.projectionStackCurrent;
+    setCurrentMvp();
+}
+
+api_func void PopModelView()
+{
+    Assert(_glState.modelViewStackCurrent > 0);
+    --_glState.modelViewStackCurrent;
+    setCurrentMvp();
+}
+
+api_func void BeginCameraMode(Camera2D *camera)
+{
+    Assert(!_glState.cameraModeActive);
+    PushModelView(GetCamera2DView(camera->target, camera->zoom, camera->rotation, camera->offset));
+    _glState.cameraModeActive = true;
+}
+
+api_func void EndCameraMode()
+{
+    Assert(_glState.cameraModeActive);
+    PopModelView();
+    _glState.cameraModeActive = false;
+}
+
+api_func v2 CameraWorldToScreen(Camera2D *camera, v2 world)
+{
+    m4 view = GetCamera2DView(camera->target, camera->zoom, camera->rotation, camera->offset);
+    v4 result = view * V4(world.x, world.y, 0.0f, 1.0f);
+    return V2(result.x, result.y);
+}
+
+api_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen)
+{
+    m4 viewInv = GetCamera2DViewInv(camera->target, camera->zoom, camera->rotation, camera->offset);
+    v4 result = viewInv * V4(screen.x, screen.y, 0.0f, 1.0f);
+    return V2(result.x, result.y);
+}
+
+api_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta)
+{
+    m4 viewInvRel = GetCamera2DViewInvRel(camera->zoom, camera->rotation);
+    v4 result = viewInvRel * V4(screenDelta.x, screenDelta.y, 0.0f, 1.0f);
+    return V2(result.x, result.y);
+}
+
+api_func v2 ScreenToRectCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 screenCoords)
+{
+    v2 rectCoords = V2(((screenCoords.x - screenRect.x) / screenRect.w) * scaledW,
+        ((screenCoords.y - screenRect.y) / screenRect.h) * scaledH);
+    return rectCoords;
+}
+
+api_func v2 RectToScreenCoords(Rect screenRect, f32 scaledW, f32 scaledH, v2 rectCoords)
+{
+    v2 screenCoords = V2((rectCoords.x / scaledW) * screenRect.w + screenRect.x,
+        (rectCoords.y / scaledH) * screenRect.h + screenRect.y);
+    return screenCoords;
+}
+
+api_func void CameraIncreaseLogZoom(Camera2D *camera, f32 zoomDelta)
+{
+    camera->zoomLog += zoomDelta;
+    if (camera->zoomLog > 1.0f)
+    {
+        camera->zoomLog = 1.0f;
+    }
+    else if (camera->zoomLog < 0.0f)
+    {
+        camera->zoomLog = 0.0f;
+    }
+    camera->zoom = ExponentialInterpolation(camera->zoomMin, camera->zoomMax, camera->zoomLog);
+}
+
+api_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int stepCount)
+{
+    Assert(stepCount > 1 && stepCount < CAMERA_MAX_ZOOM_STEPS);
+    f32 stepDelta = 1.0f / (stepCount - 1);
+    f32 logZoomNeutral = ExponentialInterpolationWhereIs(min, max, 1.0f);
+
+    int iClosestToNeutral = 0;
+    f32 distToNeutral = FLT_MAX;
+
+    f32 currentDelta = 0.0f;
+    for (int i = 0; i < stepCount; i++)
+    {
+        f32 currDistToNeutral = fabs(currentDelta - logZoomNeutral);
+        if (currDistToNeutral < distToNeutral)
+        {
+            distToNeutral = currDistToNeutral;
+            iClosestToNeutral = i;
+        }
+
+        camera->zoomLogSteps[camera->zoomLogStepsCount++] = currentDelta;
+        currentDelta += stepDelta;
+    }
+
+    camera->zoomMin = min;
+    camera->zoomMax = max;
+    camera->zoomLogStepsCurrent = iClosestToNeutral;
+    camera->zoomLogSteps[iClosestToNeutral] = logZoomNeutral;
+    CameraIncreaseLogZoomSteps(camera, 0);
+}
+
+api_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps)
+{
+    camera->zoomLogStepsCurrent += steps;
+    if (camera->zoomLogStepsCurrent < 0) camera->zoomLogStepsCurrent = 0;
+    if (camera->zoomLogStepsCurrent > (camera->zoomLogStepsCount - 1)) camera->zoomLogStepsCurrent = (camera->zoomLogStepsCount - 1);
+    camera->zoom = ExponentialInterpolation(camera->zoomMin, camera->zoomMax, camera->zoomLogSteps[camera->zoomLogStepsCurrent]);
+}
+
+// SECTION: Image/texture loading
+api_func SavImage SavLoadImage(const char *path)
+{
+    SDL_Surface *originalSurface = IMG_Load(path);
+    if (!originalSurface)
+    {
+        const char *error = SDL_GetError();
+        traceLogEngine("ERROR", "Could not load image at %s:\n%s", path, error);
+        InvalidCodePath;
+    }
+    else
+    {
+        traceLogEngine("INFO", "Loaded image at %s", path);
+    }
+
+    SDL_Surface *rgbaSurface = SDL_ConvertSurfaceFormat(originalSurface, SDL_PIXELFORMAT_RGBA8888, 0);
+    SDL_FreeSurface(originalSurface);
+
+    if (rgbaSurface->pitch != rgbaSurface->format->BytesPerPixel * rgbaSurface->w)
+    {
+        traceLogEngine("ERROR", "SDL Loaded image, but format could not be converted.");
+        InvalidCodePath;
+    }
+
+    // NOTE: Flip rows of pixels, because opengl expects textures to have bottom rows first
+    {
+        SDL_Surface *surface = rgbaSurface;
+        char *pixels = (char *) surface->pixels;
+        for (int y = 0; y < surface->h / 2; y++)
+        {
+            for (int x = 0; x < surface->pitch; x++)
+            {
+                int oppY = surface->h - y  - 1;
+                char temp = pixels[oppY * surface->pitch + x];
+                pixels[oppY * surface->pitch + x] = pixels[y * surface->pitch + x];
+                pixels[y * surface->pitch + x] = temp;
+            }
+        }
+    }
+
+    SavImage image = {};
+    image.data = rgbaSurface->pixels;
+    image.w = rgbaSurface->w;
+    image.h = rgbaSurface->h;
+    image.pitch = rgbaSurface->pitch;
+    image._dataToFree = rgbaSurface;
+    return image;
+}
+
+api_func void SavFreeImage(SavImage *image)
+{
+    SDL_FreeSurface((SDL_Surface *) image->_dataToFree);
+    image->data = 0;
+    image->_dataToFree = 0;
+}
+
+api_func void SavSaveImage(const char *path, void *data, int width, int height, b32 flip, u32 rMask, u32 gMask, u32 bMask, u32 aMask)
+{
+    SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(data,
+                                                    width,
+                                                    height,
+                                                    32,
+                                                    width * 4,
+                                                    rMask,
+                                                    gMask,
+                                                    bMask,
+                                                    aMask);
+
+    // NOTE: Flip rows of pixels. Opengl gives pixels starting from left bottom corner
+    if (flip)
+    {
+        char *pixels = (char *) surface->pixels;
+        for (int y = 0; y < surface->h / 2; y++)
+        {
+            for (int x = 0; x < surface->pitch; x++)
+            {
+                int oppY = surface->h - y  - 1;
+                char Temp = pixels[oppY * surface->pitch + x];
+                pixels[oppY * surface->pitch + x] = pixels[y * surface->pitch + x];
+                pixels[y * surface->pitch + x] = Temp;
+            }
+        }
+    }
+    
+    if (IMG_SavePNG(surface, path) != 0)
+    {
+        TraceLog("SDL failed to save image to %s", path);
+    }
+}
+
+api_func SavTexture SavLoadTexture(const char *path)
+{
+    SavImage image = SavLoadImage(path);
+    SavTexture texture = SavLoadTextureFromImage(image);
+    SavFreeImage(&image);
+    return texture;
+}
+
+api_func SavTexture SavLoadTextureFromImage(SavImage image)
+{
+    return SavLoadTextureFromData(image.data, image.w, image.h);
+}
+
+api_func SavTexture SavLoadTextureFromData(void *data, int width, int height)
+{
+    u32 id;
+    glGenTextures(1, &id);
+    Assert(id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, data);
+
+    // TODO: Set these dynamically
+    // glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // ---------
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    SavTexture texture = {};
+    texture.id = id;
+    texture.w = width;
+    texture.h = height;
+    return texture;
+}
+
+api_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode)
+{
+    glBindTexture(GL_TEXTURE_2D, texture.id);
+    switch (wrapMode)
+    {
+        case SAV_CLAMP_TO_EDGE:
+        {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        } break;
+
+        case SAV_REPEAT:
+        {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        } break;
+
+        default: break;
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+api_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMode)
+{
+    glBindTexture(GL_TEXTURE_2D, texture.id);
+    switch (filterMode)
+    {
+        case SAV_LINEAR:
+        {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        } break;
+
+        case SAV_NEAREST:
+        {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        } break;
+
+        default: break;
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+api_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filterNearest)
+{
+    u32 fbo;
+    u32 texture;
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    GLenum filterType = filterNearest ? GL_NEAREST : GL_LINEAR;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterType);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterType);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+    u32 depthRbo;
+    glGenRenderbuffers(1, &depthRbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthRbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width,  height);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRbo);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        traceLogEngine("ERROR", "GL Framebuffer is not complete.");
+        InvalidCodePath;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    SavRenderTexture renderTexture;
+    renderTexture.fbo = fbo;
+    renderTexture.depthRbo = depthRbo;
+    renderTexture.texture.id = texture;
+    renderTexture.texture.w = width;
+    renderTexture.texture.h = height;
+    return renderTexture;
+}
+
+api_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture)
+{
+    glDeleteTextures(1, &renderTexture->texture.id);
+    glDeleteRenderbuffers(1, &renderTexture->depthRbo);
+    glDeleteFramebuffers(1, &renderTexture->fbo);
+
+    renderTexture->fbo = 0;
+    renderTexture->depthRbo = 0;
+    renderTexture->texture.id = 0;
+    renderTexture->texture.w = 0;
+    renderTexture->texture.h = 0;
+}
+
+api_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextureScreenRect)
+{
+    Assert(!_glState.textureModeActive);
+    Assert(!_glState.drawModeActive);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderTexture.fbo);
+    glViewport(0, 0, renderTexture.texture.w, renderTexture.texture.h);
+    PushProjection(GetOrthographicProjection(0.0f,
+                                             (f32) renderTexture.texture.w,
+                                             (f32) renderTexture.texture.h,
+                                             0.0f, -1.0f, 1.0f));
+    _glState.textureModeActive = true;
+    _glState.currentRenderTextureScreenRect = renderTextureScreenRect;
+    _glState.currentRenderTexture = renderTexture;
+    _glState.canDraw = true;
+}
+
+api_func void EndTextureMode()
+{
+    Assert(_glState.textureModeActive);
+    PopProjection(); 
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    _glState.textureModeActive = false;
+    _glState.canDraw = false;
+}
+
+api_func void BindTextureSlot(int slot, SavTexture texture)
+{
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(GL_TEXTURE_2D, texture.id);
+}
+
+api_func void UnbindTextureSlot(int slot)
+{
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
+}
+
+// SECTION Graphics: batch
+api_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount)
 {
     size_t BytesPerVertex = (3 + 4 + 4) * sizeof(float);
     
@@ -903,92 +1951,183 @@ void PrepareGpuData(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndex
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    size_t matricesUboSize = sizeof(m4);
-    glGenBuffers(1, matricesUbo);
-    Assert(*matricesUbo);
-    glBindBuffer(GL_UNIFORM_BUFFER, *matricesUbo);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(m4), NULL, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    glBindBufferBase(GL_UNIFORM_BUFFER, matricesUboBindingPoint, *matricesUbo);
 }
 
-void setCurrentMvp()
+api_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount)
 {
-    m4 mvp = _glState.projectionStack[_glState.projectionStackCurrent] * _glState.modelViewStack[_glState.modelViewStackCurrent];
-    
-    glBindBuffer(GL_UNIFORM_BUFFER, _glState.matricesUBO);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(m4), &mvp);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    Assert(_glState.canDraw);
+    Assert(positions);
+    Assert(texCoords);
+    Assert(colors);
+    Assert(vertexCount > 0);
+    Assert(vertexCount < _glState.maxVertexCount);
+    Assert(indexCount < _glState.maxIndexCount);
+
+    glBindBuffer(GL_ARRAY_BUFFER, _glState.defaultVbo);
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * sizeof(v3), positions);
+    glBufferSubData(GL_ARRAY_BUFFER, _glState.maxVertexCount * sizeof(v3), vertexCount * sizeof(v4), texCoords);
+    glBufferSubData(GL_ARRAY_BUFFER, _glState.maxVertexCount * (sizeof(v3) + sizeof(v4)), vertexCount * sizeof(v4), colors);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _glState.defaultEbo);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indexCount * sizeof(u32), indices);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    glBindVertexArray(_glState.defaultVao);
+    glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
 
-void PushProjection(m4 projection)
+// SECTION Graphics: drawing
+api_func void ClearBackground(SavColor c)
 {
-    Assert(_glState.projectionStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
-    _glState.projectionStack[++_glState.projectionStackCurrent] = projection;
-    setCurrentMvp();
+    v4 cv4 = GetColorV4(c);
+    glClearColor(cv4.r, cv4.g, cv4.b, cv4.a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
-void PushModelView(m4 modelView)
-{
-    Assert(_glState.modelViewStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
-    _glState.modelViewStack[++_glState.modelViewStackCurrent] = modelView;
-    setCurrentMvp();
-}
-
-void PopProjection()
-{
-    Assert(_glState.projectionStackCurrent > 0);
-    --_glState.projectionStackCurrent;
-    setCurrentMvp();
-}
-
-void PopModelView()
-{
-    Assert(_glState.modelViewStackCurrent > 0);
-    --_glState.modelViewStackCurrent;
-    setCurrentMvp();
-}
-
-void BeginDraw()
+api_func void BeginDraw()
 {
     Assert(!_glState.drawModeActive);
 
-    glViewport(0, 0, (int) _sdlState.windowSize.x, (int) _sdlState.windowSize.y);
-    PushProjection(
-        GetOrthographicProjection(
-            0.0f,
-            _sdlState.windowSize.x,
-            _sdlState.windowSize.y,
-            0.0f, -1.0f, 1.0f)
-    );
+    glViewport(0, 0, (i32) _sdlState.windowSize.x, (i32) _sdlState.windowSize.y);
+    m4 orthoProjection = GetOrthographicProjection(
+        0.0f,
+        _sdlState.windowSize.x,
+        _sdlState.windowSize.y,
+        0.0f, -1.0f, 1.0f);
+    PushProjection(orthoProjection);
 
     _glState.drawModeActive = true;
     _glState.canDraw = true;
 }
 
-void DrawTexture()
-{
-}
-
-void EndDraw()
+api_func void EndDraw()
 {
     Assert(_glState.drawModeActive);
-
     PopProjection();
-
-    _glState.drawModeActive = true;
+    _glState.drawModeActive = false;
     _glState.canDraw = false;
 }
 
-void SavSwapBuffers()
+api_func void FlipTexCoords(v2 *texCoords)
+{
+    for (int i = 0; i < 4; i++)
+    {
+        texCoords[i].y = 1.0f - texCoords[i].y;
+    }
+}
+
+api_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords)
+{
+    f32 oneOverWidth = 1.0f / texture.w;
+    f32 oneOverHeight = 1.0f / texture.h;
+
+    for (int i = 0; i < 4; i++)
+    {
+        texCoords[i].x *= oneOverWidth;
+        texCoords[i].y *= oneOverHeight;
+    }
+}
+
+api_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords)
+{
+    RectGetPoints(rect, texCoords);
+    NormalizeTexCoords(texture, texCoords);
+    FlipTexCoords(texCoords);
+}
+
+api_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color)
+{
+    v3 absOrigin = V3(dest.x, dest.y, 0.0f);
+    
+    dest.x -= origin.x;
+    dest.y -= origin.y;
+    
+    v3 positions[4];
+    RectGetPoints(dest, positions);
+    if (rotation != 0.0f)
+    {
+        Rotate4PointsAroundOrigin(positions, absOrigin, rotation);
+    }
+    v2 texCoords[4];
+    GetTexCoordsForTex(texture, source, texCoords);
+    v4 texCoordsV4[4];
+    for (size_t i = 0; i < ArrayCount(texCoords); i++)
+    {
+        texCoordsV4[i] = V4(texCoords[i].x, texCoords[i].y, 0, 0);
+    }
+    v4 cv4 = GetColorV4(color);
+    v4 colors[] = { cv4, cv4, cv4, cv4 };
+    u32 indices[] = { 0, 1, 2, 2, 3, 0 };
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture.id);
+
+    DrawVertexBatch(positions, texCoordsV4, colors, indices, ArrayCount(positions), ArrayCount(indices));
+
+    glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
+}
+
+api_func void DrawRect(Rect rect, SavColor color)
+{
+    v3 positions[4];
+    RectGetPoints(rect, positions);
+    v4 texCoords[4] = {};
+    v4 cv4 = GetColorV4(color);
+    v4 colors[] = { cv4, cv4, cv4, cv4 };
+    u32 indices[] = { 0, 1, 2, 2, 3, 0 };
+
+    DrawVertexBatch(positions, texCoords, colors, indices, ArrayCount(positions), ArrayCount(indices));
+}
+
+api_func void SavSwapBuffers()
 {
     SDL_GL_SwapWindow(_sdlState.window);
 }
 
-// Util
-const char *TextFormat(const char *format, ...)
+// SECTION File IO
+api_func char *SavReadTextFile(const char *path)
+{
+    FILE *file;
+    fopen_s(&file, path, "rb");
+    if (file)
+    {
+        fseek(file, 0, SEEK_END);
+        size_t fileSize = ftell(file);
+        Assert(fileSize > 0);
+        fseek(file, 0, SEEK_SET);
+        char *result = (char *) malloc(fileSize + 1);
+        if (result)
+        {
+            size_t elementsRead = fread(result, fileSize, 1, file);
+            Assert(elementsRead == 1);
+            result[fileSize] = '\0';
+            fclose(file);
+            return result;
+        }
+        else
+        {
+            traceLogEngine("ERROR", "Failed to alloc memory when reading file at %s", path);
+        }
+    }
+    else
+    {
+        traceLogEngine("ERROR", "Failed to open file at %s", path);
+    }
+    return 0;
+}
+
+api_func void SavFreeString(char **text)
+{
+    free(*text);
+    *text = 0;
+}
+
+// SECTION Util
+api_func const char *TextFormat(const char *format, ...)
 {
     // TODO: There are quite a few cases where this won't work, maybe do as macro
     local_persist char result[STRING_BUFFER];
@@ -1001,7 +2140,7 @@ const char *TextFormat(const char *format, ...)
     return result;
 }
 
-void TraceLog(const char *format, ...)
+api_func void TraceLog(const char *format, ...)
 {
     char formatBuf[STRING_BUFFER];
     sprintf_s(formatBuf, "GAME: INFO: [F %06zu] %s\n", _sdlState.currentFrame, format);
@@ -1012,7 +2151,7 @@ void TraceLog(const char *format, ...)
     va_end(varArgs);
 }
 
-void TraceError(const char *format, ...)
+api_func void TraceError(const char *format, ...)
 {
     char formatBuf[STRING_BUFFER];
     sprintf_s(formatBuf, "GAME: ERROR: [F %06zu] %s\n", _sdlState.currentFrame, format);
@@ -1023,15 +2162,19 @@ void TraceError(const char *format, ...)
     va_end(varArgs);
 }
 
-void TraceLogEngine(const char *severity, const char *format, ...)
+// SECTION Random
+api_func int GetRandomValue(int min, int max)
 {
-    char formatBuf[STRING_BUFFER];
-    sprintf_s(formatBuf, "ENGINE: %s: [F %06zu] %s\n", severity, _sdlState.currentFrame, format);
-    
-    va_list varArgs;
-    va_start(varArgs, format);
-    vprintf_s(formatBuf, varArgs);
-    va_end(varArgs);
+    if (max - min <= 0)
+    {
+        return 0;
+    }
+    return (min + rand() % (max - min));
+}
+
+api_func f32 GetRandomFloat()
+{
+    return (rand() / (f32) RAND_MAX);
 }
 
 #endif
