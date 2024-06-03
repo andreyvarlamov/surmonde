@@ -31,6 +31,12 @@ api_func void DrawLevel(Level *level)
         i32 tileX = i % level->w;
         i32 tileY = i / level->h;
         Rect destRect = MakeRect(tileX * level->tilePxW, tileY * level->tilePxH, level->tilePxW, level->tilePxH);
-        DrawAtlasCell(*level->atlas, tileVal % 16, tileVal / 16, SAV_COLOR_CROWBLACK, SAV_COLOR_ASHGRAY, destRect);
+
+        // SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY
+        // SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT
+        // SAV_COLOR_SABLE, SAV_COLOR_LIGHTGOLDENRODYELLOW
+        DrawAtlasCell(*level->atlas, tileVal % 16, tileVal / 16, SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY, destRect);
+
+        // DrawAtlasTileMap(*level->atlas, level->tiles, level->tilesBg, level->tilesFg, level->tilePxW, level->tilePxH);
     }
 }
