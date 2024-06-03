@@ -1018,9 +1018,10 @@ internal_func void initGlDefaults()
 // SECTION Window fundamentals
 sav_func void InitWindow(const char *title, int width, int height)
 {
-    _sdlState = (SdlState *)win32AllocMemory(sizeof(SdlState));
-    _glState = (GlState *)win32AllocMemory(sizeof(GlState));
-    _inputState = (InputState *)win32AllocMemory(sizeof(InputState));
+    // TODO: Let user provide memory (maybe optionally!)
+    _sdlState = (SdlState *)calloc(1, sizeof(SdlState));
+    _glState = (GlState *)calloc(1, sizeof(GlState));
+    _inputState = (InputState *)calloc(1, sizeof(InputState));
 
     if (_sdlState == NULL || _glState == NULL || _inputState == NULL)
     {
