@@ -678,6 +678,54 @@ struct Camera2D
     int zoomLogStepsCount;
 };
 
+enum VertexAttribType
+{
+    SAV_VA_TYPE_FLOAT,
+    SAV_VA_TYPE_INT
+};
+
+struct VertexAttrib
+{
+    b32 isEnabled;
+    b32 isInteger;
+    int componentCount;
+    VertexAttribType type;
+    size_t byteSize;
+    size_t byteOffset;
+};
+
+#define VERTEX_BATCH_MAX_ATTRIB 16
+struct VertexBatchSpec
+{
+    VertexAttrib attribs[VERTEX_BATCH_MAX_ATTRIB];
+    int attribMax;
+    size_t vertBufferByteSize;
+    int vertMax;
+
+    int indexMax;
+    size_t indexByteSize;
+};
+
+struct VertexBatch
+{
+    VertexBatchSpec spec;
+    u32 vbo;
+    u32 vao;
+    u32 ebo;
+
+    b32 dataSubStarted;
+    b32 ready;
+    int vertCount;
+    int indexCount;
+};
+
+struct VertexCountedData
+{
+    void *data;
+    size_t elemSize;
+    size_t elemCount;
+};
+
 sav_func GameMemory AllocGameMemory(size_t size);
 sav_func MemoryArena AllocArena(size_t size);
 
@@ -757,8 +805,16 @@ sav_func void EndTextureMode();
 sav_func void BindTextureSlot(int slot, SavTexture texture);
 sav_func void UnbindTextureSlot(int slot);
 
-sav_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount);
-sav_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount);
+sav_func VertexBatchSpec BeginVertexBatchSpec(int vertMax, int indexMax, size_t indexByteSize);
+sav_func void VertexBatchSpecAddAttrib(VertexBatchSpec *spec, int attribIndex, b32 isInteger, int componentCount, VertexAttribType type, size_t byteSize);
+sav_func void EndVertexBatchSpec(VertexBatchSpec *spec);
+sav_func VertexBatch PrepareVertexBatch(VertexBatchSpec spec);
+sav_func void VertexBatchBeginSub(VertexBatch *batch, int vertCount, int indexCount);
+sav_func VertexCountedData MakeVertexCountedData(void *data, size_t elemSize, size_t elemCount);
+sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, VertexCountedData data);
+sav_func void VertexBatchSubIndexData(VertexBatch *batch, VertexCountedData data);
+sav_func void VertexBatchEndSub(VertexBatch *batch);
+sav_func void DrawVertexBatch(VertexBatch *batch);
 
 sav_func void ClearBackground(SavColor c);
 sav_func void BeginDraw();
@@ -829,11 +885,7 @@ struct SdlState
 struct GlState
 {
     SavShader defaultShader;
-    u32 defaultVbo;
-    u32 defaultVao;
-    u32 defaultEbo;
-    int maxVertexCount;
-    int maxIndexCount;
+    VertexBatch defaultVertexBatch;
     u32 matricesUbo;
     u32 matricesUboBindingPoint;
 
@@ -912,6 +964,56 @@ sav_func MemoryArena AllocArena(size_t size)
 
 internal_func SavShader buildBasicShader();
 
+#define DEFAULT_BATCH_MAX_VERT_COUNT 65536
+#define DEFAULT_BATCH_MAX_INDEX_COUNT 393216
+
+enum DefaultVertAttribs
+{
+    POSITIONS = 0,
+    TEXCOORDS,
+    COLORS
+};
+
+internal_func void initGlDefaults()
+{
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    u32 white = 0xFFFFFFFF;
+    SavTexture defaultTexture = SavLoadTextureFromData(&white, 1, 1);
+    _glState.defaultTexture = defaultTexture;
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
+
+    VertexBatchSpec defaultSpec = BeginVertexBatchSpec(DEFAULT_BATCH_MAX_VERT_COUNT, DEFAULT_BATCH_MAX_INDEX_COUNT, sizeof(u32));
+    VertexBatchSpecAddAttrib(&defaultSpec, POSITIONS, false, 3, SAV_VA_TYPE_FLOAT, sizeof(v3));
+    VertexBatchSpecAddAttrib(&defaultSpec, TEXCOORDS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
+    VertexBatchSpecAddAttrib(&defaultSpec, COLORS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
+    EndVertexBatchSpec(&defaultSpec);
+    _glState.defaultVertexBatch = PrepareVertexBatch(defaultSpec);
+
+    _glState.matricesUboBindingPoint = 0;
+    size_t matricesUboSize = sizeof(m4);
+    glGenBuffers(1, &_glState.matricesUbo);
+    Assert(_glState.matricesUbo);
+    glBindBuffer(GL_UNIFORM_BUFFER, _glState.matricesUbo);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(m4), NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    glBindBufferBase(GL_UNIFORM_BUFFER, _glState.matricesUboBindingPoint, _glState.matricesUbo);
+
+    _glState.defaultShader = buildBasicShader();
+    _glState.currentShader = _glState.defaultShader;
+    glUseProgram(_glState.currentShader.id);
+    SetShaderMatricesBindingPoint(_glState.defaultShader, "Matrices");
+
+    _glState.projectionStackCurrent = -1;
+    _glState.modelViewStackCurrent = -1;
+    PushProjection(M4(1));
+    PushModelView(M4(1));
+
+    SDL_GL_SetSwapInterval(0);
+}
+
 // SECTION Window fundamentals
 sav_func void InitWindow(const char *title, int width, int height)
 {
@@ -970,47 +1072,7 @@ sav_func void InitWindow(const char *title, int width, int height)
 
                 srand((unsigned) time(NULL));
 
-                // TODO: Don't blend mode in this function
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-                u32 white = 0xFFFFFFFF;
-                SavTexture defaultTexture = SavLoadTextureFromData(&white, 1, 1);
-                _glState.defaultTexture = defaultTexture;
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
-
-                _glState.maxVertexCount = 65536;
-                _glState.maxIndexCount = 393216;
-                _glState.matricesUboBindingPoint = 0;
-                PrepareVertexBatch(&_glState.defaultVbo,
-                    &_glState.defaultVao,
-                    &_glState.defaultEbo,
-                    _glState.maxVertexCount,
-                    _glState.maxIndexCount);
-
-                size_t matricesUboSize = sizeof(m4);
-                glGenBuffers(1, &_glState.matricesUbo);
-                Assert(_glState.matricesUbo);
-                glBindBuffer(GL_UNIFORM_BUFFER, _glState.matricesUbo);
-                glBufferData(GL_UNIFORM_BUFFER, sizeof(m4), NULL, GL_DYNAMIC_DRAW);
-                glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-                glBindBufferBase(GL_UNIFORM_BUFFER, _glState.matricesUboBindingPoint, _glState.matricesUbo);
-
-                _glState.defaultShader = buildBasicShader();
-                _glState.currentShader = _glState.defaultShader;
-                glUseProgram(_glState.currentShader.id);
-                SetShaderMatricesBindingPoint(_glState.defaultShader, "Matrices");
-
-                // SetUniformI("texture0", 0);
-
-                _glState.projectionStackCurrent = -1;
-                _glState.modelViewStackCurrent = -1;
-                PushProjection(M4(1));
-                PushModelView(M4(1));
-
-                SDL_GL_SetSwapInterval(0);
+                initGlDefaults();
             }
             else
             {
@@ -1953,37 +2015,7 @@ sav_func void UnbindTextureSlot(int slot)
 }
 
 // SECTION Graphics: batch
-
-#if 0
-enum VertexAttribType
-{
-    SAV_VA_TYPE_FLOAT,
-    SAV_VA_TYPE_INT
-};
-
-struct VertexAttrib
-{
-    b32 isEnabled;
-    b32 isInteger;
-    int componentCount;
-    VertexAttribType type;
-    size_t byteSize;
-    size_t byteOffset;
-};
-
-#define VERTEX_BATCH_MAX_ATTRIB 16
-struct VertexBatchSpec
-{
-    VertexAttrib attribs[VERTEX_BATCH_MAX_ATTRIB];
-    int attribMax;
-    size_t vertBufferByteSize;
-    int vertMax;
-
-    int indexMax;
-    size_t indexByteSize;
-};
-
-api_func VertexBatchSpec BeginVertexBatchSpec(int vertMax, int indexMax, size_t indexByteSize)
+sav_func VertexBatchSpec BeginVertexBatchSpec(int vertMax, int indexMax, size_t indexByteSize)
 {
     VertexBatchSpec spec = {};
     spec.attribMax = VERTEX_BATCH_MAX_ATTRIB;
@@ -1993,7 +2025,7 @@ api_func VertexBatchSpec BeginVertexBatchSpec(int vertMax, int indexMax, size_t 
     return spec;
 }
 
-api_func void VertexBatchSpecAddAttrib(VertexBatchSpec *spec, int attribIndex, b32 isInteger, int componentCount, VertexAttribType type, size_t byteSize)
+sav_func void VertexBatchSpecAddAttrib(VertexBatchSpec *spec, int attribIndex, b32 isInteger, int componentCount, VertexAttribType type, size_t byteSize)
 {
     Assert(spec != NULL);
     Assert(spec->vertMax > 0);
@@ -2010,7 +2042,7 @@ api_func void VertexBatchSpecAddAttrib(VertexBatchSpec *spec, int attribIndex, b
     attrib->byteSize = byteSize;
 }
 
-api_func void EndVertexBatchSpec(VertexBatchSpec *spec)
+sav_func void EndVertexBatchSpec(VertexBatchSpec *spec)
 {
     size_t byteOffset = 0;
     for (int i = 0; i < spec->attribMax; i++)
@@ -2024,19 +2056,6 @@ api_func void EndVertexBatchSpec(VertexBatchSpec *spec)
     }
     spec->vertBufferByteSize = byteOffset;
 }
-
-struct VertexBatch
-{
-    VertexBatchSpec spec;
-    u32 vbo;
-    u32 vao;
-    u32 ebo;
-
-    b32 dataSubStarted;
-    b32 ready;
-    int vertCount;
-    int indexCount;
-};
 
 internal_func void genBuffers(VertexBatch *batch, b32 genEbo)
 {
@@ -2080,7 +2099,7 @@ internal_func GLenum getGlAttribType(VertexAttribType type)
     {
         case SAV_VA_TYPE_FLOAT: return GL_FLOAT;
         case SAV_VA_TYPE_INT: return GL_INT;
-        default: InvalidCodePath;
+        default: InvalidCodePath; return 0;
     }
 }
 
@@ -2093,18 +2112,18 @@ internal_func void configureGlVertAttribs(VertexBatchSpec spec)
         {
             if (!attrib->isInteger)
             {
-                glVertexAttribPointer(i, attrib->componentCount, getGlAttribType(attrib->type), GL_FALSE, attrib->byteSize, attrib->byteOffset);
+                glVertexAttribPointer(i, attrib->componentCount, getGlAttribType(attrib->type), GL_FALSE, attrib->byteSize, (void *)attrib->byteOffset);
             }
             else
             {
-                glVertexAttribIPointer(i, attrib->componentCount, getGlAttribType(attrib->type), attrib->byteSize, attrib->byteOffset);
+                glVertexAttribIPointer(i, attrib->componentCount, getGlAttribType(attrib->type), attrib->byteSize, (void *)attrib->byteOffset);
             }
             glEnableVertexAttribArray(i);
         }
     }
 }
 
-sav_func VertexBatch PrepareVertexBatch2(VertexBatchSpec spec)
+sav_func VertexBatch PrepareVertexBatch(VertexBatchSpec spec)
 {
     VertexBatch batch = {};
     batch.spec = spec;
@@ -2137,19 +2156,12 @@ sav_func void VertexBatchBeginSub(VertexBatch *batch, int vertCount, int indexCo
     bindBatch(batch);
 }
 
-struct VertexCountedData
-{
-    void *data;
-    size_t elemSize;
-    size_t elemCount;
-};
-
-sav_func VertexCoutnedData MakeVertexCountedData(void *data, size_t elemSize, size_t elemCount)
+sav_func VertexCountedData MakeVertexCountedData(void *data, size_t elemCount, size_t elemSize)
 {
     VertexCountedData result;
     result.data = data;
-    result.elemSize = elemSize;
     result.elemCount = elemCount;
+    result.elemSize = elemSize;
     return result;
 }
 
@@ -2160,7 +2172,7 @@ sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, Vert
     Assert(!batch->ready);
     Assert(attribIndex >= 0 && attribIndex < batch->spec.attribMax);
 
-    VertexAttrib *attrib = batch->spec + attribIndex;
+    VertexAttrib *attrib = batch->spec.attribs + attribIndex;
     Assert(attrib->isEnabled);
 
     size_t dataSize = batch->vertCount * attrib->byteSize;
@@ -2189,20 +2201,25 @@ sav_func void VertexBatchEndSub(VertexBatch *batch)
     Assert(batch != NULL);
     Assert(batch->dataSubStarted);
 
+    batch->dataSubStarted = false;
     batch->ready = true;
 
     bindBatch(NULL);
 }
 
-sav_func void DrawVertexBatch2(VertexBatch *batch)
+sav_func void DrawVertexBatch(VertexBatch *batch)
 {
     Assert(_glState.canDraw);
     Assert(batch->ready);
 
-    // TODO: If not using indices
+    Assert(batch->indexCount > 0); // TODO: Handle no ebo case
     glBindVertexArray(batch->vao);
     glDrawElements(GL_TRIANGLES, batch->indexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+
+    batch->ready = false;
+    batch->vertCount = 0;
+    batch->indexCount = 0;
 }
 
 #if 0
@@ -2241,7 +2258,7 @@ void Example()
     VertexBatchSpecAddAttrib(&spec, COLORS2, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
     EndVertexBatchSpec(&spec);
     // Init buffers on GPU
-    VertexBatch batch = PrepareVertexBatch2(spec);
+    VertexBatch batch = PrepareVertexBatch(spec);
 
     // FRAME
     while (true)
@@ -2253,78 +2270,20 @@ void Example()
         v4 colors2[EXAMPLE_VERT_COUNT] = {};
         u32 indices[EXAMPLE_INDEX_COUNT] = {};
 
-        // Sub data for this frame
+        // Sub data for this frame (attribs can be out of order)
         VertexBatchBeginSub(&batch, ArrayCount(positions), ArrayCount(indices));
         VertexBatchSubVertexData(&batch, COLORS1, MakeVertexCountedData(colors1, ArrayCount(colors1), sizeof(colors1[0])));
         VertexBatchSubVertexData(&batch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
         VertexBatchSubVertexData(&batch, TEXCOORDS, MakeVertexCountedData(texCoords, ArrayCount(texCoords), sizeof(texCoords[0])));
         VertexBatchSubVertexData(&batch, COLORS2, MakeVertexCountedData(colors2, ArrayCount(colors2), sizeof(colors2[0])));
+        VertexBatchSubIndexData(&batch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
         VertexBatchEndSub(&batch);
 
         // Issue draw calls (1)
-        DrawVertexBatch2(&batch);
+        DrawVertexBatch(&batch);
     }
 }
 #endif
-
-#endif
-
-sav_func void PrepareVertexBatch(u32 *vbo, u32 *vao, u32 *ebo, int maxVertCount, int maxIndexCount)
-{
-    size_t bytesPerVertex = (3 + 4 + 4) * sizeof(float);
-    
-    glGenVertexArrays(1, vao);
-    Assert(*vao);
-                    
-    glGenBuffers(1, vbo);
-    Assert(*vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-    glBufferData(GL_ARRAY_BUFFER, maxVertCount * bytesPerVertex, NULL, GL_DYNAMIC_DRAW);
-
-    glBindVertexArray(*vao);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(v3), 0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(v4), (void *) (maxVertCount * sizeof(v3)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(v4), (void *) (maxVertCount * (sizeof(v3) + sizeof(v4))));
-    glEnableVertexAttribArray(2);
-
-    glGenBuffers(1, ebo);
-    Assert(*ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, maxIndexCount * sizeof(u32), NULL, GL_DYNAMIC_DRAW);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
-
-sav_func void DrawVertexBatch(v3 *positions, v4 *texCoords, v4 *colors, u32 *indices, int vertexCount, int indexCount)
-{
-    Assert(_glState.canDraw);
-    Assert(positions);
-    Assert(texCoords);
-    Assert(colors);
-    Assert(vertexCount > 0);
-    Assert(vertexCount < _glState.maxVertexCount);
-    Assert(indexCount < _glState.maxIndexCount);
-
-    glBindBuffer(GL_ARRAY_BUFFER, _glState.defaultVbo);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * sizeof(v3), positions);
-    glBufferSubData(GL_ARRAY_BUFFER, _glState.maxVertexCount * sizeof(v3), vertexCount * sizeof(v4), texCoords);
-    glBufferSubData(GL_ARRAY_BUFFER, _glState.maxVertexCount * (sizeof(v3) + sizeof(v4)), vertexCount * sizeof(v4), colors);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _glState.defaultEbo);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indexCount * sizeof(u32), indices);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    glBindVertexArray(_glState.defaultVao);
-    glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
 
 // SECTION Graphics: drawing
 sav_func void ClearBackground(SavColor c)
@@ -2414,10 +2373,17 @@ sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin,
     v4 colors[] = { cv4, cv4, cv4, cv4 };
     u32 indices[] = { 0, 1, 2, 2, 3, 0 };
 
+    VertexBatchBeginSub(&_glState.defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
+    VertexBatchSubVertexData(&_glState.defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
+    VertexBatchSubVertexData(&_glState.defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoordsV4, ArrayCount(texCoordsV4), sizeof(texCoordsV4[0])));
+    VertexBatchSubVertexData(&_glState.defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
+    VertexBatchSubIndexData(&_glState.defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
+    VertexBatchEndSub(&_glState.defaultVertexBatch);
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture.id);
 
-    DrawVertexBatch(positions, texCoordsV4, colors, indices, ArrayCount(positions), ArrayCount(indices));
+    DrawVertexBatch(&_glState.defaultVertexBatch);
 
     glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
 }
@@ -2431,7 +2397,14 @@ sav_func void DrawRect(Rect rect, SavColor color)
     v4 colors[] = { cv4, cv4, cv4, cv4 };
     u32 indices[] = { 0, 1, 2, 2, 3, 0 };
 
-    DrawVertexBatch(positions, texCoords, colors, indices, ArrayCount(positions), ArrayCount(indices));
+    VertexBatchBeginSub(&_glState.defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
+    VertexBatchSubVertexData(&_glState.defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
+    VertexBatchSubVertexData(&_glState.defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoords, ArrayCount(texCoords), sizeof(texCoords[0])));
+    VertexBatchSubVertexData(&_glState.defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
+    VertexBatchSubIndexData(&_glState.defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
+    VertexBatchEndSub(&_glState.defaultVertexBatch);
+
+    DrawVertexBatch(&_glState.defaultVertexBatch);
 }
 
 sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, SavColor bgColor, SavColor fgColor, Rect destRect)
@@ -2444,6 +2417,7 @@ sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, SavColor bgColo
     DrawTexture(atlas.texture, destRect, atlasRect, {}, 0.0f, fgColor);
 }
 
+#if 0
 sav_func void DrawAtlasTileMap(SavTextureAtlas atlas, int w, int h, i32 *tiles, SavColor *colorsBg, SavColor *colorsFg, f32 tilePxw, f32 tilePxH)
 {
     v3 positions[4];
@@ -2455,6 +2429,7 @@ sav_func void DrawAtlasTileMap(SavTextureAtlas atlas, int w, int h, i32 *tiles, 
 
     DrawVertexBatch(positions, texCoords, colors, indices, ArrayCount(positions), ArrayCount(indices));
 }
+#endif
 
 // SECTION File IO
 sav_func char *SavReadTextFile(const char *path)
