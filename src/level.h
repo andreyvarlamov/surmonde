@@ -3,10 +3,17 @@
 
 #include "sav.h"
 
+struct Tile
+{
+    i32 atlasValue;
+    SavColor fg;
+    SavColor bg;
+};
+
 struct Level
 {
     int w, h;
-    i32 *tiles;
+    Tile *tiles;
 
     f32 tilePxW, tilePxH;
     SavTextureAtlas *atlas;

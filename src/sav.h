@@ -808,7 +808,7 @@ sav_func void UnbindTextureSlot(int slot);
 sav_func VertexBatchSpec BeginVertexBatchSpec(int vertMax, int indexMax, size_t indexByteSize);
 sav_func void VertexBatchSpecAddAttrib(VertexBatchSpec *spec, int attribIndex, b32 isInteger, int componentCount, VertexAttribType type, size_t byteSize);
 sav_func void EndVertexBatchSpec(VertexBatchSpec *spec);
-sav_func VertexBatch PrepareVertexBatch(VertexBatchSpec spec);
+sav_func VertexBatch PrepareVertexBatch2(VertexBatchSpec spec);
 sav_func void VertexBatchBeginSub(VertexBatch *batch, int vertCount, int indexCount);
 sav_func VertexCountedData MakeVertexCountedData(void *data, size_t elemSize, size_t elemCount);
 sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, VertexCountedData data);
@@ -825,7 +825,7 @@ sav_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords);
 sav_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords);
 sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color);
 sav_func void DrawRect(Rect rect, SavColor color);
-sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, SavColor bgColor, SavColor fgColor, Rect destRect);
+sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, Rect destRect, SavColor color);
 
 sav_func char *SavReadTextFile(const char *path);
 sav_func void SavFreeString(char **text);
@@ -854,6 +854,7 @@ sav_func f32 GetRandomFloat();
 #define PRINT_FRAME_TIME_UTIL 0
 #define STRING_BUFFER 1024
 #define MVP_MATRIX_STACK_COUNT 32
+#define MAX_VERTEX_BATCH_COUNT 64
 
 // SECTION Sav internal data
 struct SdlState
@@ -922,14 +923,14 @@ struct InputState
     i32 mouseWheel;
 };
 
-global_var SdlState _sdlState;
-global_var GlState _glState;
-global_var InputState _inputState;
+global_var SdlState *_sdlState;
+global_var GlState *_glState;
+global_var InputState *_inputState;
 
 internal_func void traceLogEngine(const char *severity, const char *format, ...)
 {
     char formatBuf[STRING_BUFFER];
-    sprintf_s(formatBuf, "ENGINE: %s: [F %06zu] %s\n", severity, _sdlState.currentFrame, format);
+    sprintf_s(formatBuf, "ENGINE: %s: [F %06zu] %s\n", severity, _sdlState->currentFrame, format);
 
     va_list varArgs;
     va_start(varArgs, format);
@@ -981,33 +982,33 @@ internal_func void initGlDefaults()
 
     u32 white = 0xFFFFFFFF;
     SavTexture defaultTexture = SavLoadTextureFromData(&white, 1, 1);
-    _glState.defaultTexture = defaultTexture;
+    _glState->defaultTexture = defaultTexture;
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 
     VertexBatchSpec defaultSpec = BeginVertexBatchSpec(DEFAULT_BATCH_MAX_VERT_COUNT, DEFAULT_BATCH_MAX_INDEX_COUNT, sizeof(u32));
     VertexBatchSpecAddAttrib(&defaultSpec, POSITIONS, false, 3, SAV_VA_TYPE_FLOAT, sizeof(v3));
     VertexBatchSpecAddAttrib(&defaultSpec, TEXCOORDS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
     VertexBatchSpecAddAttrib(&defaultSpec, COLORS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
     EndVertexBatchSpec(&defaultSpec);
-    _glState.defaultVertexBatch = PrepareVertexBatch(defaultSpec);
+    _glState->defaultVertexBatch = PrepareVertexBatch2(defaultSpec);
 
-    _glState.matricesUboBindingPoint = 0;
+    _glState->matricesUboBindingPoint = 0;
     size_t matricesUboSize = sizeof(m4);
-    glGenBuffers(1, &_glState.matricesUbo);
-    Assert(_glState.matricesUbo);
-    glBindBuffer(GL_UNIFORM_BUFFER, _glState.matricesUbo);
+    glGenBuffers(1, &_glState->matricesUbo);
+    Assert(_glState->matricesUbo);
+    glBindBuffer(GL_UNIFORM_BUFFER, _glState->matricesUbo);
     glBufferData(GL_UNIFORM_BUFFER, sizeof(m4), NULL, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    glBindBufferBase(GL_UNIFORM_BUFFER, _glState.matricesUboBindingPoint, _glState.matricesUbo);
+    glBindBufferBase(GL_UNIFORM_BUFFER, _glState->matricesUboBindingPoint, _glState->matricesUbo);
 
-    _glState.defaultShader = buildBasicShader();
-    _glState.currentShader = _glState.defaultShader;
-    glUseProgram(_glState.currentShader.id);
-    SetShaderMatricesBindingPoint(_glState.defaultShader, "Matrices");
+    _glState->defaultShader = buildBasicShader();
+    _glState->currentShader = _glState->defaultShader;
+    glUseProgram(_glState->currentShader.id);
+    SetShaderMatricesBindingPoint(_glState->defaultShader, "Matrices");
 
-    _glState.projectionStackCurrent = -1;
-    _glState.modelViewStackCurrent = -1;
+    _glState->projectionStackCurrent = -1;
+    _glState->modelViewStackCurrent = -1;
     PushProjection(M4(1));
     PushModelView(M4(1));
 
@@ -1017,6 +1018,17 @@ internal_func void initGlDefaults()
 // SECTION Window fundamentals
 sav_func void InitWindow(const char *title, int width, int height)
 {
+    _sdlState = (SdlState *)win32AllocMemory(sizeof(SdlState));
+    _glState = (GlState *)win32AllocMemory(sizeof(GlState));
+    _inputState = (InputState *)win32AllocMemory(sizeof(InputState));
+
+    if (_sdlState == NULL || _glState == NULL || _inputState == NULL)
+    {
+        traceLogEngine("ERROR", "Failed to allocate memory for sav state.");
+        InvalidCodePath;
+        return;
+    }
+
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
     {
         SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
@@ -1027,27 +1039,28 @@ sav_func void InitWindow(const char *title, int width, int height)
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-        _sdlState.window = SDL_CreateWindow(title,
+        _sdlState->window = SDL_CreateWindow(title,
                                             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                             width, height,
                                             SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-        if (_sdlState.window)
+        if (_sdlState->window)
         {
             int sdlImageFlags = IMG_INIT_JPG | IMG_INIT_PNG;
             int imgInitResult = IMG_Init(sdlImageFlags);
             if (!(imgInitResult & sdlImageFlags))
             {
-                // TODO: Logging
+                traceLogEngine("ERROR", "Failed to initialize SDL IMG.");
                 InvalidCodePath;
+                return;
             }
 
             int actualWidth, actualHeight;
-            SDL_GetWindowSize(_sdlState.window, &actualWidth, &actualHeight);
-            _sdlState.windowSize = V2((f32) actualWidth, (f32) actualHeight);
-            _sdlState.windowOriginalSize = _sdlState.windowSize;
+            SDL_GetWindowSize(_sdlState->window, &actualWidth, &actualHeight);
+            _sdlState->windowSize = V2((f32) actualWidth, (f32) actualHeight);
+            _sdlState->windowOriginalSize = _sdlState->windowSize;
 
-            SDL_GLContext glContext = SDL_GL_CreateContext(_sdlState.window);
+            SDL_GLContext glContext = SDL_GL_CreateContext(_sdlState->window);
 
             if (glContext)
             {
@@ -1057,7 +1070,7 @@ sav_func void InitWindow(const char *title, int width, int height)
                 traceLogEngine("INFO", "Renderer: %s", glGetString(GL_RENDERER));
                 traceLogEngine("INFO", "Version: %s", glGetString(GL_VERSION));
 
-                _sdlState.perfCounterFreq = SDL_GetPerformanceFrequency();
+                _sdlState->perfCounterFreq = SDL_GetPerformanceFrequency();
 
                 TIMECAPS devCaps;
                 MMRESULT devCapsGetResult = timeGetDevCaps(&devCaps, sizeof(devCaps));
@@ -1066,9 +1079,9 @@ sav_func void InitWindow(const char *title, int width, int height)
                     traceLogEngine("INFO", "Available DevCaps range: [%u, %u] ms", devCaps.wPeriodMin, devCaps.wPeriodMax);
                 }
 
-                _sdlState.desiredSchedulerMs = 1;
-                _sdlState.sleepIsGranular = (timeBeginPeriod(_sdlState.desiredSchedulerMs) == TIMERR_NOERROR);
-                traceLogEngine("INFO", "Sleep is granular: %d", _sdlState.sleepIsGranular);
+                _sdlState->desiredSchedulerMs = 1;
+                _sdlState->sleepIsGranular = (timeBeginPeriod(_sdlState->desiredSchedulerMs) == TIMERR_NOERROR);
+                traceLogEngine("INFO", "Sleep is granular: %d", _sdlState->sleepIsGranular);
 
                 srand((unsigned) time(NULL));
 
@@ -1076,33 +1089,36 @@ sav_func void InitWindow(const char *title, int width, int height)
             }
             else
             {
-                // TODO: Logging
+                traceLogEngine("ERROR", "Failed to initialize GL context.");
                 InvalidCodePath;
+                return;
             }
         }
         else
         {
-            // TODO: Logging
+            traceLogEngine("ERROR", "Failed to initialize SDL window.");
             InvalidCodePath;
+            return;
         }
     }
     else
     {
-        // TODO: Logging
+        traceLogEngine("ERROR", "Failed to initialize SDL.");
         InvalidCodePath;
+        return;
     }
 }
 
 sav_func void Quit()
 {
-    if (_sdlState.sleepIsGranular)
+    if (_sdlState->sleepIsGranular)
     {
-        timeEndPeriod(_sdlState.desiredSchedulerMs);
+        timeEndPeriod(_sdlState->desiredSchedulerMs);
     }
 
-    if (_sdlState.window)
+    if (_sdlState->window)
     {
-        SDL_DestroyWindow(_sdlState.window);
+        SDL_DestroyWindow(_sdlState->window);
     }
 
     SDL_Quit();
@@ -1112,21 +1128,21 @@ sav_func void PollEvents()
 {
     for (int i = 0; i < SDL_NUM_SCANCODES; i++)
     {
-        _inputState.repeatKeyStates[i] = 0;
+        _inputState->repeatKeyStates[i] = 0;
 
-        _inputState.previousKeyStates[i] = _inputState.currentKeyStates[i];
+        _inputState->previousKeyStates[i] = _inputState->currentKeyStates[i];
     }
 
     for (int i = 0; i < SDL_BUTTON_X2 + 1; i++)
     {
-        _inputState.clickMouseButtonStates[i] = 0;
+        _inputState->clickMouseButtonStates[i] = 0;
 
-        _inputState.previousMouseButtonStates[i] = _inputState.currentMouseButtonStates[i];
+        _inputState->previousMouseButtonStates[i] = _inputState->currentMouseButtonStates[i];
     }
 
-    _inputState.mouseWheel = 0;
+    _inputState->mouseWheel = 0;
 
-    _sdlState.windowSizeChanged = false;
+    _sdlState->windowSizeChanged = false;
 
     SDL_Event event;
     while(SDL_PollEvent(&event))
@@ -1135,14 +1151,14 @@ sav_func void PollEvents()
         {
             case SDL_QUIT:
             {
-                _sdlState.shouldClose = true;
+                _sdlState->shouldClose = true;
             } break;
 
             case SDL_KEYDOWN:
             case SDL_KEYUP:
             {
-                _inputState.currentKeyStates[event.key.keysym.scancode] = (event.type == SDL_KEYDOWN);
-                _inputState.repeatKeyStates[event.key.keysym.scancode] = event.key.repeat;
+                _inputState->currentKeyStates[event.key.keysym.scancode] = (event.type == SDL_KEYDOWN);
+                _inputState->repeatKeyStates[event.key.keysym.scancode] = event.key.repeat;
             } break;
 
             case SDL_MOUSEMOTION:
@@ -1152,24 +1168,24 @@ sav_func void PollEvents()
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP:
             {
-                _inputState.currentMouseButtonStates[event.button.button] = (event.type == SDL_MOUSEBUTTONDOWN);
+                _inputState->currentMouseButtonStates[event.button.button] = (event.type == SDL_MOUSEBUTTONDOWN);
                 if (event.type == SDL_MOUSEBUTTONDOWN)
                 {
-                    _inputState.clickMouseButtonStates[event.button.button] = event.button.clicks;
+                    _inputState->clickMouseButtonStates[event.button.button] = event.button.clicks;
                 }
             } break;
             case SDL_MOUSEWHEEL:
             {
                 // TODO: Maybe deal with event.wheel.direction field on other platforms
-                _inputState.mouseWheel += event.wheel.y; // NOTE: Add y, because it's likely there were more than one event between frames
+                _inputState->mouseWheel += event.wheel.y; // NOTE: Add y, because it's likely there were more than one event between frames
             } break;
 
             case SDL_WINDOWEVENT:
             {
                 if (event.window.event == SDL_WINDOWEVENT_RESIZED)
                 {
-                    _sdlState.windowSize = V2((f32) event.window.data1, (f32) event.window.data2);
-                    _sdlState.windowSizeChanged = true;
+                    _sdlState->windowSize = V2((f32) event.window.data1, (f32) event.window.data2);
+                    _sdlState->windowSizeChanged = true;
                 }
             } break;
             default: break;
@@ -1179,17 +1195,17 @@ sav_func void PollEvents()
     int mouseX, mouseY, mouseRelX, mouseRelY;
     SDL_GetMouseState(&mouseX, &mouseY);
     SDL_GetRelativeMouseState(&mouseRelX, &mouseRelY);
-    _inputState.mousePos = V2((f32) mouseX, (f32) mouseY);
-    _inputState.mouseRelPos = V2((f32) mouseRelX, (f32) mouseRelY);
+    _inputState->mousePos = V2((f32) mouseX, (f32) mouseY);
+    _inputState->mouseRelPos = V2((f32) mouseRelX, (f32) mouseRelY);
 }
 
 // Timing
 sav_func void SetTargetFPS(f32 fps)
 {
-    _sdlState.limitFps = true;
-    _sdlState.targetFps = fps;
-    _sdlState.targetDelta = 1.0 / _sdlState.targetFps;
-    traceLogEngine("INFO", "Target FPS: %.0f (%.6f ms)", _sdlState.targetFps, _sdlState.targetDelta);
+    _sdlState->limitFps = true;
+    _sdlState->targetFps = fps;
+    _sdlState->targetDelta = 1.0 / _sdlState->targetFps;
+    traceLogEngine("INFO", "Target FPS: %.0f (%.6f ms)", _sdlState->targetFps, _sdlState->targetDelta);
 }
 
 internal_func inline f64 getAvgDelta(f64 *samples, int sampleCount)
@@ -1204,86 +1220,86 @@ internal_func inline f64 getAvgDelta(f64 *samples, int sampleCount)
 
 sav_func void BeginFrameTiming()
 {
-    if (_sdlState.lastCounter != 0)
+    if (_sdlState->lastCounter != 0)
     {
         u64 currentCounter = SDL_GetPerformanceCounter();
-        u64 counterElapsed = currentCounter - _sdlState.lastCounter;
-        _sdlState.lastCounter = currentCounter;
-        _sdlState.prevDelta = (f64) counterElapsed / _sdlState.perfCounterFreq;
+        u64 counterElapsed = currentCounter - _sdlState->lastCounter;
+        _sdlState->lastCounter = currentCounter;
+        _sdlState->prevDelta = (f64) counterElapsed / _sdlState->perfCounterFreq;
 
-        _sdlState.deltaSamples[_sdlState.currentTimeStatSample++] = _sdlState.prevDelta;
-        if (_sdlState.currentTimeStatSample >= TIME_STAT_AVG_COUNT)
+        _sdlState->deltaSamples[_sdlState->currentTimeStatSample++] = _sdlState->prevDelta;
+        if (_sdlState->currentTimeStatSample >= TIME_STAT_AVG_COUNT)
         {
-            _sdlState.avgDelta = getAvgDelta(_sdlState.deltaSamples, TIME_STAT_AVG_COUNT);
-            _sdlState.currentTimeStatSample = 0;
+            _sdlState->avgDelta = getAvgDelta(_sdlState->deltaSamples, TIME_STAT_AVG_COUNT);
+            _sdlState->currentTimeStatSample = 0;
         }
     }
     else
     {
-        _sdlState.lastCounter = SDL_GetPerformanceCounter();
+        _sdlState->lastCounter = SDL_GetPerformanceCounter();
     }
 
-    _sdlState.currentFrame++;
+    _sdlState->currentFrame++;
 }
 
 sav_func void EndFrameTiming()
 {
-    if (_sdlState.limitFps)
+    if (_sdlState->limitFps)
     {
-        u64 counterElapsed = SDL_GetPerformanceCounter() - _sdlState.lastCounter;
-        f64 elapsedMs = (f64) counterElapsed / _sdlState.perfCounterFreq;
+        u64 counterElapsed = SDL_GetPerformanceCounter() - _sdlState->lastCounter;
+        f64 elapsedMs = (f64) counterElapsed / _sdlState->perfCounterFreq;
 
         #if (PRINT_FRAME_TIME_UTIL == 1)
-        f64 frameTimeUtilization = elapsedMs / _sdlState.targetDelta;
+        f64 frameTimeUtilization = elapsedMs / _sdlState->targetDelta;
         traceLogEngine("INFO", "Frame time utilization: %f", frameTimeUtilization * 100.0);
         #endif
 
-        u64 targetElapsed = (u64) (_sdlState.targetDelta * _sdlState.perfCounterFreq);
+        u64 targetElapsed = (u64) (_sdlState->targetDelta * _sdlState->perfCounterFreq);
 
-        int sleepForMs = (int) (1000.0 * (_sdlState.targetDelta - elapsedMs)) - 2;
+        int sleepForMs = (int) (1000.0 * (_sdlState->targetDelta - elapsedMs)) - 2;
         if (sleepForMs > 1)
         {
             Sleep((DWORD) sleepForMs);
 
-            counterElapsed = SDL_GetPerformanceCounter() - _sdlState.lastCounter;
+            counterElapsed = SDL_GetPerformanceCounter() - _sdlState->lastCounter;
             if (counterElapsed > targetElapsed)
             {
-                traceLogEngine("WARNING", "SLEEP MISSED TARGET BY %f SEC", (f64) (counterElapsed - targetElapsed) / _sdlState.perfCounterFreq);
+                traceLogEngine("WARNING", "SLEEP MISSED TARGET BY %f SEC", (f64) (counterElapsed - targetElapsed) / _sdlState->perfCounterFreq);
             }
         }
 
         while (counterElapsed < targetElapsed)
         {
-            counterElapsed = SDL_GetPerformanceCounter() - _sdlState.lastCounter;
+            counterElapsed = SDL_GetPerformanceCounter() - _sdlState->lastCounter;
         }
     }
 }
 
 sav_func u64 GetCurrentFrame()
 {
-    return _sdlState.currentFrame;
+    return _sdlState->currentFrame;
 }
 
 sav_func f64 GetDeltaFixed()
 {
-    return _sdlState.targetDelta;
+    return _sdlState->targetDelta;
 }
 
 sav_func f64 GetDeltaPrev()
 {
-    return _sdlState.prevDelta;
+    return _sdlState->prevDelta;
 }
 
 sav_func f64 GetDeltaAvg()
 {
-    return _sdlState.avgDelta;
+    return _sdlState->avgDelta;
 }
 
 sav_func f64 GetFPSPrev()
 {
-    if (_sdlState.prevDelta > 0.0)
+    if (_sdlState->prevDelta > 0.0)
     {
-        return 1.0 / _sdlState.prevDelta;
+        return 1.0 / _sdlState->prevDelta;
     }
     else
     {
@@ -1293,9 +1309,9 @@ sav_func f64 GetFPSPrev()
 
 sav_func f64 GetFPSAvg()
 {
-    if (_sdlState.avgDelta > 0.0)
+    if (_sdlState->avgDelta > 0.0)
     {
-        return 1.0 / _sdlState.avgDelta;
+        return 1.0 / _sdlState->avgDelta;
     }
     else
     {
@@ -1306,22 +1322,22 @@ sav_func f64 GetFPSAvg()
 // Window util
 sav_func b32 WindowShouldClose()
 {
-    return _sdlState.shouldClose;
+    return _sdlState->shouldClose;
 }
 
 sav_func void SetWindowTitle(const char *title)
 {
-    SDL_SetWindowTitle(_sdlState.window, title);
+    SDL_SetWindowTitle(_sdlState->window, title);
 }
 
 sav_func v2 GetWindowSize()
 {
-    return _sdlState.windowSize;
+    return _sdlState->windowSize;
 }
 
 sav_func b32 WindowSizeChanged()
 {
-    return _sdlState.windowSizeChanged;
+    return _sdlState->windowSizeChanged;
 }
 
 sav_func void SetWindowBorderless(b32 borderless)
@@ -1329,60 +1345,60 @@ sav_func void SetWindowBorderless(b32 borderless)
     if (borderless)
     {
         int x, y;
-        SDL_GetWindowPosition(_sdlState.window, &x, &y);
-        _sdlState.windowRectBeforeBorderless = MakeRect((f32) x, (f32) y, _sdlState.windowSize.x, _sdlState.windowSize.y);
+        SDL_GetWindowPosition(_sdlState->window, &x, &y);
+        _sdlState->windowRectBeforeBorderless = MakeRect((f32) x, (f32) y, _sdlState->windowSize.x, _sdlState->windowSize.y);
     }
     
-    SDL_SetWindowBordered(_sdlState.window, (SDL_bool) !borderless);
+    SDL_SetWindowBordered(_sdlState->window, (SDL_bool) !borderless);
     
     if (borderless)
     {
-        SDL_MaximizeWindow(_sdlState.window);
+        SDL_MaximizeWindow(_sdlState->window);
     }
     else
     {
-        SDL_RestoreWindow(_sdlState.window);
+        SDL_RestoreWindow(_sdlState->window);
 
         // TODO: This is very hacky, maybe there's a better way to do this with SDL
-        if (_sdlState.windowRectBeforeBorderless.w > 0)
+        if (_sdlState->windowRectBeforeBorderless.w > 0)
         {
-            SDL_SetWindowSize(_sdlState.window, (int) _sdlState.windowRectBeforeBorderless.w, (int) _sdlState.windowRectBeforeBorderless.h);
-            SDL_SetWindowPosition(_sdlState.window, (int) _sdlState.windowRectBeforeBorderless.x, (int) _sdlState.windowRectBeforeBorderless.y);
-            _sdlState.windowRectBeforeBorderless = {};
+            SDL_SetWindowSize(_sdlState->window, (int) _sdlState->windowRectBeforeBorderless.w, (int) _sdlState->windowRectBeforeBorderless.h);
+            SDL_SetWindowPosition(_sdlState->window, (int) _sdlState->windowRectBeforeBorderless.x, (int) _sdlState->windowRectBeforeBorderless.y);
+            _sdlState->windowRectBeforeBorderless = {};
         }
     }
 }
 
 sav_func void ToggleWindowBorderless()
 {
-    _sdlState.borderless = !_sdlState.borderless;
-    SetWindowBorderless(_sdlState.borderless);
+    _sdlState->borderless = !_sdlState->borderless;
+    SetWindowBorderless(_sdlState->borderless);
 }
 
 // Input
 sav_func b32 KeyDown(int key)
 {
-    return (b32) _inputState.currentKeyStates[key];
+    return (b32) _inputState->currentKeyStates[key];
 }
 
 sav_func b32 KeyPressed(int key)
 {
-    return (b32) (_inputState.currentKeyStates[key] && !_inputState.previousKeyStates[key]);
+    return (b32) (_inputState->currentKeyStates[key] && !_inputState->previousKeyStates[key]);
 }
 
 sav_func b32 KeyReleased(int key)
 {
-    return (b32) (!_inputState.currentKeyStates[key] && _inputState.previousKeyStates[key]);
+    return (b32) (!_inputState->currentKeyStates[key] && _inputState->previousKeyStates[key]);
 }
 
 sav_func b32 KeyRepeat(int key)
 {
-    return (b32) _inputState.repeatKeyStates[key];
+    return (b32) _inputState->repeatKeyStates[key];
 }
 
 sav_func b32 KeyPressedOrRepeat(int key)
 {
-    return (b32) ((_inputState.currentKeyStates[key] && !_inputState.previousKeyStates[key]) || _inputState.repeatKeyStates[key]);
+    return (b32) ((_inputState->currentKeyStates[key] && !_inputState->previousKeyStates[key]) || _inputState->repeatKeyStates[key]);
 }
 
 sav_func b32 GetMouseRelativeMode()
@@ -1392,43 +1408,43 @@ sav_func b32 GetMouseRelativeMode()
 
 sav_func void SetMouseRelativeMode(b32 enabled)
 {
-    _inputState.isRelMouse = enabled;
-    SDL_SetRelativeMouseMode((SDL_bool) _inputState.isRelMouse);
+    _inputState->isRelMouse = enabled;
+    SDL_SetRelativeMouseMode((SDL_bool) _inputState->isRelMouse);
 }
 
 sav_func v2 MousePos()
 {
-    return _inputState.mousePos;
+    return _inputState->mousePos;
 }
 
 sav_func v2 MouseRelPos()
 {
-    return _inputState.mouseRelPos;
+    return _inputState->mouseRelPos;
 }
 
 sav_func b32 MouseDown(int button)
 {
-    return (b32) _inputState.currentMouseButtonStates[button];
+    return (b32) _inputState->currentMouseButtonStates[button];
 }
 
 sav_func b32 MousePressed(int button)
 {
-    return (b32) (_inputState.currentMouseButtonStates[button] && !_inputState.previousMouseButtonStates[button]);
+    return (b32) (_inputState->currentMouseButtonStates[button] && !_inputState->previousMouseButtonStates[button]);
 }
 
 sav_func b32 MouseReleased(int button)
 {
-    return (b32) (!_inputState.currentMouseButtonStates[button] && _inputState.previousMouseButtonStates[button]);
+    return (b32) (!_inputState->currentMouseButtonStates[button] && _inputState->previousMouseButtonStates[button]);
 }
 
 sav_func b32 MouseClicks(int button, int clicks)
 {
-    return (b32) (_inputState.clickMouseButtonStates[button] == clicks);
+    return (b32) (_inputState->clickMouseButtonStates[button] == clicks);
 }
 
 sav_func i32 MouseWheel()
 {
-    return _inputState.mouseWheel;
+    return _inputState->mouseWheel;
 }
 
 // SECTION: Graphics: shaders
@@ -1542,29 +1558,29 @@ sav_func void DeleteShader(SavShader *shader)
 
 sav_func void BeginShaderMode(SavShader shader)
 {
-    Assert(!_glState.shaderModeActive);
-    _glState.currentShader = shader;
-    glUseProgram(_glState.currentShader.id);
-    _glState.shaderModeActive = true;
+    Assert(!_glState->shaderModeActive);
+    _glState->currentShader = shader;
+    glUseProgram(_glState->currentShader.id);
+    _glState->shaderModeActive = true;
 }
 
 sav_func void EndShaderMode()
 {
-    Assert(_glState.shaderModeActive);
-    _glState.currentShader = _glState.defaultShader;
-    glUseProgram(_glState.currentShader.id);
-    _glState.shaderModeActive = false;
+    Assert(_glState->shaderModeActive);
+    _glState->currentShader = _glState->defaultShader;
+    glUseProgram(_glState->currentShader.id);
+    _glState->shaderModeActive = false;
 }
 
 sav_func void SetShaderMatricesBindingPoint(SavShader shader, const char *uboName)
 {
     u32 blockIndex = glGetUniformBlockIndex(shader.id, uboName);
-    glUniformBlockBinding(shader.id, blockIndex, _glState.matricesUboBindingPoint);
+    glUniformBlockBinding(shader.id, blockIndex, _glState->matricesUboBindingPoint);
 }
 
 internal_func int getUniformLocation(u32 shader, const char *uniformName)
 {
-    int uniformLocation = glGetUniformLocation(_glState.currentShader.id, uniformName);
+    int uniformLocation = glGetUniformLocation(_glState->currentShader.id, uniformName);
 
     #ifdef SAV_DEBUG
     if (uniformLocation == -1)
@@ -1579,78 +1595,78 @@ internal_func int getUniformLocation(u32 shader, const char *uniformName)
 
 sav_func void SetUniformMat4(const char *uniformName, f32 *value)
 {
-    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    int uniformLocation = getUniformLocation(_glState->currentShader.id, uniformName);
     glUniformMatrix4fv(uniformLocation, 1, false, value);
 }
 
 sav_func void SetUniformVec3(const char *uniformName, f32 *value)
 {
-    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    int uniformLocation = getUniformLocation(_glState->currentShader.id, uniformName);
     glUniform3fv(uniformLocation, 1, value);
 }
 
 sav_func void SetUniformVec4(const char *uniformName, f32 *value)
 {
-    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    int uniformLocation = getUniformLocation(_glState->currentShader.id, uniformName);
     glUniform4fv(uniformLocation, 1, value);
 }
 
 sav_func void SetUniformI(const char *uniformName, int value)
 {
-    int uniformLocation = getUniformLocation(_glState.currentShader.id, uniformName);
+    int uniformLocation = getUniformLocation(_glState->currentShader.id, uniformName);
     glUniform1i(uniformLocation, value);
 }
 
 // SECTION Graphics: MVP, Camera
 internal_func inline void setCurrentMvp()
 {
-    m4 mvp = _glState.projectionStack[_glState.projectionStackCurrent] * _glState.modelViewStack[_glState.modelViewStackCurrent];
+    m4 mvp = _glState->projectionStack[_glState->projectionStackCurrent] * _glState->modelViewStack[_glState->modelViewStackCurrent];
     
-    glBindBuffer(GL_UNIFORM_BUFFER, _glState.matricesUbo);
+    glBindBuffer(GL_UNIFORM_BUFFER, _glState->matricesUbo);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(m4), &mvp);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 sav_func void PushProjection(m4 projection)
 {
-    Assert(_glState.projectionStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
-    _glState.projectionStack[++_glState.projectionStackCurrent] = projection;
+    Assert(_glState->projectionStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
+    _glState->projectionStack[++_glState->projectionStackCurrent] = projection;
     setCurrentMvp();
 }
 
 sav_func void PushModelView(m4 modelView)
 {
-    Assert(_glState.modelViewStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
-    _glState.modelViewStack[++_glState.modelViewStackCurrent] = modelView;
+    Assert(_glState->modelViewStackCurrent < MVP_MATRIX_STACK_COUNT - 2);
+    _glState->modelViewStack[++_glState->modelViewStackCurrent] = modelView;
     setCurrentMvp();
 }
 
 sav_func void PopProjection()
 {
-    Assert(_glState.projectionStackCurrent > 0);
-    --_glState.projectionStackCurrent;
+    Assert(_glState->projectionStackCurrent > 0);
+    --_glState->projectionStackCurrent;
     setCurrentMvp();
 }
 
 sav_func void PopModelView()
 {
-    Assert(_glState.modelViewStackCurrent > 0);
-    --_glState.modelViewStackCurrent;
+    Assert(_glState->modelViewStackCurrent > 0);
+    --_glState->modelViewStackCurrent;
     setCurrentMvp();
 }
 
 sav_func void BeginCameraMode(Camera2D *camera)
 {
-    Assert(!_glState.cameraModeActive);
+    Assert(!_glState->cameraModeActive);
     PushModelView(GetCamera2DView(camera->target, camera->zoom, camera->rotation, camera->offset));
-    _glState.cameraModeActive = true;
+    _glState->cameraModeActive = true;
 }
 
 sav_func void EndCameraMode()
 {
-    Assert(_glState.cameraModeActive);
+    Assert(_glState->cameraModeActive);
     PopModelView();
-    _glState.cameraModeActive = false;
+    _glState->cameraModeActive = false;
 }
 
 sav_func v2 CameraWorldToScreen(Camera2D *camera, v2 world)
@@ -1979,27 +1995,27 @@ sav_func void SavDeleteRenderTexture(SavRenderTexture *renderTexture)
 
 sav_func void BeginTextureMode(SavRenderTexture renderTexture, Rect renderTextureScreenRect)
 {
-    Assert(!_glState.textureModeActive);
-    Assert(!_glState.drawModeActive);
+    Assert(!_glState->textureModeActive);
+    Assert(!_glState->drawModeActive);
     glBindFramebuffer(GL_FRAMEBUFFER, renderTexture.fbo);
     glViewport(0, 0, renderTexture.texture.w, renderTexture.texture.h);
     PushProjection(GetOrthographicProjection(0.0f,
                                              (f32) renderTexture.texture.w,
                                              (f32) renderTexture.texture.h,
                                              0.0f, -1.0f, 1.0f));
-    _glState.textureModeActive = true;
-    _glState.currentRenderTextureScreenRect = renderTextureScreenRect;
-    _glState.currentRenderTexture = renderTexture;
-    _glState.canDraw = true;
+    _glState->textureModeActive = true;
+    _glState->currentRenderTextureScreenRect = renderTextureScreenRect;
+    _glState->currentRenderTexture = renderTexture;
+    _glState->canDraw = true;
 }
 
 sav_func void EndTextureMode()
 {
-    Assert(_glState.textureModeActive);
+    Assert(_glState->textureModeActive);
     PopProjection(); 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    _glState.textureModeActive = false;
-    _glState.canDraw = false;
+    _glState->textureModeActive = false;
+    _glState->canDraw = false;
 }
 
 sav_func void BindTextureSlot(int slot, SavTexture texture)
@@ -2011,7 +2027,7 @@ sav_func void BindTextureSlot(int slot, SavTexture texture)
 sav_func void UnbindTextureSlot(int slot)
 {
     glActiveTexture(GL_TEXTURE0 + slot);
-    glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 }
 
 // SECTION Graphics: batch
@@ -2123,7 +2139,7 @@ internal_func void configureGlVertAttribs(VertexBatchSpec spec)
     }
 }
 
-sav_func VertexBatch PrepareVertexBatch(VertexBatchSpec spec)
+sav_func VertexBatch PrepareVertexBatch2(VertexBatchSpec spec)
 {
     VertexBatch batch = {};
     batch.spec = spec;
@@ -2209,7 +2225,7 @@ sav_func void VertexBatchEndSub(VertexBatch *batch)
 
 sav_func void DrawVertexBatch(VertexBatch *batch)
 {
-    Assert(_glState.canDraw);
+    Assert(_glState->canDraw);
     Assert(batch->ready);
 
     Assert(batch->indexCount > 0); // TODO: Handle no ebo case
@@ -2258,7 +2274,7 @@ void Example()
     VertexBatchSpecAddAttrib(&spec, COLORS2, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
     EndVertexBatchSpec(&spec);
     // Init buffers on GPU
-    VertexBatch batch = PrepareVertexBatch(spec);
+    VertexBatch batch = PrepareVertexBatch2(spec);
 
     // FRAME
     while (true)
@@ -2295,31 +2311,31 @@ sav_func void ClearBackground(SavColor c)
 
 sav_func void BeginDraw()
 {
-    Assert(!_glState.drawModeActive);
+    Assert(!_glState->drawModeActive);
 
-    glViewport(0, 0, (i32) _sdlState.windowSize.x, (i32) _sdlState.windowSize.y);
+    glViewport(0, 0, (i32) _sdlState->windowSize.x, (i32) _sdlState->windowSize.y);
     m4 orthoProjection = GetOrthographicProjection(
         0.0f,
-        _sdlState.windowSize.x,
-        _sdlState.windowSize.y,
+        _sdlState->windowSize.x,
+        _sdlState->windowSize.y,
         0.0f, -1.0f, 1.0f);
     PushProjection(orthoProjection);
 
-    _glState.drawModeActive = true;
-    _glState.canDraw = true;
+    _glState->drawModeActive = true;
+    _glState->canDraw = true;
 }
 
 sav_func void EndDraw()
 {
-    Assert(_glState.drawModeActive);
+    Assert(_glState->drawModeActive);
     PopProjection();
-    _glState.drawModeActive = false;
-    _glState.canDraw = false;
+    _glState->drawModeActive = false;
+    _glState->canDraw = false;
 }
 
 sav_func void SavSwapBuffers()
 {
-    SDL_GL_SwapWindow(_sdlState.window);
+    SDL_GL_SwapWindow(_sdlState->window);
 }
 
 sav_func void FlipTexCoords(v2 *texCoords)
@@ -2373,19 +2389,19 @@ sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin,
     v4 colors[] = { cv4, cv4, cv4, cv4 };
     u32 indices[] = { 0, 1, 2, 2, 3, 0 };
 
-    VertexBatchBeginSub(&_glState.defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
-    VertexBatchSubVertexData(&_glState.defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
-    VertexBatchSubVertexData(&_glState.defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoordsV4, ArrayCount(texCoordsV4), sizeof(texCoordsV4[0])));
-    VertexBatchSubVertexData(&_glState.defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
-    VertexBatchSubIndexData(&_glState.defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
-    VertexBatchEndSub(&_glState.defaultVertexBatch);
+    VertexBatchBeginSub(&_glState->defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
+    VertexBatchSubVertexData(&_glState->defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
+    VertexBatchSubVertexData(&_glState->defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoordsV4, ArrayCount(texCoordsV4), sizeof(texCoordsV4[0])));
+    VertexBatchSubVertexData(&_glState->defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
+    VertexBatchSubIndexData(&_glState->defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
+    VertexBatchEndSub(&_glState->defaultVertexBatch);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture.id);
 
-    DrawVertexBatch(&_glState.defaultVertexBatch);
+    DrawVertexBatch(&_glState->defaultVertexBatch);
 
-    glBindTexture(GL_TEXTURE_2D, _glState.defaultTexture.id);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 }
 
 sav_func void DrawRect(Rect rect, SavColor color)
@@ -2397,39 +2413,23 @@ sav_func void DrawRect(Rect rect, SavColor color)
     v4 colors[] = { cv4, cv4, cv4, cv4 };
     u32 indices[] = { 0, 1, 2, 2, 3, 0 };
 
-    VertexBatchBeginSub(&_glState.defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
-    VertexBatchSubVertexData(&_glState.defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
-    VertexBatchSubVertexData(&_glState.defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoords, ArrayCount(texCoords), sizeof(texCoords[0])));
-    VertexBatchSubVertexData(&_glState.defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
-    VertexBatchSubIndexData(&_glState.defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
-    VertexBatchEndSub(&_glState.defaultVertexBatch);
+    VertexBatchBeginSub(&_glState->defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
+    VertexBatchSubVertexData(&_glState->defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
+    VertexBatchSubVertexData(&_glState->defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoords, ArrayCount(texCoords), sizeof(texCoords[0])));
+    VertexBatchSubVertexData(&_glState->defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
+    VertexBatchSubIndexData(&_glState->defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
+    VertexBatchEndSub(&_glState->defaultVertexBatch);
 
-    DrawVertexBatch(&_glState.defaultVertexBatch);
+    DrawVertexBatch(&_glState->defaultVertexBatch);
 }
 
-sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, SavColor bgColor, SavColor fgColor, Rect destRect)
+sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, Rect destRect, SavColor color)
 {
     int atlasPxX = x * atlas.cellW;
     int atlasPxY = y * atlas.cellH;
     Rect atlasRect = MakeRect((f32) atlasPxX, (f32) atlasPxY, (f32) atlas.cellW, (f32) atlas.cellH);
-
-    DrawRect(destRect, bgColor);
-    DrawTexture(atlas.texture, destRect, atlasRect, {}, 0.0f, fgColor);
+    DrawTexture(atlas.texture, destRect, atlasRect, {}, 0.0f, color);
 }
-
-#if 0
-sav_func void DrawAtlasTileMap(SavTextureAtlas atlas, int w, int h, i32 *tiles, SavColor *colorsBg, SavColor *colorsFg, f32 tilePxw, f32 tilePxH)
-{
-    v3 positions[4];
-    RectGetPoints(rect, positions);
-    v4 texCoords[4] = {};
-    v4 cv4 = GetColorV4(color);
-    v4 colors[] = { cv4, cv4, cv4, cv4 };
-    u32 indices[] = { 0, 1, 2, 2, 3, 0 };
-
-    DrawVertexBatch(positions, texCoords, colors, indices, ArrayCount(positions), ArrayCount(indices));
-}
-#endif
 
 // SECTION File IO
 sav_func char *SavReadTextFile(const char *path)
@@ -2486,7 +2486,7 @@ sav_func const char *TextFormat(const char *format, ...)
 sav_func void TraceLog(const char *format, ...)
 {
     char formatBuf[STRING_BUFFER];
-    sprintf_s(formatBuf, "GAME: INFO: [F %06zu] %s\n", _sdlState.currentFrame, format);
+    sprintf_s(formatBuf, "GAME: INFO: [F %06zu] %s\n", _sdlState->currentFrame, format);
     
     va_list varArgs;
     va_start(varArgs, format);
@@ -2497,7 +2497,7 @@ sav_func void TraceLog(const char *format, ...)
 sav_func void TraceError(const char *format, ...)
 {
     char formatBuf[STRING_BUFFER];
-    sprintf_s(formatBuf, "GAME: ERROR: [F %06zu] %s\n", _sdlState.currentFrame, format);
+    sprintf_s(formatBuf, "GAME: ERROR: [F %06zu] %s\n", _sdlState->currentFrame, format);
     
     va_list varArgs;
     va_start(varArgs, format);

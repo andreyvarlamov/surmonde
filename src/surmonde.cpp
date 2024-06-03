@@ -47,3 +47,4 @@ int main(int argc, char **argv)
 }
 
 #include "level.cpp"
+#include "draw.cpp"
