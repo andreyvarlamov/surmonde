@@ -30,6 +30,8 @@ int main(int argc, char **argv)
         // RENDER
         SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
 
+        UpdateLevel(&gameState->level);
+
         BeginDraw();
             ClearBackground(SAV_COLOR_LIGHTBLUE);
 

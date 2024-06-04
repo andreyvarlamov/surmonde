@@ -17,9 +17,11 @@ struct Level
 
     f32 tilePxW, tilePxH;
     SavTextureAtlas *atlas;
+    MemoryArena *arena;
 };
 
 api_func Level MakeLevel(MemoryArena *mem, int w, int h, SavTextureAtlas *atlas, f32 atlasScale);
+api_func void UpdateLevel(Level *level);
 api_func void DrawLevel(Level *gameState);
 
 #endif

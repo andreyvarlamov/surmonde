@@ -311,33 +311,51 @@ inline m4 GetCamera2DViewInvRel(f32 s, f32 rot)
     return result;
 }
 
-inline void Rotate4PointsAroundOrigin(v2 *positions, v2 origin, f32 rotation)
+struct FourV2
+{
+    v2 e[4];
+};
+struct FourV3
+{
+    v3 e[4];
+};
+struct FourV4
+{
+    v4 e[4];
+};
+inline FourV3 ConvertFourV2V3(FourV2 a)
+{
+    FourV3 result;
+    result.e[0] = V3(a.e[0].x, a.e[0].y, 0.0f);
+    result.e[1] = V3(a.e[1].x, a.e[1].y, 0.0f);
+    result.e[2] = V3(a.e[2].x, a.e[2].y, 0.0f);
+    result.e[3] = V3(a.e[3].x, a.e[3].y, 0.0f);
+    return result;
+}
+inline FourV4 ConvertFourV2V4(FourV2 a)
+{
+    FourV4 result;
+    result.e[0] = V4(a.e[0].x, a.e[0].y, 0.0f, 0.0f);
+    result.e[1] = V4(a.e[1].x, a.e[1].y, 0.0f, 0.0f);
+    result.e[2] = V4(a.e[2].x, a.e[2].y, 0.0f, 0.0f);
+    result.e[3] = V4(a.e[3].x, a.e[3].y, 0.0f, 0.0f);
+    return result;
+}
+
+inline void RotateFourPointsAroundOrigin(FourV2 *points, v2 origin, f32 rotation)
 {
     f32 c = cosf(ToRad(rotation));
     f32 s = sinf(ToRad(rotation));
     for (int i = 0; i < 4; i++)
     {
-        positions[i] -= origin;
-        f32 x = positions[i].x;
-        f32 y = positions[i].y;
-        positions[i] = V2(c*x - s*y, s*x + c*y);
-        positions[i] += origin;
+        points->e[i] -= origin;
+        f32 x = points->e[i].x;
+        f32 y = points->e[i].y;
+        points->e[i] = V2(c*x - s*y, s*x + c*y);
+        points->e[i] += origin;
     }
 }
 
-inline void Rotate4PointsAroundOrigin(v3 *positions, v3 origin, f32 rotation)
-{
-    f32 c = cosf(ToRad(rotation));
-    f32 s = sinf(ToRad(rotation));
-    for (int i = 0; i < 4; i++)
-    {
-        positions[i] -= origin;
-        f32 x = positions[i].x;
-        f32 y = positions[i].y;
-        positions[i] = V3(c*x - s*y, s*x + c*y, 0.0f);
-        positions[i] += origin;
-    }
-}
 
 struct Rect { f32 x, y, w, h; };
 inline Rect MakeRect(f32 x, f32 y, f32 w, f32 h) { Rect r; r.x = x; r.y = y; r.w = w; r.h = h; return r; };
@@ -345,19 +363,15 @@ inline Rect RectMinMax(v2 min, v2 max) { return { min.x, min.y, max.x - min.x, m
 inline v2 RectGetMin(Rect r) { return { r.x, r.y }; }
 inline v2 RectGetMax(Rect r) { return { r.x + r.w, r.y + r.h }; }
 inline v2 RectGetMid(Rect r) { return { r.x + r.w * 0.5f, r.y + r.h * 0.5f }; }
-inline void RectGetPoints(Rect r, v2 *points)
+
+inline FourV2 RectGetPoints(Rect r)
 {
-    points[0] = { r.x, r.y };
-    points[1] = { r.x, r.y + r.h };
-    points[2] = { r.x + r.w, r.y + r.h };
-    points[3] = { r.x + r.w, r.y };
-}
-inline void RectGetPoints(Rect r, v3 *points)
-{
-    points[0] = { r.x, r.y, 0.0f };
-    points[1] = { r.x, r.y + r.h, 0.0f };
-    points[2] = { r.x + r.w, r.y + r.h, 0.0f };
-    points[3] = { r.x + r.w, r.y, 0.0f };
+    FourV2 points;
+    points.e[0] = { r.x, r.y };
+    points.e[1] = { r.x, r.y + r.h };
+    points.e[2] = { r.x + r.w, r.y + r.h };
+    points.e[3] = { r.x + r.w, r.y };
+    return points;
 }
 
 // SECTION Memory arena
@@ -421,7 +435,7 @@ inline MemoryArena MakeNestedMemoryArena(MemoryArena *arena, size_t size)
 
 inline void MemoryArenaFreeze(MemoryArena *arena)
 {
-    Assert(arena->freezeCount != 0);
+    Assert(arena->freezeCount == 0);
     arena->freezeCount++;
     arena->frozenUsed = arena->used;
     arena->frozenPrevUsed = arena->prevUsed;
@@ -714,7 +728,7 @@ struct VertexBatch
     u32 ebo;
 
     b32 dataSubStarted;
-    b32 ready;
+    b32 readyToDraw;
     int vertCount;
     int indexCount;
 };
@@ -725,6 +739,42 @@ struct VertexCountedData
     size_t elemSize;
     size_t elemCount;
 };
+
+enum DefaultVertAttribs
+{
+    DEFAULT_VERT_POSITIONS = 0,
+    DEFAULT_VERT_TEXCOORDS,
+    DEFAULT_VERT_COLORS
+};
+#define DEFAULT_VERTEX_BATCH NULL
+
+inline FourV2 ConvertRectPointsToTexCoords(SavTexture texture, FourV2 points)
+{
+    FourV2 result;
+    f32 oneOverWidth = 1.0f / texture.w;
+    f32 oneOverHeight = 1.0f / texture.h;
+    for (int i = 0; i < 4; i++)
+    {
+        result.e[i] = V2(points.e[i].x * oneOverWidth, points.e[i].y * oneOverHeight);
+    }
+    return result;
+}
+
+inline void FlipTexCoords(FourV2 *texCoords)
+{
+    for (int i = 0; i < 4; i++)
+    {
+        texCoords->e[i].y = 1.0f - texCoords->e[i].y;
+    }
+}
+
+inline FourV2 GetTextureRectTexCoords(SavTexture texture, Rect rect)
+{
+    FourV2 points = RectGetPoints(rect);
+    FourV2 texCoords = ConvertRectPointsToTexCoords(texture, points);
+    FlipTexCoords(&texCoords);
+    return texCoords;
+}
 
 sav_func GameMemory AllocGameMemory(size_t size);
 sav_func MemoryArena AllocArena(size_t size);
@@ -808,7 +858,7 @@ sav_func void UnbindTextureSlot(int slot);
 sav_func VertexBatchSpec BeginVertexBatchSpec(int vertMax, int indexMax, size_t indexByteSize);
 sav_func void VertexBatchSpecAddAttrib(VertexBatchSpec *spec, int attribIndex, b32 isInteger, int componentCount, VertexAttribType type, size_t byteSize);
 sav_func void EndVertexBatchSpec(VertexBatchSpec *spec);
-sav_func VertexBatch PrepareVertexBatch2(VertexBatchSpec spec);
+sav_func VertexBatch PrepareVertexBatch(VertexBatchSpec spec);
 sav_func void VertexBatchBeginSub(VertexBatch *batch, int vertCount, int indexCount);
 sav_func VertexCountedData MakeVertexCountedData(void *data, size_t elemSize, size_t elemCount);
 sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, VertexCountedData data);
@@ -820,9 +870,6 @@ sav_func void ClearBackground(SavColor c);
 sav_func void BeginDraw();
 sav_func void EndDraw();
 sav_func void SavSwapBuffers();
-sav_func void FlipTexCoords(v2 *texCoords);
-sav_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords);
-sav_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords);
 sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color);
 sav_func void DrawRect(Rect rect, SavColor color);
 sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, Rect destRect, SavColor color);
@@ -968,13 +1015,6 @@ internal_func SavShader buildBasicShader();
 #define DEFAULT_BATCH_MAX_VERT_COUNT 65536
 #define DEFAULT_BATCH_MAX_INDEX_COUNT 393216
 
-enum DefaultVertAttribs
-{
-    POSITIONS = 0,
-    TEXCOORDS,
-    COLORS
-};
-
 internal_func void initGlDefaults()
 {
     glEnable(GL_BLEND);
@@ -987,11 +1027,11 @@ internal_func void initGlDefaults()
     glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 
     VertexBatchSpec defaultSpec = BeginVertexBatchSpec(DEFAULT_BATCH_MAX_VERT_COUNT, DEFAULT_BATCH_MAX_INDEX_COUNT, sizeof(u32));
-    VertexBatchSpecAddAttrib(&defaultSpec, POSITIONS, false, 3, SAV_VA_TYPE_FLOAT, sizeof(v3));
-    VertexBatchSpecAddAttrib(&defaultSpec, TEXCOORDS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
-    VertexBatchSpecAddAttrib(&defaultSpec, COLORS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
+    VertexBatchSpecAddAttrib(&defaultSpec, DEFAULT_VERT_POSITIONS, false, 3, SAV_VA_TYPE_FLOAT, sizeof(v3));
+    VertexBatchSpecAddAttrib(&defaultSpec, DEFAULT_VERT_TEXCOORDS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
+    VertexBatchSpecAddAttrib(&defaultSpec, DEFAULT_VERT_COLORS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
     EndVertexBatchSpec(&defaultSpec);
-    _glState->defaultVertexBatch = PrepareVertexBatch2(defaultSpec);
+    _glState->defaultVertexBatch = PrepareVertexBatch(defaultSpec);
 
     _glState->matricesUboBindingPoint = 0;
     size_t matricesUboSize = sizeof(m4);
@@ -1875,7 +1915,7 @@ sav_func SavTexture SavLoadTextureFromData(void *data, int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     // ---------
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 
     SavTexture texture = {};
     texture.id = id;
@@ -1914,7 +1954,7 @@ sav_func void SavSetTextureWrapMode(SavTexture texture, TexWrapMode wrapMode)
 
         default: break;
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 }
 
 sav_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMode)
@@ -1936,7 +1976,7 @@ sav_func void SavSetTextureFilterMode(SavTexture texture, TexFilterMode filterMo
 
         default: break;
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 }
 
 sav_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filterNearest)
@@ -1969,7 +2009,7 @@ sav_func SavRenderTexture SavLoadRenderTexture(int width, int height, b32 filter
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
     SavRenderTexture renderTexture;
@@ -2140,7 +2180,7 @@ internal_func void configureGlVertAttribs(VertexBatchSpec spec)
     }
 }
 
-sav_func VertexBatch PrepareVertexBatch2(VertexBatchSpec spec)
+sav_func VertexBatch PrepareVertexBatch(VertexBatchSpec spec)
 {
     VertexBatch batch = {};
     batch.spec = spec;
@@ -2159,9 +2199,12 @@ sav_func VertexBatch PrepareVertexBatch2(VertexBatchSpec spec)
 
 sav_func void VertexBatchBeginSub(VertexBatch *batch, int vertCount, int indexCount)
 {
-    Assert(batch != NULL);
+    if (batch == NULL)
+    {
+        batch = &_glState->defaultVertexBatch;
+    }
     Assert(!batch->dataSubStarted);
-    Assert(!batch->ready);
+    Assert(!batch->readyToDraw);
     Assert(vertCount <= batch->spec.vertMax);
     Assert(indexCount <= batch->spec.indexMax);
     Assert(batch->vbo > 0);
@@ -2184,9 +2227,11 @@ sav_func VertexCountedData MakeVertexCountedData(void *data, size_t elemCount, s
 
 sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, VertexCountedData data)
 {
-    Assert(batch != NULL);
+    if (batch == NULL)
+    {
+        batch = &_glState->defaultVertexBatch;
+    }
     Assert(batch->dataSubStarted);
-    Assert(!batch->ready);
     Assert(attribIndex >= 0 && attribIndex < batch->spec.attribMax);
 
     VertexAttrib *attrib = batch->spec.attribs + attribIndex;
@@ -2201,9 +2246,11 @@ sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, Vert
 
 sav_func void VertexBatchSubIndexData(VertexBatch *batch, VertexCountedData data)
 {
-    Assert(batch != NULL);
+    if (batch == NULL)
+    {
+        batch = &_glState->defaultVertexBatch;
+    }
     Assert(batch->dataSubStarted);
-    Assert(!batch->ready);
     Assert(batch->ebo > 0);
 
     size_t dataSize =  batch->indexCount * batch->spec.indexByteSize;
@@ -2215,26 +2262,34 @@ sav_func void VertexBatchSubIndexData(VertexBatch *batch, VertexCountedData data
 
 sav_func void VertexBatchEndSub(VertexBatch *batch)
 {
-    Assert(batch != NULL);
+    if (batch == NULL)
+    {
+        batch = &_glState->defaultVertexBatch;
+    }
     Assert(batch->dataSubStarted);
 
     batch->dataSubStarted = false;
-    batch->ready = true;
+    batch->readyToDraw = true;
 
     bindBatch(NULL);
 }
 
 sav_func void DrawVertexBatch(VertexBatch *batch)
 {
+    if (batch == NULL)
+    {
+        batch = &_glState->defaultVertexBatch;
+    }
     Assert(_glState->canDraw);
-    Assert(batch->ready);
+    Assert(batch->readyToDraw);
 
     Assert(batch->indexCount > 0); // TODO: Handle no ebo case
     glBindVertexArray(batch->vao);
     glDrawElements(GL_TRIANGLES, batch->indexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
-    batch->ready = false;
+    // TODO: We may not want to reset the batch automatically after every draw call
+    batch->readyToDraw = false;
     batch->vertCount = 0;
     batch->indexCount = 0;
 }
@@ -2275,7 +2330,7 @@ void Example()
     VertexBatchSpecAddAttrib(&spec, COLORS2, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
     EndVertexBatchSpec(&spec);
     // Init buffers on GPU
-    VertexBatch batch = PrepareVertexBatch2(spec);
+    VertexBatch batch = PrepareVertexBatch(spec);
 
     // FRAME
     while (true)
@@ -2339,89 +2394,57 @@ sav_func void SavSwapBuffers()
     SDL_GL_SwapWindow(_sdlState->window);
 }
 
-sav_func void FlipTexCoords(v2 *texCoords)
-{
-    for (int i = 0; i < 4; i++)
-    {
-        texCoords[i].y = 1.0f - texCoords[i].y;
-    }
-}
-
-sav_func void NormalizeTexCoords(SavTexture texture, v2 *texCoords)
-{
-    f32 oneOverWidth = 1.0f / texture.w;
-    f32 oneOverHeight = 1.0f / texture.h;
-
-    for (int i = 0; i < 4; i++)
-    {
-        texCoords[i].x *= oneOverWidth;
-        texCoords[i].y *= oneOverHeight;
-    }
-}
-
-sav_func void GetTexCoordsForTex(SavTexture texture, Rect rect, v2 *texCoords)
-{
-    RectGetPoints(rect, texCoords);
-    NormalizeTexCoords(texture, texCoords);
-    FlipTexCoords(texCoords);
-}
-
 sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin, f32 rotation, SavColor color)
 {
-    v3 absOrigin = V3(dest.x, dest.y, 0.0f);
+    v2 absOrigin = V2(dest.x, dest.y);
     
     dest.x -= origin.x;
     dest.y -= origin.y;
     
-    v3 positions[4];
-    RectGetPoints(dest, positions);
+    FourV2 points = RectGetPoints(dest);
     if (rotation != 0.0f)
     {
-        Rotate4PointsAroundOrigin(positions, absOrigin, rotation);
+        RotateFourPointsAroundOrigin(&points, absOrigin, rotation);
     }
-    v2 texCoords[4];
-    GetTexCoordsForTex(texture, source, texCoords);
-    v4 texCoordsV4[4];
-    for (size_t i = 0; i < ArrayCount(texCoords); i++)
-    {
-        texCoordsV4[i] = V4(texCoords[i].x, texCoords[i].y, 0, 0);
-    }
+    FourV3 pointsV3 = ConvertFourV2V3(points);
+
+    FourV4 texCoords = ConvertFourV2V4(GetTextureRectTexCoords(texture, source));
+
     v4 cv4 = GetColorV4(color);
     v4 colors[] = { cv4, cv4, cv4, cv4 };
     u32 indices[] = { 0, 1, 2, 2, 3, 0 };
 
-    VertexBatchBeginSub(&_glState->defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
-    VertexBatchSubVertexData(&_glState->defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
-    VertexBatchSubVertexData(&_glState->defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoordsV4, ArrayCount(texCoordsV4), sizeof(texCoordsV4[0])));
-    VertexBatchSubVertexData(&_glState->defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
-    VertexBatchSubIndexData(&_glState->defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
-    VertexBatchEndSub(&_glState->defaultVertexBatch);
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, ArrayCount(pointsV3.e), ArrayCount(indices));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(pointsV3.e, ArrayCount(pointsV3.e), sizeof(pointsV3.e[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords.e, ArrayCount(texCoords.e), sizeof(texCoords.e[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture.id);
 
-    DrawVertexBatch(&_glState->defaultVertexBatch);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
 
     glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
 }
 
 sav_func void DrawRect(Rect rect, SavColor color)
 {
-    v3 positions[4];
-    RectGetPoints(rect, positions);
+    FourV3 points = ConvertFourV2V3(RectGetPoints(rect));
     v4 texCoords[4] = {};
     v4 cv4 = GetColorV4(color);
     v4 colors[] = { cv4, cv4, cv4, cv4 };
     u32 indices[] = { 0, 1, 2, 2, 3, 0 };
 
-    VertexBatchBeginSub(&_glState->defaultVertexBatch, ArrayCount(positions), ArrayCount(indices));
-    VertexBatchSubVertexData(&_glState->defaultVertexBatch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
-    VertexBatchSubVertexData(&_glState->defaultVertexBatch, TEXCOORDS, MakeVertexCountedData(texCoords, ArrayCount(texCoords), sizeof(texCoords[0])));
-    VertexBatchSubVertexData(&_glState->defaultVertexBatch, COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
-    VertexBatchSubIndexData(&_glState->defaultVertexBatch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
-    VertexBatchEndSub(&_glState->defaultVertexBatch);
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, ArrayCount(points.e), ArrayCount(indices));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(points.e, ArrayCount(points.e), sizeof(points.e[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, ArrayCount(texCoords), sizeof(texCoords[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, ArrayCount(colors), sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
 
-    DrawVertexBatch(&_glState->defaultVertexBatch);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
 }
 
 sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, Rect destRect, SavColor color)
