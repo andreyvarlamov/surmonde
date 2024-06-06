@@ -776,6 +776,14 @@ inline FourV2 GetTextureRectTexCoords(SavTexture texture, Rect rect)
     return texCoords;
 }
 
+inline Rect GetAtlasSourceRect(SavTextureAtlas atlas, int i)
+{
+    int atlasPxX = (i % atlas.cellHorizontalCount) * atlas.cellW;
+    int atlasPxY = (i / atlas.cellHorizontalCount) * atlas.cellH;
+    Rect r = MakeRect((f32) atlasPxX, (f32) atlasPxY, (f32) atlas.cellW, (f32) atlas.cellH);
+    return r;
+}
+
 sav_func GameMemory AllocGameMemory(size_t size);
 sav_func MemoryArena AllocArena(size_t size);
 

@@ -1,6 +1,15 @@
 #ifndef DRAW_H
 #define DRAW_H
 
-void DrawAtlasTilemap(SavTextureAtlas atlas, Tile *tiles);
+api_func void DrawAtlasTilemap(
+    SavTextureAtlas atlas,
+    int tilemapWidth,
+    int tilemapHeight,
+    f32 tilePxW,
+    f32 tilePxH,
+    i32 *atlasValues,
+    SavColor *colorsFg,
+    SavColor *colorsBg,
+    MemoryArena *arena);
 
 #endif

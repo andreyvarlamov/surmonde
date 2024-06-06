@@ -20,6 +20,7 @@ int main(int argc, char **argv)
     gameState->worldArena = AllocArena(Megabytes(4));
 
     gameState->level = MakeLevel(&gameState->worldArena, LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, LEVEL_ATLAS_SCALE);
+    // GenerateLevel(&gameState->level, LEVEL_ONE_ROOM);
 
     while (!WindowShouldClose())
     {

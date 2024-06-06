@@ -1,17 +1,33 @@
 #include "level.h"
 #include "sav.h"
 #include "settings.h"
+#include "draw.h"
+#include "helpers.h"
+
+internal_func Tiles makeTiles(MemoryArena *mem, int w, int h)
+{
+    int count = w * h;
+    Tiles tiles;
+    tiles.w = w;
+    tiles.h = h;
+    tiles.atlasValues = MemoryArenaPushArray(mem, count, i32);
+    tiles.colorsFg = MemoryArenaPushArray(mem, count, SavColor);
+    tiles.colorsBg = MemoryArenaPushArray(mem, count, SavColor);
+    for (int i = 0; i < count; i++)
+    {
+        tiles.atlasValues[i] = '!';
+        tiles.colorsFg[i] = SAV_COLOR_YELLOW;
+        tiles.colorsBg[i] = SAV_COLOR_RED;
+    }
+    return tiles;
+}
 
 api_func Level MakeLevel(MemoryArena *mem, int w, int h, SavTextureAtlas *atlas, f32 atlasScale)
 {
     Level level;
     level.w = w;
     level.h = h;
-    level.tiles = MemoryArenaPushArrayAndZero(mem, w * h, Tile);
-    for (int i = 0; i < level.w * level.h; i++)
-    {
-        level.tiles[i].bg = SAV_COLOR_SABLE;
-    }
+    level.mapTiles = makeTiles(mem, w, h);
     level.tilePxW = atlas->cellW * atlasScale;
     level.tilePxH = atlas->cellH * atlasScale;
     level.atlas = atlas;
@@ -19,95 +35,147 @@ api_func Level MakeLevel(MemoryArena *mem, int w, int h, SavTextureAtlas *atlas,
     return level;
 }
 
-api_func void UpdateLevel(Level *level)
+internal_func Tile getTile(Tiles *tiles, int i)
 {
+    Tile tile;
+    tile.atlasValue = tiles->atlasValues[i];
+    tile.fg = tiles->colorsFg[i];
+    tile.bg = tiles->colorsBg[i];
+    return tile;
+}
+
+internal_func void setTile(Tiles *tiles, Tile tile, int i)
+{
+    tiles->atlasValues[i] = tile.atlasValue;
+    tiles->colorsFg[i] = tile.fg;
+    tiles->colorsBg[i] = tile.bg;
+}
+
+
+internal_func Tile makeTile(i32 atlasValue, SavColor bg, SavColor fg)
+{
+    Tile tile;
+    tile.atlasValue = atlasValue;
+    tile.fg = fg;
+    tile.bg = bg;
+    return tile;
+}
+
+internal_func void generateLevelOneRoom(Level *level)
+{
+    Tile floorTile = makeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT);
+    Tile wallTile = makeTile('#', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);
     for (int i = 0; i < level->w * level->h; i++)
     {
-        Tile *tile = level->tiles + i;
-        if (GetCurrentFrame() % 5 == 0)
+        setTile(&level->mapTiles, floorTile, i);
+    }
+
+    for (int x = 0; x < level->w; x++)
+    {
+        int i = x;
+        setTile(&level->mapTiles, wallTile, i);
+        i = XYToIdx(level->w, x, level->h - 1);
+        setTile(&level->mapTiles, wallTile, i);
+    }
+
+    for (int y = 0; y < level->h; y++)
+    {
+        int i = XYToIdx(level->w, 0, y);
+        setTile(&level->mapTiles, wallTile, i);
+        i = XYToIdx(level->w, level->w - 1, y);
+        setTile(&level->mapTiles, wallTile, i);
+    }
+}
+
+api_func void GenerateLevel(Level *level, LevelGenType genType)
+{
+    switch (genType)
+    {
+        case LEVEL_ONE_ROOM:
+        {
+            generateLevelOneRoom(level);
+        } break;
+
+        case LEVEL_CLASSIC_ROOMS:
+        {
+            InvalidCodePath;
+        } break;
+
+        default: InvalidCodePath;
+    }
+}
+
+api_func void UpdateLevel(Level *level)
+{
+    #if 1
+    local_persist int chanceToGoAway = 50;
+    local_persist bool chanceToGoAwayInc = false;
+    local_persist int framesTilCanFreakOut = 100;
+    if (GetCurrentFrame() % 10 == 9)
+    {
+        if (chanceToGoAwayInc)
+        {
+            chanceToGoAway++;
+        }
+        else
+        {
+            chanceToGoAway--;
+        }
+        
+        if (chanceToGoAway == 0 || chanceToGoAway == 51)
+        {
+            chanceToGoAwayInc = !chanceToGoAwayInc;
+        }
+    }
+    framesTilCanFreakOut--;
+
+    for (int i = 0; i < level->w * level->h; i++)
+    {
+        Tile tile = getTile(&level->mapTiles, i);
+        int period = GetRandomValue(15,26);
+        if (GetCurrentFrame() % period == 0)
         {
             if (GetRandomValue(0, 10) == 0)
             {
-                tile->atlasValue = GetRandomValue(0, 256);
+                tile.atlasValue = GetRandomValue(0, 256);
                 // bg, fg
                 // SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY
                 // SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT
                 // SAV_COLOR_SABLE, SAV_COLOR_LIGHTGOLDENRODYELLOW
-                tile->fg = SAV_COLOR_ASHGRAY;
-                tile->bg = SAV_COLOR_SABLE;
-                // tile->fg = MakeColor((u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), 255);
-                // tile->bg = MakeColor((u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), 255);
+                tile.fg = SAV_COLOR_ASHGRAY;
+                tile.bg = SAV_COLOR_SABLE;
+                setTile(&level->mapTiles, tile, i);
+            }
+            else if (framesTilCanFreakOut <= 0 && GetRandomValue(0, 25) == 0)
+            {
+                framesTilCanFreakOut = 100;
+                tile.atlasValue = GetRandomValue(0, 256);
+                tile.fg = MakeColor((u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), 255);
+                tile.bg = MakeColor((u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), 255);
+                setTile(&level->mapTiles, tile, i);
+            }
+            else if (GetRandomValue(0, chanceToGoAway) == 0)
+            {
+                tile.atlasValue = 0;
+                tile.fg = SAV_COLOR_ASHGRAY;
+                tile.bg = SAV_COLOR_SABLE;
+                setTile(&level->mapTiles, tile, i);
             }
         }
     }
+    #endif
 }
 
 api_func void DrawLevel(Level *level)
 {
-    int tileCount = level->w * level->h;
-    int vertCount = tileCount * 4;
-    int indexCount = tileCount * 6;
-
-    MemoryArenaFreeze(level->arena);
-
-    v3 *positions = MemoryArenaPushArrayAndZero(level->arena, vertCount, v3);
-    v4 *texCoords = MemoryArenaPushArrayAndZero(level->arena, vertCount, v4);
-    v4 *colorsFg = MemoryArenaPushArrayAndZero(level->arena, vertCount, v4);
-    v4 *colorsBg = MemoryArenaPushArrayAndZero(level->arena, vertCount, v4);
-    u32 *indices = MemoryArenaPushArrayAndZero(level->arena, indexCount, u32);
-    int vertsAdded = 0;
-    int indicesAdded = 0;
-    for (int tileI = 0; tileI < level->w * level->h; tileI++)
-    {
-        Tile *tile = level->tiles + tileI;
-        i32 tileVal = tile->atlasValue;
-        i32 tileX = tileI % level->w;
-        i32 tileY = tileI / level->h;
-        Rect destRect = MakeRect(tileX * level->tilePxW, tileY * level->tilePxH, level->tilePxW, level->tilePxH);
-        int atlasPxX = (tileVal % level->atlas->cellHorizontalCount) * level->atlas->cellW;
-        int atlasPxY = (tileVal / level->atlas->cellHorizontalCount) * level->atlas->cellH;
-        Rect atlasRect = MakeRect((f32) atlasPxX, (f32) atlasPxY, (f32) level->atlas->cellW, (f32) level->atlas->cellH);
-
-        FourV3 points = ConvertFourV2V3(RectGetPoints(destRect));
-        FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(level->atlas->texture, atlasRect));
-
-        u32 indexBase = vertsAdded;
-        for (int i = 0; i < 4; i++)
-        {
-            positions[vertsAdded] = points.e[i];
-            texCoords[vertsAdded] = texCoordPoints.e[i];
-            colorsFg[vertsAdded] = GetColorV4(tile->fg);
-            colorsBg[vertsAdded] = GetColorV4(tile->bg);
-            vertsAdded++;
-        }
-
-        u32 localIndices[] = {0, 1, 2, 2, 3, 0};
-        for (int i = 0; i < ArrayCount(localIndices); i++)
-        {
-            indices[indicesAdded++] = indexBase + localIndices[i];
-        }
-    }
-
-    Assert(vertsAdded == vertCount);
-    Assert(indicesAdded == indexCount);
-
-    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colorsBg, vertCount, sizeof(colorsBg[0])));
-    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
-    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
-    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
-
-    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colorsFg, vertCount, sizeof(colorsFg[0])));
-    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
-    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
-    BindTextureSlot(0, level->atlas->texture);
-    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
-    UnbindTextureSlot(0);
-
-    MemoryArenaUnfreeze(level->arena);
+    DrawAtlasTilemap(
+        *level->atlas,
+        level->w,
+        level->h,
+        level->tilePxW,
+        level->tilePxH,
+        level->mapTiles.atlasValues,
+        level->mapTiles.colorsFg,
+        level->mapTiles.colorsBg,
+        level->arena);
 }
