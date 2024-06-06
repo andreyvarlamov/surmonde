@@ -51,7 +51,6 @@ internal_func void setTile(Tiles *tiles, Tile tile, int i)
     tiles->colorsBg[i] = tile.bg;
 }
 
-
 internal_func Tile makeTile(i32 atlasValue, SavColor bg, SavColor fg)
 {
     Tile tile;
@@ -107,63 +106,6 @@ api_func void GenerateLevel(Level *level, LevelGenType genType)
 
 api_func void UpdateLevel(Level *level)
 {
-    #if 1
-    local_persist int chanceToGoAway = 50;
-    local_persist bool chanceToGoAwayInc = false;
-    local_persist int framesTilCanFreakOut = 100;
-    if (GetCurrentFrame() % 10 == 9)
-    {
-        if (chanceToGoAwayInc)
-        {
-            chanceToGoAway++;
-        }
-        else
-        {
-            chanceToGoAway--;
-        }
-        
-        if (chanceToGoAway == 0 || chanceToGoAway == 51)
-        {
-            chanceToGoAwayInc = !chanceToGoAwayInc;
-        }
-    }
-    framesTilCanFreakOut--;
-
-    for (int i = 0; i < level->w * level->h; i++)
-    {
-        Tile tile = getTile(&level->mapTiles, i);
-        int period = GetRandomValue(15,26);
-        if (GetCurrentFrame() % period == 0)
-        {
-            if (GetRandomValue(0, 10) == 0)
-            {
-                tile.atlasValue = GetRandomValue(0, 256);
-                // bg, fg
-                // SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY
-                // SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT
-                // SAV_COLOR_SABLE, SAV_COLOR_LIGHTGOLDENRODYELLOW
-                tile.fg = SAV_COLOR_ASHGRAY;
-                tile.bg = SAV_COLOR_SABLE;
-                setTile(&level->mapTiles, tile, i);
-            }
-            else if (framesTilCanFreakOut <= 0 && GetRandomValue(0, 25) == 0)
-            {
-                framesTilCanFreakOut = 100;
-                tile.atlasValue = GetRandomValue(0, 256);
-                tile.fg = MakeColor((u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), 255);
-                tile.bg = MakeColor((u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), (u8)GetRandomValue(0, 256), 255);
-                setTile(&level->mapTiles, tile, i);
-            }
-            else if (GetRandomValue(0, chanceToGoAway) == 0)
-            {
-                tile.atlasValue = 0;
-                tile.fg = SAV_COLOR_ASHGRAY;
-                tile.bg = SAV_COLOR_SABLE;
-                setTile(&level->mapTiles, tile, i);
-            }
-        }
-    }
-    #endif
 }
 
 api_func void DrawLevel(Level *level)
@@ -178,4 +120,10 @@ api_func void DrawLevel(Level *level)
         level->mapTiles.colorsFg,
         level->mapTiles.colorsBg,
         level->arena);
+}
+
+api_func v2 GetLevelTilePxDim(Level *level)
+{
+    v2 dim = V2(level->tilePxW, level->tilePxH);
+    return dim;
 }

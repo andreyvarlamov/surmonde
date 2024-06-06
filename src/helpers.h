@@ -13,6 +13,14 @@ inline v2i IdxToXY(i32 w, i32 i)
     return V2I(i % w, i / w);
 }
 
-inline 
-
+inline v2
+GetPxPFromTileP(v2 tilePxDim, v2i tileP)
+{
+    v2 pxP = V2(
+        (f32) tileP.x * tilePxDim.x + tilePxDim.x / 2.0f,
+        (f32) tileP.y * tilePxDim.y + tilePxDim.y / 2.0f
+    );
+    return pxP;
+}
+ 
 #endif

@@ -6,4 +6,5 @@ struct GameState
     MemoryArena worldArena;
     SavTextureAtlas mainTileAtlas;
     Level level;
+    Camera2D camera;
 };

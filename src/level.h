@@ -38,6 +38,7 @@ enum LevelGenType
 api_func Level MakeLevel(MemoryArena *mem, int w, int h, SavTextureAtlas *atlas, f32 atlasScale);
 api_func void GenerateLevel(Level *level, LevelGenType genType);
 api_func void UpdateLevel(Level *level);
-api_func void DrawLevel(Level *gameState);
+api_func void DrawLevel(Level *level);
+api_func v2 GetLevelTilePxDim(Level *level);
 
 #endif

@@ -837,6 +837,8 @@ sav_func void PushProjection(m4 projection);
 sav_func void PushModelView(m4 modelView);
 sav_func void PopProjection();
 sav_func void PopModelView();
+
+sav_func Camera2D MakeCamera(f32 rotation, v2 offset, v2 target, f32 zoomMin, f32 zoomMax, int zoomStepCount);
 sav_func void BeginCameraMode(Camera2D *camera);
 sav_func void EndCameraMode();
 sav_func v2 CameraWorldToScreen(Camera2D *camera, v2 world);
@@ -1702,6 +1704,16 @@ sav_func void PopModelView()
     Assert(_glState->modelViewStackCurrent > 0);
     --_glState->modelViewStackCurrent;
     setCurrentMvp();
+}
+
+sav_func Camera2D MakeCamera(f32 rotation, v2 offset, v2 target, f32 zoomMin, f32 zoomMax, int zoomStepCount)
+{
+    Camera2D camera = {};
+    camera.rotation = rotation;
+    camera.offset = offset;
+    camera.target = target;
+    CameraInitLogZoomSteps(&camera, zoomMin, zoomMax, zoomStepCount);
+    return camera;
 }
 
 sav_func void BeginCameraMode(Camera2D *camera)
