@@ -3,86 +3,48 @@
 #include "settings.h"
 #include "draw.h"
 #include "helpers.h"
+#include "entity.h"
+#include "tilemap.h"
 
-internal_func Tiles makeTiles(MemoryArena *mem, int w, int h)
-{
-    int count = w * h;
-    Tiles tiles;
-    tiles.w = w;
-    tiles.h = h;
-    tiles.atlasValues = MemoryArenaPushArray(mem, count, i32);
-    tiles.colorsFg = MemoryArenaPushArray(mem, count, SavColor);
-    tiles.colorsBg = MemoryArenaPushArray(mem, count, SavColor);
-    for (int i = 0; i < count; i++)
-    {
-        tiles.atlasValues[i] = '!';
-        tiles.colorsFg[i] = SAV_COLOR_YELLOW;
-        tiles.colorsBg[i] = SAV_COLOR_RED;
-    }
-    return tiles;
-}
-
-api_func Level MakeLevel(MemoryArena *mem, int w, int h, SavTextureAtlas *atlas, f32 atlasScale)
+api_func Level MakeLevel(
+    int w, int h,
+    SavTextureAtlas *atlas,
+    f32 tilePxW, f32 tilePxH,
+    int entityMax,
+    MemoryArena *arena)
 {
     Level level;
     level.w = w;
     level.h = h;
-    level.mapTiles = makeTiles(mem, w, h);
-    level.tilePxW = atlas->cellW * atlasScale;
-    level.tilePxH = atlas->cellH * atlasScale;
-    level.atlas = atlas;
-    level.arena = mem;
+    level.levelTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
+    if (entityMax > 0)
+    {
+        level.entityStore = MakeEntityStore(arena, entityMax, w, h);
+        level.entityTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
+    }
+    level.arena = arena;
     return level;
-}
-
-internal_func Tile getTile(Tiles *tiles, int i)
-{
-    Tile tile;
-    tile.atlasValue = tiles->atlasValues[i];
-    tile.fg = tiles->colorsFg[i];
-    tile.bg = tiles->colorsBg[i];
-    return tile;
-}
-
-internal_func void setTile(Tiles *tiles, Tile tile, int i)
-{
-    tiles->atlasValues[i] = tile.atlasValue;
-    tiles->colorsFg[i] = tile.fg;
-    tiles->colorsBg[i] = tile.bg;
-}
-
-internal_func Tile makeTile(i32 atlasValue, SavColor bg, SavColor fg)
-{
-    Tile tile;
-    tile.atlasValue = atlasValue;
-    tile.fg = fg;
-    tile.bg = bg;
-    return tile;
 }
 
 internal_func void generateLevelOneRoom(Level *level)
 {
-    Tile floorTile = makeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT);
-    Tile wallTile = makeTile('#', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);
+    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT);
+    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL);
     for (int i = 0; i < level->w * level->h; i++)
     {
-        setTile(&level->mapTiles, floorTile, i);
+        SetTile(&level->levelTilemap, i, floorTile);
     }
 
     for (int x = 0; x < level->w; x++)
     {
-        int i = x;
-        setTile(&level->mapTiles, wallTile, i);
-        i = XYToIdx(level->w, x, level->h - 1);
-        setTile(&level->mapTiles, wallTile, i);
+        SetTile(&level->levelTilemap, x, 0, wallTile);
+        SetTile(&level->levelTilemap, x, level->h - 1, wallTile);
     }
 
     for (int y = 0; y < level->h; y++)
     {
-        int i = XYToIdx(level->w, 0, y);
-        setTile(&level->mapTiles, wallTile, i);
-        i = XYToIdx(level->w, level->w - 1, y);
-        setTile(&level->mapTiles, wallTile, i);
+        SetTile(&level->levelTilemap, 0, y, wallTile);
+        SetTile(&level->levelTilemap, level->w - 1, y, wallTile);
     }
 }
 
@@ -102,28 +64,27 @@ api_func void GenerateLevel(Level *level, LevelGenType genType)
 
         default: InvalidCodePath;
     }
+
+    Entity playerEntity = MakeEntity(5, 5, level, MakeTile('@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY));
+    AddEntity(&level->entityStore, playerEntity);
 }
 
 api_func void UpdateLevel(Level *level)
 {
+    // UpdateEntities
+
+    PopulateTilemap(&level->entityStore, &level->entityTilemap);
 }
 
 api_func void DrawLevel(Level *level)
 {
-    DrawAtlasTilemap(
-        *level->atlas,
-        level->w,
-        level->h,
-        level->tilePxW,
-        level->tilePxH,
-        level->mapTiles.atlasValues,
-        level->mapTiles.colorsFg,
-        level->mapTiles.colorsBg,
-        level->arena);
+    DrawTilemap(&level->levelTilemap);
+    DrawTilemap(&level->entityTilemap);
 }
 
+// TODO: tile px dim shouldn't be part of level
 api_func v2 GetLevelTilePxDim(Level *level)
 {
-    v2 dim = V2(level->tilePxW, level->tilePxH);
+    v2 dim = V2(level->levelTilemap.tilePxW, level->levelTilemap.tilePxH);
     return dim;
 }

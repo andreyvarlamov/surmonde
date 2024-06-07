@@ -2,30 +2,17 @@
 #define LEVEL_H
 
 #include "sav.h"
-
-struct Tile
-{
-    i32 atlasValue;
-    SavColor fg;
-    SavColor bg;
-};
-
-struct Tiles
-{
-    int w;
-    int h;
-    i32 *atlasValues;
-    SavColor *colorsFg;
-    SavColor *colorsBg;
-};
+#include "tilemap.h"
+#include "entity.h"
 
 struct Level
 {
     int w, h;
-    Tiles mapTiles;
+    Tilemap levelTilemap;
+    Tilemap entityTilemap;
 
-    f32 tilePxW, tilePxH;
-    SavTextureAtlas *atlas;
+    EntityStore entityStore;
+
     MemoryArena *arena;
 };
 
@@ -35,7 +22,12 @@ enum LevelGenType
     LEVEL_CLASSIC_ROOMS
 };
 
-api_func Level MakeLevel(MemoryArena *mem, int w, int h, SavTextureAtlas *atlas, f32 atlasScale);
+api_func Level MakeLevel(
+    int w, int h,
+    SavTextureAtlas *atlas,
+    f32 tilePxW, f32 tilePxH,
+    int entityMax,
+    MemoryArena *arena);
 api_func void GenerateLevel(Level *level, LevelGenType genType);
 api_func void UpdateLevel(Level *level);
 api_func void DrawLevel(Level *level);

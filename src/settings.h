@@ -4,5 +4,6 @@
 #define LEVEL_WIDTH 100
 #define LEVEL_HEIGHT 100
 #define LEVEL_ATLAS_SCALE 0.5f
+#define ENTITY_STORE_COUNT 1024
 
 #endif

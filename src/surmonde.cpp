@@ -22,7 +22,9 @@ int main(int argc, char **argv)
 
     gameState->worldArena = AllocArena(Megabytes(4));
 
-    gameState->level = MakeLevel(&gameState->worldArena, LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, LEVEL_ATLAS_SCALE);
+    f32 tilePxW = gameState->mainTileAtlas.cellW * LEVEL_ATLAS_SCALE;
+    f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
+    gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, ENTITY_STORE_COUNT, &gameState->worldArena);
     GenerateLevel(&gameState->level, LEVEL_ONE_ROOM);
 
     gameState->camera = MakeCamera(
@@ -66,3 +68,5 @@ int main(int argc, char **argv)
 
 #include "level.cpp"
 #include "draw.cpp"
+#include "tilemap.cpp"
+#include "entity.cpp"
