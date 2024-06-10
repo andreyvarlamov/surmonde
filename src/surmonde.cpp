@@ -6,6 +6,7 @@
 #include "level.h"
 #include "settings.h"
 #include "helpers.h"
+#include "turn_queue.h"
 
 int main(int argc, char **argv)
 {
@@ -24,8 +25,10 @@ int main(int argc, char **argv)
 
     f32 tilePxW = gameState->mainTileAtlas.cellW * LEVEL_ATLAS_SCALE;
     f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
-    gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, ENTITY_STORE_COUNT, &gameState->worldArena);
-    GenerateLevel(&gameState->level, LEVEL_ONE_ROOM);
+    gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
+    gameState->entityStore = MakeEntityStore(&gameState->worldArena, ENTITY_STORE_COUNT, LEVEL_WIDTH, LEVEL_HEIGHT);
+    // gameState->level.entityTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
+    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_ONE_ROOM);
 
     gameState->camera = MakeCamera(
         0.0f,
@@ -34,6 +37,8 @@ int main(int argc, char **argv)
         0.2f,
         5.0f,
         5);
+
+    gameState->turnQueue = MakeTurnQueue(&gameState->worldArena);
 
     while (!WindowShouldClose())
     {
@@ -46,15 +51,69 @@ int main(int argc, char **argv)
 
         SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
 
-        UpdateLevel(&gameState->level);
+        switch (gameState->runState)
+        {
+            case RS_MAIN_MENU:
+            {
+                gameState->runState = RS_GAME_RUNNING;
+            } break;
 
-        BeginDraw();
-            ClearBackground(SAV_COLOR_LIGHTBLUE);
+            case RS_GAME_RUNNING:
+            {
+                TurnQueueNode nextInQueue = TurnQueuePeek(&gameState->turnQueue);
+                gameState->currentTime = nextInQueue.time;
+                if (nextInQueue.t == TURN_QUEUE_ACTION && IsControlledEntity(&gameState->entityStore, nextInQueue.e))
+                {
+                    PlayerInput input = {}; // = ProcessPlayerInput();
+                    // if (IsValidInput(input))
+                    {
+                        Assert(IsControlledEntity(&gameState->entityStore, nextInQueue.e));
 
-            BeginCameraMode(&gameState->camera);
-                DrawLevel(&gameState->level);
-            EndCameraMode();
-        EndDraw();
+                        TurnQueuePop(&gameState->turnQueue);
+
+                        i64 actionCost = ProcessControlledEntity(&gameState->entityStore, input, nextInQueue.e);
+
+                        TurnQueueInsertEntityAction(&gameState->turnQueue, nextInQueue.e, nextInQueue.time + actionCost);
+                    }
+                }
+
+                int queueItemsProcessed = 0;
+                while (nextInQueue.t == TURN_QUEUE_TURN_MARKER || !IsControlledEntity(&gameState->entityStore, nextInQueue.e))
+                {
+                    if (nextInQueue.t == TURN_QUEUE_ACTION)
+                    {
+                        TurnQueuePop(&gameState->turnQueue);
+
+                        i64 actionCost = ProcessEntityTurn(&gameState->entityStore, nextInQueue.e);
+
+                        TurnQueueInsertEntityAction(&gameState->turnQueue, nextInQueue.e, nextInQueue.time + actionCost);
+
+                        nextInQueue = TurnQueuePeek(&gameState->turnQueue);
+                        gameState->currentTime = nextInQueue.time;
+                    }
+                    else
+                    {
+                        TraceLog("Turn marker: %lld", nextInQueue.time);
+
+                        // Do things that should happen every game turn
+                    }
+
+                    if (++queueItemsProcessed >= QUEUE_MAX_PROCESSED_PER_FRAME)
+                    {
+                        break;
+                    }
+                }
+
+                BeginDraw();
+                    ClearBackground(SAV_COLOR_LIGHTBLUE);
+
+                    BeginCameraMode(&gameState->camera);
+                        DrawLevel(&gameState->level);
+                        // DrawTilemap(&level->entityTilemap);
+                    EndCameraMode();
+                EndDraw();
+            } break;
+        }
 
         SavSwapBuffers();
 
@@ -70,3 +129,4 @@ int main(int argc, char **argv)
 #include "draw.cpp"
 #include "tilemap.cpp"
 #include "entity.cpp"
+#include "turn_queue.cpp"

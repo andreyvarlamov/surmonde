@@ -5,30 +5,32 @@
 
 api_func EntityStore MakeEntityStore(MemoryArena *arena, int entityMax, int spatialW, int spatialH)
 {
-    EntityStore entityStore;
-    entityStore.entityCount = 0;
-    entityStore.entityMax = entityMax;
-    entityStore.entities = MemoryArenaPushArrayAndZero(arena, entityMax, Entity);
+    EntityStore s = {};
+    s.entityMax = entityMax;
+    s.entities = MemoryArenaPushArrayAndZero(arena, entityMax, Entity);
 
-    entityStore.w = spatialW;
-    entityStore.h = spatialH;
-    entityStore.spatialEntities = MemoryArenaPushArrayAndZero(arena, spatialW * spatialH, Entity *);
-    return entityStore;
+    s.w = spatialW;
+    s.h = spatialH;
+    s.spatialEntities = MemoryArenaPushArrayAndZero(arena, spatialW * spatialH, Entity *);
+
+    s.arena = arena;
+
+    return s;
 }
 
-internal_func void addSpatialEntity(EntityStore *entityStore, Entity *entity)
+internal_func void addSpatialEntity(EntityStore *s, Entity *e)
 {
-    int i = XYToIdx(entityStore->w, entity->p.x, entity->p.y);
+    int i = XYToIdx(s->w, e->p.x, e->p.y);
     // TODO: Multiple entities per spatial slot
-    Assert(entityStore->spatialEntities[i] == NULL);
-    entityStore->spatialEntities[i] = entity;
+    Assert(s->spatialEntities[i] == NULL);
+    s->spatialEntities[i] = e;
 }
 
-internal_func void removeSpatialEntity(EntityStore *entityStore, Entity *entity)
+internal_func void removeSpatialEntity(EntityStore *s, Entity *e)
 {
-    int i = XYToIdx(entityStore->w, entity->p.x, entity->p.y);
-    Assert(entityStore->spatialEntities[i] == entity);
-    entityStore->spatialEntities[i] = NULL;
+    int i = XYToIdx(s->w, e->p.x, e->p.y);
+    Assert(s->spatialEntities[i] == e);
+    s->spatialEntities[i] = NULL;
 }
 
 api_func Entity MakeEntity(int x, int y, Level *level, Tile tile)
@@ -41,30 +43,52 @@ api_func Entity MakeEntity(int x, int y, Level *level, Tile tile)
     return e;
 }
 
-api_func void AddEntity(EntityStore *entityStore, Entity entity)
+api_func void AddEntity(EntityStore *s, Entity e)
 {
     // TODO: Slot reuse
-    Assert(entityStore->entityCount < entityStore->entityMax);
-    Entity *entityInStore = entityStore->entities + entityStore->entityCount++;
-    *entityInStore = entity;
-    addSpatialEntity(entityStore, entityInStore);
+    Assert(s->entityCount < s->entityMax);
+    Entity *entityInStore = s->entities + s->entityCount++;
+    *entityInStore = e;
+    addSpatialEntity(s, entityInStore);
 }
 
-api_func void MoveEntity(EntityStore *entityStore, Entity *entity, v2i p)
+api_func void MoveEntity(EntityStore *s, Entity *e, v2i p)
 {
-    removeSpatialEntity(entityStore, entity);
-    entity->p = p;
-    addSpatialEntity(entityStore, entity);
+    removeSpatialEntity(s, e);
+    e->p = p;
+    addSpatialEntity(s, e);
 }
 
-api_func void PopulateTilemap(EntityStore *entityStore, Tilemap *tilemap)
+api_func void PopulateTilemap(EntityStore *s, Tilemap *tilemap)
 {
-    for (int i = 0; i < entityStore->entityCount; i++)
+    for (int i = 0; i < s->entityCount; i++)
     {
-        Entity *entity = entityStore->entities + i;
-        if (entity->isUsed)
+        Entity *e = s->entities + i;
+        if (e->isUsed)
         {
-            SetTile(tilemap, entity->p.x, entity->p.y, entity->tile);
+            SetTile(tilemap, e->p.x, e->p.y, e->tile);
         }
     }
+}
+
+api_func b32 IsControlledEntity(EntityStore *s, Entity *e)
+{
+    for (int i = 0; i < s->controlledEntityCount; i++)
+    {
+        if (s->controlledEntities[i] == e)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+api_func i64 ProcessEntityTurn(EntityStore *s, Entity *e)
+{
+    return 0;
+}
+
+api_func i64 ProcessControlledEntity(EntityStore *s, PlayerInput input, Entity *e)
+{
+    return 0;
 }

@@ -9,9 +9,6 @@ struct Level
 {
     int w, h;
     Tilemap levelTilemap;
-    Tilemap entityTilemap;
-
-    EntityStore entityStore;
 
     MemoryArena *arena;
 };
@@ -26,9 +23,8 @@ api_func Level MakeLevel(
     int w, int h,
     SavTextureAtlas *atlas,
     f32 tilePxW, f32 tilePxH,
-    int entityMax,
     MemoryArena *arena);
-api_func void GenerateLevel(Level *level, LevelGenType genType);
+api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType);
 api_func void UpdateLevel(Level *level);
 api_func void DrawLevel(Level *level);
 api_func v2 GetLevelTilePxDim(Level *level);

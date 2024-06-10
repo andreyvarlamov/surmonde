@@ -3,25 +3,20 @@
 #include "settings.h"
 #include "draw.h"
 #include "helpers.h"
-#include "entity.h"
 #include "tilemap.h"
+#include "entity.h"
+#include "turn_queue.h"
 
 api_func Level MakeLevel(
     int w, int h,
     SavTextureAtlas *atlas,
     f32 tilePxW, f32 tilePxH,
-    int entityMax,
     MemoryArena *arena)
 {
     Level level;
     level.w = w;
     level.h = h;
     level.levelTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
-    if (entityMax > 0)
-    {
-        level.entityStore = MakeEntityStore(arena, entityMax, w, h);
-        level.entityTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
-    }
     level.arena = arena;
     return level;
 }
@@ -48,7 +43,7 @@ internal_func void generateLevelOneRoom(Level *level)
     }
 }
 
-api_func void GenerateLevel(Level *level, LevelGenType genType)
+api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType)
 {
     switch (genType)
     {
@@ -66,20 +61,13 @@ api_func void GenerateLevel(Level *level, LevelGenType genType)
     }
 
     Entity playerEntity = MakeEntity(5, 5, level, MakeTile('@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY));
-    AddEntity(&level->entityStore, playerEntity);
-}
-
-api_func void UpdateLevel(Level *level)
-{
-    // UpdateEntities
-
-    PopulateTilemap(&level->entityStore, &level->entityTilemap);
+    AddEntity(entityStore, playerEntity);
+    // TODO: TurnQueueInsertEntityAction();
 }
 
 api_func void DrawLevel(Level *level)
 {
     DrawTilemap(&level->levelTilemap);
-    DrawTilemap(&level->entityTilemap);
 }
 
 // TODO: tile px dim shouldn't be part of level
