@@ -2,17 +2,28 @@
 #define ENTITY_H
 
 #include "sav.h"
-#include "tilemap.h"
 
 struct Level;
 
+struct EntityBrain
+{
+    b32 isOrderedMovement;
+    v2 movementTarget;
+};
+
 struct Entity
 {
-    v2i p;
+    v2 p;
     Level *level;
-    Tile tile;
+
+    i32 atlasValue;
+    SavColor fg;
+    SavColor bg;
+
+    f32 speed;
+    EntityBrain brain;
+
     b32 isUsed;
-    i64 energy;
 };
 
 #define MAX_CONTROLLED_ENTITIES 16
@@ -22,27 +33,33 @@ struct EntityStore
     int entityMax;
     Entity *entities;
 
-    int w, h;
-    Entity **spatialEntities;
+    // int w, h;
+    // Entity **spatialEntities;
 
-    int controlledEntityCount;
-    Entity *controlledEntities[MAX_CONTROLLED_ENTITIES];
+    Entity *controlledEntity;
 
     MemoryArena *arena;
+
+    SavTextureAtlas *atlas;
+    // TODO: This shouldn't be here
+    f32 tilePxW;
+    f32 tilePxH;
 };
 
-struct PlayerInput
+struct EntityIterator
 {
-    int a;
+    Entity *e;
+    int i;
 };
 
-api_func EntityStore MakeEntityStore(MemoryArena *arena, int entityMax, int spatialW, int spatialH);
-api_func Entity MakeEntity(int x, int y, Level *level, Tile tile);
-api_func void AddEntity(EntityStore *entityStore, Entity entity);
-api_func void MoveEntity(EntityStore *entityStore, Entity *entity, v2i p);
-api_func void PopulateTilemap(EntityStore *entityStore, Tilemap *tilemap);
-api_func i64 ProcessEntityTurn(EntityStore *s, Entity *e);
-api_func i64 ProcessControlledEntity(EntityStore *s, PlayerInput input, Entity *e);
-api_func b32 IsControlledEntity(EntityStore *s, Entity *e);
+api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH);
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg, f32 speed);
+api_func Entity *AddEntity(EntityStore *s, Entity e);
+
+api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
+api_func void OrderEntityMovement(Entity *e, v2 target);
+api_func void UpdateEntities(EntityStore *s, f32 delta);
+
+api_func void DrawEntities(EntityStore *s);
 
 #endif

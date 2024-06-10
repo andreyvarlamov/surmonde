@@ -5,7 +5,6 @@
 #include "helpers.h"
 #include "tilemap.h"
 #include "entity.h"
-#include "turn_queue.h"
 
 api_func Level MakeLevel(
     int w, int h,
@@ -60,14 +59,18 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
         default: InvalidCodePath;
     }
 
-    Entity playerEntity = MakeEntity(5, 5, level, MakeTile('@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY));
-    AddEntity(entityStore, playerEntity);
-    // TODO: TurnQueueInsertEntityAction();
+    // TODO: Maybe don't do this inside level gen
+    Entity playerEntity = MakeEntity(5.0f, 5.0f, level, '@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY, 10.0f);
+    Entity *addedEntity = AddEntity(entityStore, playerEntity);
+    entityStore->controlledEntity = addedEntity;
+
+    Entity enemyEntity = MakeEntity(10.0f, 10.0f, level, 'E', SAV_COLOR_SABLE, SAV_COLOR_RED, 10.0f);
+    AddEntity(entityStore, enemyEntity);
 }
 
 api_func void DrawLevel(Level *level)
 {
-    DrawTilemap(&level->levelTilemap);
+    DrawTilemap(&level->levelTilemap, V2(-0.5f, -0.5f));
 }
 
 // TODO: tile px dim shouldn't be part of level

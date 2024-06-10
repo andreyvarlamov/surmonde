@@ -114,6 +114,7 @@ inline f32 VecDot(v2 a, v2 b) { return a.x * b.x + a.y * b.y; }
 inline f32 VecLengthSq(v2 v) { return v.x * v.x + v.y * v.y; }
 inline f32 VecLength(v2 v) { return sqrtf(v.x * v.x + v.y * v.y); }
 inline v2 VecNormalize(v2 v) { f32 l = sqrtf(v.x * v.x + v.y * v.y); Assert(l > 0.0f); return { v.x / l, v.y / l }; }
+inline b32 VecEqual(v2 a, v2 b, f32 epsilon) { return (fabs(a.x - b.x) <= epsilon && fabs(a.y - b.y) <= epsilon); }
 
 inline v3 operator+(v3 a, v3 b) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
 inline v3 operator-(v3 a, v3 b) { return { a.x - b.x, a.y - b.y, a.z - b.z }; }
@@ -893,6 +894,7 @@ sav_func void TraceError(const char *format, ...);
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
+sav_func v2 GetRandomVec(f32 length);
 
 #ifdef SAV_IMPLEMENTATION
 
@@ -2562,6 +2564,16 @@ sav_func int GetRandomValue(int min, int max)
 sav_func f32 GetRandomFloat()
 {
     return (rand() / (f32) RAND_MAX);
+}
+
+sav_func v2 GetRandomVec(f32 length)
+{
+    f32 angle = GetRandomFloat() * 2.0f * (f32) PI;
+    v2 result;
+    result.x = cosf(angle);
+    result.y = sinf(angle);
+    result *= length;
+    return result;
 }
 
 #endif

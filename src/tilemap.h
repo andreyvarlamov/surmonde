@@ -28,6 +28,6 @@ api_func Tile GetTile(Tilemap *tilemap, int i);
 api_func Tile GetTile(Tilemap *tilemap, int x, int y);
 api_func void SetTile(Tilemap *tilemap, int i, Tile tile);
 api_func void SetTile(Tilemap *tilemap, int x, int y, Tile tile);
-api_func void DrawTilemap(Tilemap *tilemap);
+api_func void DrawTilemap(Tilemap *tilemap, v2 origin);
 
 #endif

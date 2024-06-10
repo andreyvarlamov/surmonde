@@ -10,6 +10,7 @@ api_func void DrawAtlasTilemap(
     i32 *atlasValues,
     SavColor *colorsFg,
     SavColor *colorsBg,
+    v2 origin,
     MemoryArena *arena)
 {
     int tileCount = tilemapWidth * tilemapHeight;
@@ -30,7 +31,9 @@ api_func void DrawAtlasTilemap(
         i32 tileVal = atlasValues[tileI];
         i32 tileX = tileI % tilemapWidth;
         i32 tileY = tileI / tilemapWidth;
-        Rect destRect = MakeRect(tileX * tilePxW, tileY * tilePxH, tilePxW, tilePxH);
+        f32 pxX = ((f32) tileX + origin.x) * tilePxW;
+        f32 pxY = ((f32) tileY + origin.y) * tilePxH;
+        Rect destRect = MakeRect(pxX, pxY, tilePxW, tilePxH);
         FourV3 points = ConvertFourV2V3(RectGetPoints(destRect));
 
         Rect atlasRect = GetAtlasSourceRect(atlas, tileVal);

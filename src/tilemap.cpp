@@ -72,7 +72,7 @@ api_func void SetTile(Tilemap *tilemap, int x, int y, Tile tile)
     tilemap->colorsFg[i] = tile.fg;
 }
 
-api_func void DrawTilemap(Tilemap *tilemap)
+api_func void DrawTilemap(Tilemap *tilemap, v2 origin)
 {
     DrawAtlasTilemap(
         *tilemap->atlas,
@@ -83,5 +83,6 @@ api_func void DrawTilemap(Tilemap *tilemap)
         tilemap->atlasValues,
         tilemap->colorsFg,
         tilemap->colorsBg,
+        origin,
         tilemap->arena);
 }

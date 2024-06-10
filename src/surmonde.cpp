@@ -6,7 +6,6 @@
 #include "level.h"
 #include "settings.h"
 #include "helpers.h"
-#include "turn_queue.h"
 
 int main(int argc, char **argv)
 {
@@ -26,7 +25,7 @@ int main(int argc, char **argv)
     f32 tilePxW = gameState->mainTileAtlas.cellW * LEVEL_ATLAS_SCALE;
     f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
-    gameState->entityStore = MakeEntityStore(&gameState->worldArena, ENTITY_STORE_COUNT, LEVEL_WIDTH, LEVEL_HEIGHT);
+    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
     // gameState->level.entityTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_ONE_ROOM);
 
@@ -37,8 +36,6 @@ int main(int argc, char **argv)
         0.2f,
         5.0f,
         5);
-
-    gameState->turnQueue = MakeTurnQueue(&gameState->worldArena);
 
     while (!WindowShouldClose())
     {
@@ -60,56 +57,23 @@ int main(int argc, char **argv)
 
             case RS_GAME_RUNNING:
             {
-                TurnQueueNode nextInQueue = TurnQueuePeek(&gameState->turnQueue);
-                gameState->currentTime = nextInQueue.time;
-                if (nextInQueue.t == TURN_QUEUE_ACTION && IsControlledEntity(&gameState->entityStore, nextInQueue.e))
+                if (MouseDown(SDL_BUTTON_RIGHT))
                 {
-                    PlayerInput input = {}; // = ProcessPlayerInput();
-                    // if (IsValidInput(input))
-                    {
-                        Assert(IsControlledEntity(&gameState->entityStore, nextInQueue.e));
-
-                        TurnQueuePop(&gameState->turnQueue);
-
-                        i64 actionCost = ProcessControlledEntity(&gameState->entityStore, input, nextInQueue.e);
-
-                        TurnQueueInsertEntityAction(&gameState->turnQueue, nextInQueue.e, nextInQueue.time + actionCost);
-                    }
+                    v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
+                    target.x = target.x / gameState->entityStore.tilePxW;
+                    target.y = target.y / gameState->entityStore.tilePxH;
+                    TraceLog("Target: %.3f, %.3f", target.x, target.y);
+                    OrderEntityMovement(gameState->entityStore.controlledEntity, target);
                 }
 
-                int queueItemsProcessed = 0;
-                while (nextInQueue.t == TURN_QUEUE_TURN_MARKER || !IsControlledEntity(&gameState->entityStore, nextInQueue.e))
-                {
-                    if (nextInQueue.t == TURN_QUEUE_ACTION)
-                    {
-                        TurnQueuePop(&gameState->turnQueue);
-
-                        i64 actionCost = ProcessEntityTurn(&gameState->entityStore, nextInQueue.e);
-
-                        TurnQueueInsertEntityAction(&gameState->turnQueue, nextInQueue.e, nextInQueue.time + actionCost);
-
-                        nextInQueue = TurnQueuePeek(&gameState->turnQueue);
-                        gameState->currentTime = nextInQueue.time;
-                    }
-                    else
-                    {
-                        TraceLog("Turn marker: %lld", nextInQueue.time);
-
-                        // Do things that should happen every game turn
-                    }
-
-                    if (++queueItemsProcessed >= QUEUE_MAX_PROCESSED_PER_FRAME)
-                    {
-                        break;
-                    }
-                }
+                UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
 
                 BeginDraw();
                     ClearBackground(SAV_COLOR_LIGHTBLUE);
 
                     BeginCameraMode(&gameState->camera);
                         DrawLevel(&gameState->level);
-                        // DrawTilemap(&level->entityTilemap);
+                        DrawEntities(&gameState->entityStore);
                     EndCameraMode();
                 EndDraw();
             } break;
@@ -129,4 +93,3 @@ int main(int argc, char **argv)
 #include "draw.cpp"
 #include "tilemap.cpp"
 #include "entity.cpp"
-#include "turn_queue.cpp"

@@ -10,6 +10,7 @@ api_func void DrawAtlasTilemap(
     i32 *atlasValues,
     SavColor *colorsFg,
     SavColor *colorsBg,
+    v2 origin,
     MemoryArena *arena);
 
 #endif
