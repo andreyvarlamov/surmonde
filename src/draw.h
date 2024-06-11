@@ -13,4 +13,11 @@ api_func void DrawAtlasTilemap(
     v2 origin,
     MemoryArena *arena);
 
+api_func void DrawFilledCircle(
+    v2 position,
+    f32 radius,
+    SavColor color,
+    int segments,
+    MemoryArena *arena);
+
 #endif

@@ -94,6 +94,7 @@ struct m4 { f32 e[4][4]; };
 
 inline v2 V2(f32 x, f32 y) { v2 result; result.x = x; result.y = y; return result; }
 inline v3 V3(f32 x, f32 y, f32 z) { v3 result; result.x = x; result.y = y; result.z = z; return result; }
+inline v3 V3(v2 v) { v3 result; result.x = v.x; result.y = v.y; result.z = 0.0f; return result; }
 inline v4 V4(f32 x, f32 y, f32 z, f32 w ) { v4 result; result.x = x; result.y = y; result.z = z; result.w = w; return result; }
 inline v2i V2I(i32 x, i32 y) { v2i result; result.x = x; result.y = y; return result; }
 inline m3 M3(f32 d) { m3 result = {}; result.e[0][0] = d; result.e[1][1] = d; result.e[2][2] = d; return result; }
@@ -373,6 +374,14 @@ inline FourV2 RectGetPoints(Rect r)
     points.e[2] = { r.x + r.w, r.y + r.h };
     points.e[3] = { r.x + r.w, r.y };
     return points;
+}
+
+inline v2 GetUnitVecFromAngle(f32 rads)
+{
+    v2 result;
+    result.x = cosf(rads);
+    result.y = sinf(rads);
+    return result;
 }
 
 // SECTION Memory arena

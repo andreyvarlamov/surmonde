@@ -6,6 +6,7 @@
 #include "level.h"
 #include "settings.h"
 #include "helpers.h"
+#include "draw.h"
 
 int main(int argc, char **argv)
 {
@@ -46,6 +47,7 @@ int main(int argc, char **argv)
         if (MouseWheel() != 0) CameraIncreaseLogZoomSteps(&gameState->camera, MouseWheel());
         if (MouseDown(SDL_BUTTON_MIDDLE)) gameState->camera.target -= CameraScreenToWorldRel(&gameState->camera, MouseRelPos());
 
+
         SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
 
         switch (gameState->runState)
@@ -74,6 +76,8 @@ int main(int argc, char **argv)
                     BeginCameraMode(&gameState->camera);
                         DrawLevel(&gameState->level);
                         DrawEntities(&gameState->entityStore);
+
+                        DrawFilledCircle(V2(7.0f * gameState->entityStore.tilePxW, 7.0f * gameState->entityStore.tilePxH), 32.0f, SAV_COLOR_YELLOW, 20, &gameState->worldArena);
                     EndCameraMode();
                 EndDraw();
             } break;

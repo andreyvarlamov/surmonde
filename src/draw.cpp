@@ -78,5 +78,64 @@ api_func void DrawAtlasTilemap(
     UnbindTextureSlot(0);
 
     MemoryArenaUnfreeze(arena);
+}
 
+api_func void DrawFilledCircle(
+    v2 center,
+    f32 radius,
+    SavColor color,
+    int segments,
+    MemoryArena *arena)
+{
+    int vertCount = segments + 1;
+    int indexCount = segments * 3;
+
+    MemoryArenaFreeze(arena);
+
+    v3 *positions = MemoryArenaPushArrayAndZero(arena, vertCount, v3);
+    v4 *colors = MemoryArenaPushArrayAndZero(arena, vertCount, v4);
+    u32 *indices = MemoryArenaPushArrayAndZero(arena, indexCount, u32);
+
+    int vertsAdded = 0;
+    int indicesAdded = 0;
+    f32 angleDelta = (f32) PI * 2.0f / segments;
+
+    f32 currentAngle = 0.0f;
+
+    positions[vertsAdded] = V3(center);
+    colors[vertsAdded] = GetColorV4(color);
+    vertsAdded++;
+    positions[vertsAdded] = V3(center + radius * GetUnitVecFromAngle(currentAngle));
+    colors[vertsAdded] = GetColorV4(color);
+    vertsAdded++;
+
+    for (int segmentI = 0; segmentI < segments - 1; segmentI++)
+    {
+        currentAngle += angleDelta;
+
+        positions[vertsAdded] = V3(center + radius * GetUnitVecFromAngle(currentAngle));
+        colors[vertsAdded] = GetColorV4(color);
+
+        indices[indicesAdded++] = 0;
+        indices[indicesAdded++] = vertsAdded;
+        indices[indicesAdded++] = vertsAdded - 1;
+
+        vertsAdded++;
+    }
+
+    indices[indicesAdded++] = 0;
+    indices[indicesAdded++] = vertsAdded - 1;
+    indices[indicesAdded++] = 1;
+
+    Assert(vertsAdded == vertCount);
+    Assert(indicesAdded == indexCount);
+
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, vertCount, sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
+
+    MemoryArenaUnfreeze(arena);
 }
