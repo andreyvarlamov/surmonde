@@ -68,6 +68,16 @@ int main(int argc, char **argv)
                     OrderEntityMovement(gameState->entityStore.controlledEntity, target);
                 }
 
+                if (KeyDown(SDL_SCANCODE_A))
+                {
+                    gameState->entityStore.controlledEntity->yawDeg += 90.0f * (f32) GetDeltaFixed();
+                }
+
+                if (KeyDown(SDL_SCANCODE_D))
+                {
+                    gameState->entityStore.controlledEntity->yawDeg -= 90.0f * (f32) GetDeltaFixed();
+                }
+
                 UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
 
                 BeginDraw();
@@ -76,8 +86,6 @@ int main(int argc, char **argv)
                     BeginCameraMode(&gameState->camera);
                         DrawLevel(&gameState->level);
                         DrawEntities(&gameState->entityStore);
-
-                        DrawFilledCircle(V2(7.0f * gameState->entityStore.tilePxW, 7.0f * gameState->entityStore.tilePxH), 32.0f, SAV_COLOR_YELLOW, 20, &gameState->worldArena);
                     EndCameraMode();
                 EndDraw();
             } break;

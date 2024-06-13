@@ -51,9 +51,12 @@ void __debugbreak(); // usually in <intrin.h>
 
 // SECTION Math
 #define PI 3.14159265358979311599796346854
+#define PI32 3.14159265358979311599796346854f
+#define CMP_EPSILON 0.00001
 
 inline f32 ToRad(f32 d) { return (f32) (d * PI / 180.0f); }
 inline f32 ToDeg(f32 r) { return (f32) (r / PI * 180.0f); }
+inline f32 AbsF32(f32 a) { return fabs(a); }
 
 inline f32 ExponentialInterpolation(f32 min, f32 max, f32 t)
 {
@@ -81,6 +84,80 @@ inline f32 ExponentialInterpolationWhereIs(f32 min, f32 max, f32 v)
     else
     {
         result = (logV - logMin) / (logMax - logMin);
+    }
+    return result;
+}
+
+inline i32 RoundF32ToI32(f32 a)
+{
+    i32 result = (i32) (a + 0.5f);
+    return result;
+}
+
+inline f32 Sign(f32 value)
+{
+    if (value >= 0.0f)
+    {
+        return 1.0f;
+    }
+    else
+    {
+        return -1.0f;
+    }
+}
+
+inline f32 MoveToward(f32 from, f32 to, f32 delta)
+{
+    f32 diff = AbsF32(from - to);
+    if (diff <= delta)
+    {
+        return to;
+    }
+    else
+    {
+        return from + Sign(to - from) * delta;
+    }
+}
+
+inline b32 MoveToward(f32 *current, f32 target, f32 delta)
+{
+    f32 diff = AbsF32(*current - target);
+    if (diff <= delta)
+    {
+        *current = target;
+        return true;
+    }
+    else
+    {
+        *current += Sign(target - *current) * delta;
+        return false;
+    }
+}
+
+inline b32 MoveTowardAngleDeg(f32 *current, f32 target, f32 delta)
+{
+    f32 diff = target - *current;
+
+    while (diff > 180.0f)
+    {
+        target -= 360.0f;
+        diff = target - *current;
+    }
+
+    while (diff < -180.0f)
+    {
+        target += 360.0f;
+        diff = target - *current;
+    }
+
+    b32 result = MoveToward(current, target, delta);
+    while (*current > 360.0f)
+    {
+        *current -= 360.0f;
+    }
+    while (*current < 0.0f)
+    {
+        *current += 360.0f;
     }
     return result;
 }
@@ -115,6 +192,7 @@ inline f32 VecDot(v2 a, v2 b) { return a.x * b.x + a.y * b.y; }
 inline f32 VecLengthSq(v2 v) { return v.x * v.x + v.y * v.y; }
 inline f32 VecLength(v2 v) { return sqrtf(v.x * v.x + v.y * v.y); }
 inline v2 VecNormalize(v2 v) { f32 l = sqrtf(v.x * v.x + v.y * v.y); Assert(l > 0.0f); return { v.x / l, v.y / l }; }
+inline v2 VecNormalizeIN0(v2 v) { f32 l = sqrtf(v.x * v.x + v.y * v.y); if(l == 0.0f) return {}; return { v.x / l, v.y / l }; }
 inline b32 VecEqual(v2 a, v2 b, f32 epsilon) { return (fabs(a.x - b.x) <= epsilon && fabs(a.y - b.y) <= epsilon); }
 
 inline v3 operator+(v3 a, v3 b) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
@@ -133,6 +211,7 @@ inline f32 VecDot(v3 a, v3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 inline f32 VecLengthSq(v3 v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
 inline f32 VecLength(v3 v) { return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z); }
 inline v3 VecNormalize(v3 v) { f32 l = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z); Assert(l > 0.0f); return { v.x / l, v.y / l, v.z / l }; } 
+inline v3 VecNormalizeIN0(v3 v) { f32 l = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z); if (l == 0.0f) return {}; return { v.x / l, v.y / l, v.z / l }; } 
 inline v3 VecCross(v3 a, v3 b) { return { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x }; }
 
 inline v4 operator+(v4 a, v4 b) { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }; }
@@ -384,6 +463,51 @@ inline v2 GetUnitVecFromAngle(f32 rads)
     return result;
 }
 
+inline v2 GetUnitVecFromAngleFlipY(f32 rads)
+{
+    v2 result;
+    result.x = cosf(rads);
+    result.y = -sinf(rads);
+    return result;
+}
+
+inline f32 GetVecFlippedYAngle(v2 v)
+{
+    f32 angle = atan2f(-v.y, v.x);
+    if (angle < 0.0f) angle += 2.0f * PI32;
+    return angle;
+}
+
+inline b32 MoveToward(v2 *position , v2 target, f32 dP)
+{
+    v2 diff = target - *position;
+    f32 dist = VecLength(diff);
+    if (dist <= dP || dist < (f32)CMP_EPSILON)
+    {
+        *position = target;
+        return true;
+    }
+    else
+    {
+        *position += diff / dist * dP;
+        return false;
+    }
+}
+
+inline v2 MoveToward(v2 from, v2 to, f32 dP)
+{
+    v2 diff = to - from;
+    f32 dist = VecLength(diff);
+    if (dist <= dP || dist < (f32)CMP_EPSILON)
+    {
+        return to;
+    }
+    else
+    {
+        return from + diff / dist * dP;
+    }
+}
+
 // SECTION Memory arena
 struct MemoryArena
 {
@@ -475,6 +599,7 @@ inline SavColor MakeColor(u8 r, u8 g, u8 b, u8 a) { SavColor c; c.r = r; c.g = g
 inline SavColor MakeColor(f32 r, f32 g, f32 b, f32 a) { SavColor c; c.r = (u8) (r * 255.0f); c.g = (u8) (g * 255.0f); c.b = (u8) (b * 255.0f); c.a = (u8) (a * 255.0f); return c; }
 inline SavColor MakeColor(u32 c32) { SavColor c; c.c32 = c32; return c; }
 inline v4 GetColorV4(SavColor c) { v4 result = V4(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f); return result; }
+inline SavColor ColorAlpha(SavColor c, f32 a) { c.a = (u8) (a * 255.0f); return c; }
 
 #define SAV_COLOR_ALICEBLUE MakeColor(0xF0F8FFFF)
 #define SAV_COLOR_ANTIQUEWHITE MakeColor(0xFAEBD7FF)

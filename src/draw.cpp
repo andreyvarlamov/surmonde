@@ -129,7 +129,6 @@ api_func void DrawFilledCircle(
 
     Assert(vertsAdded == vertCount);
     Assert(indicesAdded == indexCount);
-
     VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, vertCount, sizeof(colors[0])));
@@ -138,4 +137,121 @@ api_func void DrawFilledCircle(
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
 
     MemoryArenaUnfreeze(arena);
+}
+
+api_func void DrawFilledCircleSegment(
+    v2 center,
+    f32 radius,
+    f32 startDeg,
+    f32 endDeg,
+    SavColor color,
+    int segments,
+    MemoryArena *arena)
+{
+    if (startDeg > endDeg)
+    {
+        f32 temp = startDeg;
+        startDeg = endDeg;
+        endDeg = temp;
+    }
+
+    while (endDeg - startDeg > 360.0f)
+    {
+        endDeg = startDeg + 360.0f;
+    }
+
+    int vertCount = segments + 2;
+    int indexCount = segments * 3;
+
+    MemoryArenaFreeze(arena);
+
+    v3 *positions = MemoryArenaPushArrayAndZero(arena, vertCount, v3);
+    v4 *colors = MemoryArenaPushArrayAndZero(arena, vertCount, v4);
+    u32 *indices = MemoryArenaPushArrayAndZero(arena, indexCount, u32);
+
+    int vertsAdded = 0;
+    int indicesAdded = 0;
+    f32 angleDelta = ToRad(endDeg - startDeg) / segments;
+    f32 currentAngle = ToRad(startDeg);
+
+    positions[vertsAdded] = V3(center);
+    colors[vertsAdded] = GetColorV4(color);
+    vertsAdded++;
+    positions[vertsAdded] = V3(center + radius * GetUnitVecFromAngleFlipY(currentAngle));
+    colors[vertsAdded] = GetColorV4(color);
+    vertsAdded++;
+
+    for (int segmentI = 0; segmentI < segments; segmentI++)
+    {
+        currentAngle += angleDelta;
+
+        positions[vertsAdded] = V3(center + radius * GetUnitVecFromAngleFlipY(currentAngle));
+        colors[vertsAdded] = GetColorV4(color);
+
+        indices[indicesAdded++] = 0;
+        indices[indicesAdded++] = vertsAdded;
+        indices[indicesAdded++] = vertsAdded - 1;
+
+        vertsAdded++;
+    }
+
+    Assert(vertsAdded == vertCount);
+    Assert(indicesAdded == indexCount);
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, vertCount, sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
+
+    MemoryArenaUnfreeze(arena);
+}
+
+api_func void DrawFilledCircleSegment(
+    v2 center,
+    f32 radius,
+    f32 startDeg,
+    f32 endDeg,
+    SavColor color,
+    MemoryArena *arena)
+{
+    f32 deltaDeg = endDeg - startDeg;
+    if (deltaDeg > 360.0f) deltaDeg = 360.0f;
+
+    int segments = RoundF32ToI32(deltaDeg / 22.5f);
+
+    DrawFilledCircleSegment(
+        center,
+        radius,
+        startDeg,
+        endDeg,
+        color,
+        segments,
+        arena);
+}
+
+api_func void DrawLine(
+    v2 start,
+    v2 end,
+    SavColor color)
+{
+    v2 vec = end - start;
+    v3 perp = V3(-vec.y, vec.x, 0.0f);
+    perp = VecNormalizeIN0(perp);
+
+    v3 positions[3];
+    positions[0] = V3(start);
+    positions[1] = V3(end) - perp;
+    positions[2] = V3(end) + perp;
+    v4 colorV4 = GetColorV4(color);
+    v4 colors[] = { colorV4, colorV4, colorV4 };
+
+    u32 indices[] = { 0, 1, 2 };
+
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, ArrayCount(positions), ArrayCount(indices));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, ArrayCount(positions), sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
 }

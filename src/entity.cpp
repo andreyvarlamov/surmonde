@@ -1,6 +1,7 @@
 #include "entity.h"
 #include "sav.h"
 #include "helpers.h"
+#include "settings.h"
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH)
 {
@@ -61,18 +62,17 @@ api_func Entity *AddEntity(EntityStore *s, Entity e)
     return entityInStore;
 }
 
-api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp)
-{
-    // removeSpatialEntity(s, e);
-    e->p += dp;
-    // addSpatialEntity(s, e);
-}
-
 api_func void OrderEntityMovement(Entity *e, v2 target)
 {
     e->brain.isOrderedMovement = true;
     // TODO: Check if target is valid
     e->brain.movementTarget = target;
+}
+
+internal_func inline f32 getRotationSpeed(Entity *e)
+{
+    // TODO: Revisit this. Idk if it even makes sense to scale rotation speed with stats
+    return e->speed / ENTITY_BASE_SPEED * ENTITY_BASE_ROTATION_SPEED;
 }
 
 api_func void UpdateEntities(EntityStore *s, f32 delta)
@@ -85,17 +85,36 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
         {
             if (GetRandomValue(0, 100) == 0)
             {
-                e->brain.isOrderedMovement = true;
-                e->brain.movementTarget = e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f);
+                OrderEntityMovement(e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
             }
         }
 
         if (e->brain.isOrderedMovement)
         {
-            v2 newP = VecNormalize(e->brain.movementTarget - e->p) * e->speed * delta;
+            v2 movement = e->brain.movementTarget - e->p;
+            f32 dist = VecLength(movement);
+            if (dist < CMP_EPSILON)
+            {
+                e->brain.isOrderedMovement = false;
+                continue;
+            }
+
+            v2 dir = movement / dist;
+            f32 angle = ToDeg(GetVecFlippedYAngle(dir));
+
+            f32 moveAmount;
+            if (AbsF32(angle - e->yawDeg) > QUICK_TURN_AROUND_MAX)
+            {
+                moveAmount = e->speed * 0.2f * delta;
+            }
+            else
+            {
+                moveAmount = e->speed * delta;
+            }
+
             // TODO: Pathfind to target
-            MoveEntity(s, e, newP);
-            if (VecEqual(e->p, e->brain.movementTarget, 0.1f))
+            MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
+            if (MoveToward(&e->p, e->brain.movementTarget, moveAmount))
             {
                 e->brain.isOrderedMovement = false;
             }
@@ -172,4 +191,20 @@ api_func void DrawEntities(EntityStore *s)
     UnbindTextureSlot(0);
 
     MemoryArenaUnfreeze(s->arena);
+
+#if (DRAW_ENTITY_DEBUG == 1)
+    for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
+    {
+        Entity *e = s->entities + entityIndex;
+
+        v2 pxP = V2(e->p.x * s->tilePxW, e->p.y * s->tilePxH);
+        DrawFilledCircleSegment(pxP, 64.0f, e->yawDeg - 30.0f, e->yawDeg + 30.0f, ColorAlpha(SAV_COLOR_YELLOW, 0.1f), s->arena);
+
+        if (e->brain.isOrderedMovement)
+        {
+            v2 targetPxP = V2(e->brain.movementTarget.x * s->tilePxW, e->brain.movementTarget.y * s->tilePxH);
+            DrawLine(pxP, targetPxP, SAV_COLOR_DARKSLATEGRAY);
+        }
+    }
+#endif
 }

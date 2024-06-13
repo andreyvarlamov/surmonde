@@ -14,6 +14,8 @@ struct EntityBrain
 struct Entity
 {
     v2 p;
+    f32 yawDeg;
+
     Level *level;
 
     i32 atlasValue;
@@ -21,6 +23,7 @@ struct Entity
     SavColor bg;
 
     f32 speed;
+    f32 rotationSpeedDeg;
     EntityBrain brain;
 
     b32 isUsed;
