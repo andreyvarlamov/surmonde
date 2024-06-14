@@ -38,7 +38,7 @@ internal_func void removeSpatialEntity(EntityStore *s, Entity *e)
 }
 #endif
 
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg, f32 speed)
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg)
 {
     Entity e;
     e.p = V2(x, y);
@@ -46,10 +46,15 @@ api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor 
     e.atlasValue = atlasValue;
     e.bg = bg;
     e.fg = fg;
-    e.speed = speed;
     e.brain = {};
     e.isUsed = true;
     return e;
+}
+
+api_func void ConfigureCharacterEntity(Entity *e, CharacterStats stats)
+{
+    e->stats = stats;
+    e->stats.isConfigured = true;
 }
 
 api_func Entity *AddEntity(EntityStore *s, Entity e)
@@ -69,10 +74,127 @@ api_func void OrderEntityMovement(Entity *e, v2 target)
     e->brain.movementTarget = target;
 }
 
+api_func void OrderFollowEntity(Entity *follower, Entity *followed)
+{
+    follower->brain.isOrderedFollow = true;
+    follower->brain.followedEntity = followed;
+}
+
+api_func void OrderAttackEntity(Entity *attacker, Entity *defender)
+{
+    attacker->brain.isOrderedAttack = true;
+    attacker->brain.entityToAttack = defender;
+}
+
+internal_func inline b32 isEntityInRange(Entity *e, Entity *entityToCheck, f32 radius)
+{
+    b32 result = VecLengthSq(entityToCheck->p - e->p) < Square(radius);
+    return result;
+}
+
+api_func void InitiateCombat(EntityStore *s, Entity *entityA, Entity *entityB)
+{
+    CombatState *combatState = MemoryArenaPushStruct(s->arena, CombatState);
+    combatState->participants[0] = entityA;
+    combatState->participants[1] = entityB;
+    combatState->roundCurrentTime = 0.0f;
+    combatState->roundDuration = COMBAT_ROUND_DURATION;
+    
+    entityA->brain.isInCombat = true;
+    entityA->brain.combatState = combatState;
+    entityB->brain.isInCombat = true;
+    entityB->brain.combatState = combatState;
+}
+
+internal_func void processCharacterAI(EntityStore *s, Entity *e)
+{
+    Assert(e->stats.isConfigured);
+
+    if (!e->brain.isInCombat && isEntityInRange(e, s->controlledEntity, e->stats.attackReach))
+    {
+        e->brain.isOrderedFollow = false;
+        e->brain.isOrderedMovement = false;
+        InitiateCombat(s, e, s->controlledEntity);
+    }
+    else if (!e->brain.isOrderedFollow && isEntityInRange(e, s->controlledEntity, e->stats.viewRadius))
+    {
+        // TODO: Check if in line of sight
+        e->brain.isOrderedMovement = false;
+        OrderFollowEntity(e, s->controlledEntity);
+    }
+    else if (!e->brain.isOrderedFollow && !e->brain.isOrderedMovement)
+    {
+        if (GetRandomValue(0, 100) == 0)
+        {
+            OrderEntityMovement(e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
+        }
+    }
+}
+
 internal_func inline f32 getRotationSpeed(Entity *e)
 {
     // TODO: Revisit this. Idk if it even makes sense to scale rotation speed with stats
-    return e->speed / ENTITY_BASE_SPEED * ENTITY_BASE_ROTATION_SPEED;
+    return e->stats.speed / ENTITY_BASE_SPEED * ENTITY_BASE_ROTATION_SPEED;
+}
+
+internal_func b32 moveEntity(Entity *e, v2 target, f32 delta)
+{
+    v2 movement = target - e->p;
+    f32 dist = VecLength(movement);
+    if (dist < CMP_EPSILON)
+    {
+        e->p = target;
+        return true;
+    }
+
+    v2 dir = movement / dist;
+    f32 angle = ToDeg(GetVecFlippedYAngle(dir));
+
+    f32 moveAmount;
+    if (AbsF32(angle - e->yawDeg) > QUICK_TURN_AROUND_MAX)
+    {    
+       	moveAmount = e->stats.speed * 0.2f * delta;
+    }
+    else
+    {
+        moveAmount = e->stats.speed * delta;
+    }
+
+    // TODO: Pathfind to target
+    MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
+    b32 targetReached = MoveToward(&e->p, target, moveAmount);
+
+    return targetReached;
+}
+
+internal_func b32 attackEntity(Entity *attacker, Entity *defender)
+{
+    TraceLog("%p attacks %p", attacker, defender);
+    return isEntityInRange(attacker, defender, attacker->stats.attackReach);
+}
+
+internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
+{
+    Assert(e->stats.isConfigured);
+
+    if (e->brain.isOrderedAttack)
+    {
+        if (!attackEntity(e, e->brain.entityToAttack))
+        {
+            e->brain.isOrderedAttack = false;
+        }
+    }
+    else if (e->brain.isOrderedFollow)
+    {
+        moveEntity(e, e->brain.followedEntity->p, delta);
+    }
+    else if (e->brain.isOrderedMovement)
+    {
+        if (moveEntity(e, e->brain.movementTarget, delta))
+        {
+            e->brain.isOrderedMovement = false;
+        }
+    }
 }
 
 api_func void UpdateEntities(EntityStore *s, f32 delta)
@@ -81,44 +203,12 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
     {
         Entity *e = s->entities + entityIndex;
 
-        if (e != s->controlledEntity && !e->brain.isOrderedMovement)
+        if (!IsControlledEntity(s, e))
         {
-            if (GetRandomValue(0, 100) == 0)
-            {
-                OrderEntityMovement(e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
-            }
+            processCharacterAI(s, e);
         }
 
-        if (e->brain.isOrderedMovement)
-        {
-            v2 movement = e->brain.movementTarget - e->p;
-            f32 dist = VecLength(movement);
-            if (dist < CMP_EPSILON)
-            {
-                e->brain.isOrderedMovement = false;
-                continue;
-            }
-
-            v2 dir = movement / dist;
-            f32 angle = ToDeg(GetVecFlippedYAngle(dir));
-
-            f32 moveAmount;
-            if (AbsF32(angle - e->yawDeg) > QUICK_TURN_AROUND_MAX)
-            {
-                moveAmount = e->speed * 0.2f * delta;
-            }
-            else
-            {
-                moveAmount = e->speed * delta;
-            }
-
-            // TODO: Pathfind to target
-            MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
-            if (MoveToward(&e->p, e->brain.movementTarget, moveAmount))
-            {
-                e->brain.isOrderedMovement = false;
-            }
-        }
+        processCharacterOrders(s, e, delta);
     }
 }
 
@@ -196,6 +286,14 @@ api_func void DrawEntities(EntityStore *s)
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
         Entity *e = s->entities + entityIndex;
+
+        if (!IsControlledEntity(s, e))
+        {
+            v2 pxP = V2(e->p.x * s->tilePxW, e->p.y * s->tilePxH);
+            // NOTE: This visualization wouldn't work with non-square tiles.
+            DrawFilledCircle(pxP, e->stats.viewRadius * s->tilePxW, ColorAlpha(SAV_COLOR_GRAY, 0.1f), s->arena);
+            
+        }
 
         v2 pxP = V2(e->p.x * s->tilePxW, e->p.y * s->tilePxH);
         DrawFilledCircleSegment(pxP, 64.0f, e->yawDeg - 30.0f, e->yawDeg + 30.0f, ColorAlpha(SAV_COLOR_YELLOW, 0.1f), s->arena);

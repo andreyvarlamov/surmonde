@@ -106,6 +106,11 @@ inline f32 Sign(f32 value)
     }
 }
 
+inline f32 Square(f32 value)
+{
+    return value * value;
+}
+
 inline f32 MoveToward(f32 from, f32 to, f32 delta)
 {
     f32 diff = AbsF32(from - to);

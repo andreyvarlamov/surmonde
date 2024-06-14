@@ -84,8 +84,8 @@ api_func void DrawFilledCircle(
     v2 center,
     f32 radius,
     SavColor color,
-    int segments,
-    MemoryArena *arena)
+    MemoryArena *arena,
+    int segments)
 {
     int vertCount = segments + 1;
     int indexCount = segments * 3;

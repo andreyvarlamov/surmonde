@@ -47,8 +47,12 @@ int main(int argc, char **argv)
         if (MouseWheel() != 0) CameraIncreaseLogZoomSteps(&gameState->camera, MouseWheel());
         if (MouseDown(SDL_BUTTON_MIDDLE)) gameState->camera.target -= CameraScreenToWorldRel(&gameState->camera, MouseRelPos());
 
-
         SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
+
+	if (KeyPressed(SDL_SCANCODE_B))
+	{
+	    Breakpoint;
+	}
 
         switch (gameState->runState)
         {

@@ -17,8 +17,8 @@ api_func void DrawFilledCircle(
     v2 position,
     f32 radius,
     SavColor color,
-    int segments,
-    MemoryArena *arena);
+    MemoryArena *arena,
+    int segments = 16);
 
 api_func void DrawFilledCircleSegment(
     v2 center,

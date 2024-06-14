@@ -4,11 +4,35 @@
 #include "sav.h"
 
 struct Level;
+struct Entity;
+
+struct CombatState
+{
+    Entity *participants[2];
+    
+    f32 roundDuration;
+    f32 roundCurrentTime;
+};
 
 struct EntityBrain
 {
     b32 isOrderedMovement;
     v2 movementTarget;
+
+    b32 isOrderedFollow;
+    Entity *followedEntity;
+
+    b32 isInCombat;
+    CombatState *combatState;
+};
+
+struct CharacterStats
+{
+    b32 isConfigured;
+    
+    f32 viewRadius;
+    f32 attackReach;
+    f32 speed;
 };
 
 struct Entity
@@ -22,8 +46,8 @@ struct Entity
     SavColor fg;
     SavColor bg;
 
-    f32 speed;
-    f32 rotationSpeedDeg;
+    CharacterStats stats;
+
     EntityBrain brain;
 
     b32 isUsed;
@@ -49,14 +73,14 @@ struct EntityStore
     f32 tilePxH;
 };
 
-struct EntityIterator
+inline b32 IsControlledEntity(EntityStore *s, Entity *e)
 {
-    Entity *e;
-    int i;
-};
+    return e == s->controlledEntity;
+}
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH);
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg, f32 speed);
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg);
+api_func void ConfigureCharacterEntity(Entity *e, CharacterStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
