@@ -139,7 +139,7 @@ internal_func inline void setEntityCombatState(Entity *e, CombatState state, f32
 {
     e->brain.combatState = state;
     e->brain.combatTimer = howLong;
-    TraceLog("%p combat state: %d for %.1f s", state, howLong);
+    TraceLog("%p combat state: %d for %.1f s", e, state, howLong);
 }
 
 internal_func inline b32 performAttackHit(Entity *attacker, Entity *defender)
@@ -179,7 +179,12 @@ internal_func void processCombatState(Entity *e, f32 delta)
     {
         case COMBAT_STATE_READY:
         {
-            if (e->brain.combatInitiative > e->brain.opponent->brain.combatInitiative)
+            if (e->brain.opponent->brain.combatState == COMBAT_STATE_READY && e->stats.initiative > e->brain.opponent->stats.initiative)
+            {
+                setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
+            }
+
+            if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_POST)
             {
                 setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
             }
@@ -220,6 +225,8 @@ internal_func void processCombatState(Entity *e, f32 delta)
         {
             if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_POST)
             {
+                setEntityCombatState(e, COMBAT_STATE_DEFENCE_POST, 0.5f);
+                
                 // TODO: if opponent's post attack is quick, don't switch from defence
                 //       if slow, defence post, then attack pre
                 //       if chance, quick counter attack -- pre and post
@@ -232,6 +239,14 @@ internal_func void processCombatState(Entity *e, f32 delta)
                 // 
                 //       attack speed, entity estimating the speed of enemy's attack pre -- can maybe interrupt with a short attack (check enemy's combat timer + some rng)
                 //       having a choice of attacks available to you based on skills
+            }
+        } break;
+
+        case COMBAT_STATE_DEFENCE_POST:
+        {
+            if (AdvanceTimer(&e->brain.combatTimer, delta))
+            {
+                setEntityCombatState(e, COMBAT_STATE_READY, 0.0f);
             }
         } break;
 

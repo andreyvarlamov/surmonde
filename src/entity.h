@@ -28,7 +28,6 @@ struct EntityBrain
     CombatState combatState;
     Entity *opponent;
     f32 combatTimer;
-    f32 combatInitiative;
     f32 combatStamina;
 };
 
@@ -39,6 +38,7 @@ struct CharacterStats
     f32 viewRadius;
     f32 attackReach;
     f32 speed;
+    f32 initiative;
 };
 
 struct Entity
