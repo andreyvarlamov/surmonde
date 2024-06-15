@@ -49,6 +49,8 @@ int main(int argc, char **argv)
 
         SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
 
+        TraceLog("");
+
 	if (KeyPressed(SDL_SCANCODE_B))
 	{
 	    Breakpoint;

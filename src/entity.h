@@ -6,12 +6,11 @@
 struct Level;
 struct Entity;
 
-struct CombatState
+enum CombatState
 {
-    Entity *participants[2];
-    
-    f32 roundDuration;
-    f32 roundCurrentTime;
+    COMBAT_STATE_NONE,
+    COMBAT_STATE_ATTACKING,
+    COMBAT_STATE_DEFENDING
 };
 
 struct EntityBrain
@@ -22,8 +21,9 @@ struct EntityBrain
     b32 isOrderedFollow;
     Entity *followedEntity;
 
-    b32 isInCombat;
-    CombatState *combatState;
+    CombatState combatState;
+    Entity *opponent;
+    f32 combatTimer;
 };
 
 struct CharacterStats

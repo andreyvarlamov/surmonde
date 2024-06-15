@@ -80,55 +80,23 @@ api_func void OrderFollowEntity(Entity *follower, Entity *followed)
     follower->brain.followedEntity = followed;
 }
 
-api_func void OrderAttackEntity(Entity *attacker, Entity *defender)
-{
-    attacker->brain.isOrderedAttack = true;
-    attacker->brain.entityToAttack = defender;
-}
-
 internal_func inline b32 isEntityInRange(Entity *e, Entity *entityToCheck, f32 radius)
 {
     b32 result = VecLengthSq(entityToCheck->p - e->p) < Square(radius);
     return result;
 }
 
-api_func void InitiateCombat(EntityStore *s, Entity *entityA, Entity *entityB)
+api_func void InitiateCombat(Entity *attacker, Entity *defender)
 {
-    CombatState *combatState = MemoryArenaPushStruct(s->arena, CombatState);
-    combatState->participants[0] = entityA;
-    combatState->participants[1] = entityB;
-    combatState->roundCurrentTime = 0.0f;
-    combatState->roundDuration = COMBAT_ROUND_DURATION;
-    
-    entityA->brain.isInCombat = true;
-    entityA->brain.combatState = combatState;
-    entityB->brain.isInCombat = true;
-    entityB->brain.combatState = combatState;
-}
+    attacker->brain.combatState = COMBAT_STATE_ATTACKING;
+    attacker->brain.opponent = defender;
+    attacker->brain.combatTimer = COMBAT_ROUND_DURATION;
 
-internal_func void processCharacterAI(EntityStore *s, Entity *e)
-{
-    Assert(e->stats.isConfigured);
+    defender->brain.combatState = COMBAT_STATE_DEFENDING;
+    defender->brain.opponent = attacker;
+    defender->brain.combatTimer = COMBAT_ROUND_DURATION;
 
-    if (!e->brain.isInCombat && isEntityInRange(e, s->controlledEntity, e->stats.attackReach))
-    {
-        e->brain.isOrderedFollow = false;
-        e->brain.isOrderedMovement = false;
-        InitiateCombat(s, e, s->controlledEntity);
-    }
-    else if (!e->brain.isOrderedFollow && isEntityInRange(e, s->controlledEntity, e->stats.viewRadius))
-    {
-        // TODO: Check if in line of sight
-        e->brain.isOrderedMovement = false;
-        OrderFollowEntity(e, s->controlledEntity);
-    }
-    else if (!e->brain.isOrderedFollow && !e->brain.isOrderedMovement)
-    {
-        if (GetRandomValue(0, 100) == 0)
-        {
-            OrderEntityMovement(e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
-        }
-    }
+    TraceLog("%p is initiating combat with %p.", attacker, defender);
 }
 
 internal_func inline f32 getRotationSpeed(Entity *e)
@@ -167,21 +135,56 @@ internal_func b32 moveEntity(Entity *e, v2 target, f32 delta)
     return targetReached;
 }
 
-internal_func b32 attackEntity(Entity *attacker, Entity *defender)
+internal_func void processCharacterAI(EntityStore *s, Entity *e)
 {
-    TraceLog("%p attacks %p", attacker, defender);
-    return isEntityInRange(attacker, defender, attacker->stats.attackReach);
+    Assert(e->stats.isConfigured);
+
+   if (e->brain.combatState == COMBAT_STATE_NONE && isEntityInRange(e, s->controlledEntity, e->stats.attackReach))
+    {
+        e->brain.isOrderedFollow = false;
+        e->brain.isOrderedMovement = false;
+        InitiateCombat(e, s->controlledEntity);
+    }
+    else if (!e->brain.isOrderedFollow && isEntityInRange(e, s->controlledEntity, e->stats.viewRadius))
+    {
+        // TODO: Check if in line of sight
+        e->brain.isOrderedMovement = false;
+        OrderFollowEntity(e, s->controlledEntity);
+    }
+    else if (!e->brain.isOrderedFollow && !e->brain.isOrderedMovement)
+    {
+        if (GetRandomValue(0, 100) == 0)
+        {
+            OrderEntityMovement(e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
+        }
+    }
 }
 
 internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
 {
     Assert(e->stats.isConfigured);
 
-    if (e->brain.isOrderedAttack)
+    if (e->brain.combatState != COMBAT_STATE_NONE)
     {
-        if (!attackEntity(e, e->brain.entityToAttack))
+        switch (e->brain.combatState)
         {
-            e->brain.isOrderedAttack = false;
+            case COMBAT_STATE_ATTACKING:
+            {
+                TraceLog("%p is attacking.", e);
+            } break;
+            case COMBAT_STATE_DEFENDING:
+            {
+                TraceLog("%p is defending.", e);
+            } break;
+            default: break;
+        }
+
+        e->brain.combatTimer -= delta;
+        if (e->brain.combatTimer <= 0.0f)
+        {
+            e->brain.combatTimer = 0.0f;
+            e->brain.combatState = COMBAT_STATE_NONE;
+            TraceLog("%p is done with combat.", e);
         }
     }
     else if (e->brain.isOrderedFollow)
@@ -242,12 +245,23 @@ api_func void DrawEntities(EntityStore *s)
         Rect atlasRect = GetAtlasSourceRect(*s->atlas, e->atlasValue);
         FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(s->atlas->texture, atlasRect));
 
+        SavColor bg = {};
+
+        if (e->brain.combatState == COMBAT_STATE_ATTACKING)
+        {
+            bg = ColorAlpha(SAV_COLOR_CRIMSON, 0.2f);
+        }
+        else if (e->brain.combatState == COMBAT_STATE_DEFENDING)
+        {
+            bg = ColorAlpha(SAV_COLOR_DARKKHAKI, 0.2f);
+        }
+
         u32 indexBase = vertsAdded;
         for (int i = 0; i < 4; i++)
         {
             positions[vertsAdded] = points.e[i];
             texCoords[vertsAdded] = texCoordPoints.e[i];
-            colorsBg[vertsAdded] = GetColorV4(e->bg);
+            colorsBg[vertsAdded] = GetColorV4(bg);
             colorsFg[vertsAdded] = GetColorV4(e->fg);
             vertsAdded++;
         }
@@ -269,7 +283,7 @@ api_func void DrawEntities(EntityStore *s)
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
-
+    
     VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
