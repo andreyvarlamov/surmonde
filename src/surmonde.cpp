@@ -38,6 +38,8 @@ int main(int argc, char **argv)
         5.0f,
         5);
 
+    gameState->uiFont = SavLoadFont("res/fonts/Jacquard12-Regular.ttf", 42);
+
     while (!WindowShouldClose())
     {
         BeginFrameTiming();
@@ -91,6 +93,8 @@ int main(int argc, char **argv)
                         DrawLevel(&gameState->level);
                         DrawEntities(&gameState->entityStore);
                     EndCameraMode();
+
+                    DrawString("Hello, world!\nhahaha\n\n\nwhere am i???????", &gameState->uiFont, 36, SAV_COLOR_WHITE, 10.0f, 10.0f, 0.0f, &gameState->worldArena);
                 EndDraw();
             } break;
         }
@@ -100,6 +104,8 @@ int main(int argc, char **argv)
         EndFrameTiming();
     }
 
+    SavFreeFont(&gameState->uiFont);
+    
     Quit();
 
     return 0;

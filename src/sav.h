@@ -178,6 +178,7 @@ inline v2 V2(f32 x, f32 y) { v2 result; result.x = x; result.y = y; return resul
 inline v3 V3(f32 x, f32 y, f32 z) { v3 result; result.x = x; result.y = y; result.z = z; return result; }
 inline v3 V3(v2 v) { v3 result; result.x = v.x; result.y = v.y; result.z = 0.0f; return result; }
 inline v4 V4(f32 x, f32 y, f32 z, f32 w ) { v4 result; result.x = x; result.y = y; result.z = z; result.w = w; return result; }
+inline v4 V4(v2 v) { v4 result; result.x = v.x; result.y = v.y; result.z = 0.0f; result.w = 0.0f; return result; }
 inline v2i V2I(i32 x, i32 y) { v2i result; result.x = x; result.y = y; return result; }
 inline m3 M3(f32 d) { m3 result = {}; result.e[0][0] = d; result.e[1][1] = d; result.e[2][2] = d; return result; }
 inline m4 M4(f32 d) { m4 result = {}; result.e[0][0] = d; result.e[1][1] = d; result.e[2][2] = d; result.e[3][3] = d; return result; }
@@ -832,6 +833,28 @@ struct Camera2D
     int zoomLogStepsCount;
 };
 
+
+struct GlyphInfo
+{
+    v2 glyphUVs[4];
+
+    int minX;
+    int maxX;
+    int minY;
+    int maxY;
+    int advance;
+};
+
+struct SavFont
+{
+    int glyphCount;
+    GlyphInfo *glyphInfos;
+
+    u32 atlasTextureId;
+    f32 pointSize;
+    int height;
+};
+
 enum VertexAttribType
 {
     SAV_VA_TYPE_FLOAT,
@@ -1024,6 +1047,11 @@ sav_func void DrawTexture(SavTexture texture, Rect dest, Rect source, v2 origin,
 sav_func void DrawRect(Rect rect, SavColor color);
 sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, Rect destRect, SavColor color);
 
+sav_func SavFont SavLoadFont(const char *path, u32 pointSize);
+sav_func v2 GetStringDimensions(const char *string, SavFont *font, f32 pointSize);
+sav_func void DrawString(const char *string, SavFont *font, f32 pointSize, SavColor color, f32 x, f32 y, f32 maxWidth, MemoryArena *arena);
+sav_func void SavFreeFont(SavFont *font);
+
 sav_func char *SavReadTextFile(const char *path);
 sav_func void SavFreeString(char **text);
 
@@ -1041,6 +1069,7 @@ sav_func v2 GetRandomVec(f32 length);
 #include <shellscalingapi.h>
 #include <sdl2/SDL.h>
 #include <sdl2/SDL_image.h>
+#include <sdl2/SDL_ttf.h>
 #include <glad/glad.h>
 
 #include <cstdio>
@@ -1243,6 +1272,13 @@ sav_func void InitWindow(const char *title, int width, int height)
             if (!(imgInitResult & sdlImageFlags))
             {
                 traceLogEngine("ERROR", "Failed to initialize SDL IMG.");
+                InvalidCodePath;
+                return;
+            }
+
+            if (TTF_Init() != 0)
+            {
+                traceLogEngine("ERROR", "SDL failed to init SDL_ttf.");
                 InvalidCodePath;
                 return;
             }
@@ -2614,6 +2650,385 @@ sav_func void DrawAtlasCell(SavTextureAtlas atlas, int x, int y, Rect destRect, 
     int atlasPxY = y * atlas.cellH;
     Rect atlasRect = MakeRect((f32) atlasPxX, (f32) atlasPxY, (f32) atlas.cellW, (f32) atlas.cellH);
     DrawTexture(atlas.texture, destRect, atlasRect, {}, 0.0f, color);
+}
+
+// SECTION Fonts and text rendering
+internal_func u32 loadTextureFromFont(void *data, u32 width, u32 height)
+{
+    u32 id;
+    glGenTextures(1, &id);
+    Assert(id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, data);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return id;
+}
+
+sav_func SavFont SavLoadFont(const char *path, u32 pointSize)
+{
+    SavFont font = {};
+
+    font.glyphCount = 128;
+    font.glyphInfos = (GlyphInfo *)calloc(1, font.glyphCount * sizeof(GlyphInfo));
+    if (font.glyphInfos == NULL)
+    {
+        traceLogEngine("ERROR", "Failed to allocate for font glyph infos");
+        InvalidCodePath;
+        return {};
+    }
+
+    SDL_Surface **glyphImages = (SDL_Surface **)calloc(1, font.glyphCount * sizeof(SDL_Surface *));
+    if (glyphImages == NULL)
+    {
+        traceLogEngine("ERROR", "Failed to allocate for glyph images");
+        free(font.glyphInfos);
+        InvalidCodePath;
+        return {};
+    }
+    
+    TTF_Font *sdlFont = TTF_OpenFont(path, pointSize);
+    if (sdlFont == NULL)
+    {
+        const char *Error = SDL_GetError();
+        traceLogEngine("ERROR", "SDL failed to load ttf font at %s:\n%s", path, Error);
+        free(font.glyphInfos);
+        free(glyphImages);
+        InvalidCodePath;
+        return {};
+    }
+    
+    font.pointSize = (f32)pointSize;
+    font.height = TTF_FontHeight(sdlFont);
+    int bytesPerPixel = 4;
+
+    int maxGlyphWidth = 0;
+    int maxGlyphHeight = 0;
+    for (u8 glyphChar = 32; glyphChar < font.glyphCount; glyphChar++)
+    {
+        GlyphInfo *glyphInfo = font.glyphInfos + glyphChar;
+
+        TTF_GlyphMetrics(sdlFont, (char)glyphChar,
+                         &glyphInfo->minX, &glyphInfo->maxX, &glyphInfo->minY, &glyphInfo->maxY, &glyphInfo->advance);
+
+        SDL_Surface *glyphImage = TTF_RenderGlyph_Blended(sdlFont, (char)glyphChar, { 255, 255, 255, 255 });
+        if (glyphImage->w > maxGlyphWidth)
+        {
+            maxGlyphWidth = glyphImage->w;
+        }
+        if (glyphImage->h > maxGlyphHeight)
+        {
+            maxGlyphHeight = glyphImage->h;
+        }
+        Assert(glyphImage->format->BytesPerPixel == bytesPerPixel);
+
+        glyphImages[glyphChar] = glyphImage;
+    }
+
+    // NOTE: 12x8 = 96 -> for the 95 visible glyphs
+    u32 atlasColumns = 12;
+    u32 atlasRows = 8;
+    u32 atlasPxWidth = atlasColumns * maxGlyphWidth;
+    u32 atlasPxHeight = atlasRows * maxGlyphHeight;
+    u32 atlasPitch = bytesPerPixel * atlasPxWidth;
+    u8 *atlasBytes = (u8 *)calloc(1, atlasPitch * atlasPxHeight * sizeof(u8));
+    if (atlasBytes == NULL)
+    {
+        traceLogEngine("ERROR", "Failed to allocate memory for font atlas");
+        free(font.glyphInfos);
+        free(glyphImages);
+        TTF_CloseFont(sdlFont);
+        InvalidCodePath;
+        return {};
+    }
+    
+    u32 currentGlyphIndex = 0;
+    for (u8 glyphChar = 32; glyphChar < font.glyphCount; glyphChar++)
+    {
+        SDL_Surface *glyphImage = glyphImages[glyphChar];
+        Assert(glyphImage->w > 0);
+        Assert(glyphImage->w <= maxGlyphWidth);
+        Assert(glyphImage->h > 0);
+        Assert(glyphImage->h <= maxGlyphHeight);
+        Assert(glyphImage->format->BytesPerPixel == bytesPerPixel);
+        Assert(glyphImage->pixels);
+        
+        GlyphInfo *glyphInfo = font.glyphInfos + glyphChar;
+
+        u32 currentAtlasCol = currentGlyphIndex % atlasColumns;
+        u32 currentAtlasRow = currentGlyphIndex / atlasColumns;
+        u32 atlasPxX = currentAtlasCol * maxGlyphWidth;
+        u32 atlasPxY = currentAtlasRow * font.height;
+        size_t atlasByteOffset = (atlasPxY * atlasPxWidth + atlasPxX) * bytesPerPixel;
+
+        // NOTE: Hack solution to texture bleed in some fonts. 127 is DEL char, some fonts put a big rectangle for that, that fills
+        //       the whole glyph height, and can bleed into surrounding glyphs.
+        if (glyphChar != 127)
+        {
+            u8 *dest = atlasBytes + atlasByteOffset;
+            u8 *source = (u8 *) glyphImage->pixels;
+            for (int glyphPxY = 0; glyphPxY < glyphImage->h; glyphPxY++)
+            {
+                u8 *destByte = dest;
+                u8 *sourceByte = source;
+            
+                for (int glyphPxX = 0; glyphPxX < glyphImage->w; glyphPxX++)
+                {
+                    for (int pixelByte = 0; pixelByte < bytesPerPixel; pixelByte++)
+                    {
+                        *destByte++ = *sourceByte++;
+                    }
+                }
+
+                dest += atlasPitch;
+                source += glyphImage->pitch;
+            }
+        }
+
+        // NOTE:Use the atlas position and width/height to calculate UVs for each glyph
+        // NOTE: It seems that SDL_ttf embeds MinX into the rendered glyph, but also it's ignored if it's less than 0
+        //       Need to shift where to place glyph if MinX is negative, but if not negative, it's already included
+        //       in the rendered glyph. This works but seems very finicky
+        u32 glyphTexWidth = ((glyphInfo->minX >= 0) ? (glyphInfo->maxX) : (glyphInfo->maxX - glyphInfo->minX));
+        u32 glyphTexHeight = maxGlyphHeight;
+        
+        f32 oneOverAtlasPxWidth = 1.0f / (f32)atlasPxWidth;
+        f32 oneOverAtlasPxHeight = 1.0f / (f32)atlasPxHeight;
+        f32 uvLeft = (f32)atlasPxX * oneOverAtlasPxWidth;
+        f32 uvTop = (f32)atlasPxY * oneOverAtlasPxHeight;
+        f32 uvRight = (f32)(atlasPxX + glyphTexWidth) * oneOverAtlasPxWidth;
+        f32 uvBottom = (f32)(atlasPxY + glyphTexHeight) * oneOverAtlasPxHeight;
+        glyphInfo->glyphUVs[0] = V2(uvLeft, uvTop);
+        glyphInfo->glyphUVs[1] = V2(uvLeft, uvBottom);
+        glyphInfo->glyphUVs[2] = V2(uvRight, uvBottom);
+        glyphInfo->glyphUVs[3] = V2(uvRight, uvTop);
+        
+        SDL_FreeSurface(glyphImage);
+
+        currentGlyphIndex++;
+    }
+
+    font.atlasTextureId = loadTextureFromFont(atlasBytes, atlasPxWidth, atlasPxHeight);
+
+    traceLogEngine("INFO", "Loaded font at %s", path);
+    
+    #if 1
+    const char *debugFilePath = "temp/fontAtlasTest.png";
+    traceLogEngine("INFO", "Saved debug font atlas at %s", debugFilePath);
+    SavSaveImage(debugFilePath, atlasBytes, atlasPxWidth, atlasPxHeight, false, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    #endif
+
+    free(glyphImages);
+    TTF_CloseFont(sdlFont);
+    free(atlasBytes);
+    
+    return font;
+}
+
+sav_func v2 GetStringDimensions(const char *string,
+                                SavFont *font, f32 pointSize)
+{
+    f32 sizeRatio = pointSize / font->pointSize;
+    f32 lineHeight = sizeRatio * font->height;
+    
+    f32 width = 0.0f;
+    f32 height = lineHeight;
+    
+    for (int stringI = 0; string[stringI] != '\0'; stringI++)
+    {
+        char glyph = string[stringI];
+        if (glyph == '\n')
+        {
+            height += lineHeight;
+        }
+        else
+        {
+            width += sizeRatio * font->glyphInfos[glyph].advance;
+        }
+    }
+
+    return V2(width, height);
+}
+
+sav_func void DrawString(const char *string,
+                         SavFont *font, f32 pointSize, SavColor color,
+                         f32 x, f32 y, f32 maxWidth,
+                         MemoryArena *arena)
+{
+    // TODO: Line heigth based on ratio is probably not right
+    f32 sizeRatio = pointSize / font->pointSize;
+
+    int stringCount;
+    for (stringCount = 0; string[stringCount] != '\0'; stringCount++) {}
+    
+    MemoryArenaFreeze(arena);
+
+    enum WrapPoint : u8
+    {
+        WRAP_POINT_NONE,
+        WRAP_POINT_SPACE,
+        WRAP_POINT_GLYPH
+    };
+    
+    WrapPoint *wrapPoints = MemoryArenaPushArrayAndZero(arena, stringCount, WrapPoint);
+    
+    if (maxWidth > 0.0f)
+    {
+        int prevSpaceI = 0;
+        f32 wrapXAccum = 0.0f;
+        for (int stringI = 0; stringI < stringCount; stringI++)
+        {
+            // TODO: This doesn't handle new lines in the string
+            char glyph = string[stringI];
+
+            GlyphInfo *glyphInfo = font->glyphInfos + glyph;
+
+            wrapXAccum += sizeRatio * glyphInfo->advance;
+
+            if (glyph == ' ')
+            {
+                prevSpaceI = stringI;
+            }
+
+            if (wrapXAccum > maxWidth)
+            {
+                if (prevSpaceI != 0)
+                {
+                    wrapPoints[prevSpaceI] = WRAP_POINT_SPACE;
+                    stringI = prevSpaceI;
+                    wrapXAccum = 0.0f;
+                    prevSpaceI = 0;
+                }
+                else
+                {
+                    wrapPoints[stringI] = WRAP_POINT_GLYPH;
+                    wrapXAccum = 0.0f;
+                }
+            }
+        }
+    }
+    
+    f32 currentX = x;
+    f32 maxX = x;
+    f32 currentY = y;
+
+    int stringVisibleCount = 0;
+    for (int stringI = 0; stringI < stringCount; ++stringI)
+    {
+        if (string[stringI] != '\n' && wrapPoints[stringI] != 1)
+        {
+            stringVisibleCount++;
+        }
+    }
+
+    int vertCount = stringVisibleCount * 4;
+    int indexCount = stringVisibleCount * 6;
+    v3 *positions = MemoryArenaPushArray(arena, vertCount, v3);
+    v4 *texCoords = MemoryArenaPushArray(arena, vertCount, v4);
+    v4 *colors = MemoryArenaPushArray(arena, vertCount, v4);
+    u32 *indices = MemoryArenaPushArray(arena, indexCount, u32);
+
+    int vertsAdded = 0;
+    int indicesAdded = 0;
+    for (int stringIndex = 0; stringIndex < stringCount; stringIndex++)
+    {
+        char glyph = string[stringIndex];
+
+        f32 scaledHeight = sizeRatio * font->height;
+        
+        if (glyph == '\n' || wrapPoints[stringIndex] > WRAP_POINT_NONE)
+        {
+            if (currentX > maxX)
+            {
+                maxX = currentX;
+            }
+            currentX = x;
+            currentY += scaledHeight;
+            if (wrapPoints[stringIndex] == WRAP_POINT_GLYPH)
+            {
+                // Wrap point is a printable glyph, so render it
+            }
+            else
+            {
+                // Wrap point is a space, so skip it
+                continue;
+            }
+        }
+
+        Assert(glyph >= 32 && glyph < font->glyphCount);
+        GlyphInfo *glyphInfo = font->glyphInfos + glyph;
+
+        f32 scaledMinX = sizeRatio * glyphInfo->minX;
+        f32 scaledMaxX = sizeRatio * glyphInfo->maxX;
+
+        f32 pxX = ((scaledMinX >= 0) ? currentX : (currentX + scaledMinX));
+        f32 pxY = currentY;
+        f32 pxWidth = (f32)((scaledMinX >= 0) ? scaledMaxX : (scaledMaxX - scaledMinX));
+        f32 pxHeight = scaledHeight;
+
+        v4 colorV4 = GetColorV4(color);
+        
+        u32 indexBase = vertsAdded;
+        positions[vertsAdded] = V3(pxX, pxY, 0);
+        colors[vertsAdded] = colorV4;
+        texCoords[vertsAdded] = V4(glyphInfo->glyphUVs[0]);
+        vertsAdded++;
+
+        positions[vertsAdded] = V3(pxX, pxY + pxHeight, 0);
+        colors[vertsAdded] = colorV4;
+        texCoords[vertsAdded] = V4(glyphInfo->glyphUVs[1]);
+        vertsAdded++;
+        
+        positions[vertsAdded] = V3(pxX + pxWidth, pxY + pxHeight, 0);
+        colors[vertsAdded] = colorV4;
+        texCoords[vertsAdded] = V4(glyphInfo->glyphUVs[2]);
+        vertsAdded++;
+
+        positions[vertsAdded] = V3(pxX + pxWidth, pxY, 0);
+        colors[vertsAdded] = colorV4;
+        texCoords[vertsAdded] = V4(glyphInfo->glyphUVs[3]);
+        vertsAdded++;
+
+        u32 localIndices[] = { 0, 1, 3, 3, 1, 2 };
+
+        for (int i = 0; i < ArrayCount(localIndices); i++)
+        {
+            indices[indicesAdded++] = indexBase + localIndices[i];
+        }
+
+        currentX += sizeRatio * glyphInfo->advance;
+    }
+    Assert(vertsAdded == vertCount);
+    Assert(indicesAdded == indexCount);
+
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, vertCount, sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, font->atlasTextureId);
+
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _glState->defaultTexture.id);
+
+    MemoryArenaUnfreeze(arena);
+}
+
+sav_func void SavFreeFont(SavFont *font)
+{
+    free(font->glyphInfos);
+    *font = {};
 }
 
 // SECTION File IO

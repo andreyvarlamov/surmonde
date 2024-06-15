@@ -11,7 +11,10 @@ enum RunState
 struct GameState
 {
     MemoryArena worldArena;
+    
     SavTextureAtlas mainTileAtlas;
+    SavFont uiFont;
+    
     Level level;
     Camera2D camera;
     EntityStore entityStore;
