@@ -173,74 +173,79 @@ internal_func void processCharacterAI(EntityStore *s, Entity *e)
     }
 }
 
+internal_func void processCombatState(Entity *e, f32 delta)
+{
+    switch (e->brain.combatState)
+    {
+        case COMBAT_STATE_READY:
+        {
+            if (e->brain.combatInitiative > e->brain.opponent->brain.combatInitiative)
+            {
+                setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
+            }
+                
+            if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_PRE)
+            {
+                setEntityCombatState(e, COMBAT_STATE_DEFENCE_PRE, 0.5f);
+            }
+        } break;
+
+        case COMBAT_STATE_ATTACK_PRE:
+        {
+            if (AdvanceTimer(&e->brain.combatTimer, delta))
+            {
+                b32 attackSuccess = performAttackHit(e, e->brain.opponent);
+                TraceLog("%p hits %p: %d", e, e->brain.opponent, attackSuccess);
+                setEntityCombatState(e, COMBAT_STATE_ATTACK_POST, 1.0f);
+            }
+        } break;
+
+        case COMBAT_STATE_ATTACK_POST:
+        {
+            if (AdvanceTimer(&e->brain.combatTimer, delta))
+            {
+                setEntityCombatState(e, COMBAT_STATE_READY, 0.0f);
+            }
+        } break;
+            
+        case COMBAT_STATE_DEFENCE_PRE:
+        {
+            if (AdvanceTimer(&e->brain.combatTimer, delta))
+            {
+                setEntityCombatState(e, COMBAT_STATE_DEFENCE_READY, 0.0f);
+            }
+        } break;
+
+        case COMBAT_STATE_DEFENCE_READY:
+        {
+            if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_POST)
+            {
+                // TODO: if opponent's post attack is quick, don't switch from defence
+                //       if slow, defence post, then attack pre
+                //       if chance, quick counter attack -- pre and post
+                //       if counter attack succeeds, can follow up with normal attack
+                //
+                //       attack interruption
+                //       working with stamina
+                //
+                //       lookahead state (e.g. defence post now, with intention to start attacking after)
+                // 
+                //       attack speed, entity estimating the speed of enemy's attack pre -- can maybe interrupt with a short attack (check enemy's combat timer + some rng)
+                //       having a choice of attacks available to you based on skills
+            }
+        } break;
+
+        default: break;
+    }
+}
+
 internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
 {
     Assert(e->stats.isConfigured);
 
     if (e->brain.combatState != COMBAT_STATE_NONE)
     {
-        switch (e->brain.combatState)
-        {
-            case COMBAT_STATE_READY:
-            {
-                if (e->brain.combatInitiative > e->brain.opponent->brain.combatInitiative)
-                {
-                    setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
-                }
-                
-                if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_PRE)
-                {
-                    setEntityCombatState(e, COMBAT_STATE_DEFENCE_PRE, 0.5f);
-                }
-            } break;
-            case COMBAT_STATE_ATTACK_PRE:
-            {
-                if (AdvanceTimer(&e->brain.combatTimer, delta))
-                {
-                    b32 attackSuccess = performAttackHit(e, e->brain.opponent);
-                    TraceLog("%p hits %p: %d", e, e->brain.opponent, attackSuccess);
-                    setEntityCombatState(e, COMBAT_STATE_ATTACK_POST, 1.0f);
-                }
-                
-            } break;
-
-            case COMBAT_STATE_ATTACK_POST:
-            {
-                if (AdvanceTimer(&e->brain.combatTimer, delta))
-                {
-                    setEntityCombatState(e, COMBAT_STATE_READY, 0.0f);
-                }
-            } break;
-            
-            case COMBAT_STATE_DEFENCE_PRE:
-            {
-                if (AdvanceTimer(&e->brain.combatTimer, delta))
-                {
-                    setEntityCombatState(e, COMBAT_STATE_DEFENCE_READY, 0.0f);
-                }
-            } break;
-
-            case COMBAT_STATE_DEFENCE_READY:
-            {
-                if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_POST)
-                {
-                    // TODO: if opponent's post attack is quick, don't switch from defence
-                    //       if slow, defence post, then attack pre
-                    //       if chance, quick counter attack -- pre and post
-                    //       if counter attack succeeds, can follow up with normal attack
-                    //
-                    //       attack interruption
-                    //       working with stamina
-                    //
-                    //       lookahead state (e.g. defence post now, with intention to start attacking after)
-                    // 
-                    //       attack speed, entity estimating the speed of enemy's attack pre -- can maybe interrupt with a short attack (check enemy's combat timer + some rng)
-                    //       having a choice of attacks available to you based on skills
-                }
-            } break;
-
-            default: break;
-        }
+        processCombatState(e, delta);
     }
     else if (e->brain.isOrderedFollow)
     {
