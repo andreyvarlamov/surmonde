@@ -9,8 +9,12 @@ struct Entity;
 enum CombatState
 {
     COMBAT_STATE_NONE,
-    COMBAT_STATE_ATTACKING,
-    COMBAT_STATE_DEFENDING
+    COMBAT_STATE_READY,
+    COMBAT_STATE_ATTACK_PRE,
+    COMBAT_STATE_ATTACK_POST,
+    COMBAT_STATE_DEFENCE_PRE,
+    COMBAT_STATE_DEFENCE_READY,
+    COMBAT_STATE_DEFENCE_POST
 };
 
 struct EntityBrain
@@ -24,6 +28,8 @@ struct EntityBrain
     CombatState combatState;
     Entity *opponent;
     f32 combatTimer;
+    f32 combatInitiative;
+    f32 combatStamina;
 };
 
 struct CharacterStats
