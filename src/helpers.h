@@ -32,5 +32,11 @@ inline b32 AdvanceTimer(f32 *timer, f32 delta)
     }
     return false;
 }
+
+inline b32 RandomChance(f32 chance)
+{
+    b32 result = GetRandomFloat() <= chance * 0.01f;
+    return result;
+}
  
 #endif

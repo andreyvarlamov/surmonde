@@ -30,9 +30,10 @@ int main(int argc, char **argv)
     // gameState->level.entityTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_ONE_ROOM);
 
+    
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
-                                   GetPxPFromTileP(GetLevelTilePxDim(&gameState->level), V2I(10, 10)),
+                                   GetPxPFromTileP(GetLevelTilePxDim(&gameState->level), V2I(25, 20)),
                                    0.2f,
                                    5.0f,
                                    5);

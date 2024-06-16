@@ -65,7 +65,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.attackReach = 1.0f;
     stats.speed = 10.0f;
     stats.initiative = 10.0f;
-    Entity playerEntity = MakeEntity(5.0f, 5.0f, level, '@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);
+    Entity playerEntity = MakeEntity(25.0f, 20.0f, level, '@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);
     ConfigureCharacterEntity(&playerEntity, stats);
     Entity *addedEntity = AddEntity(entityStore, playerEntity);
     entityStore->controlledEntity = addedEntity;
