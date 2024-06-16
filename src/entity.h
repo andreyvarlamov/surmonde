@@ -94,5 +94,5 @@ api_func void OrderEntityMovement(Entity *e, v2 target);
 api_func void UpdateEntities(EntityStore *s, f32 delta);
 
 api_func void DrawEntities(EntityStore *s);
-
+api_func void DrawEntityUI(EntityStore *s, SavFont *font, MemoryArena *arena);
 #endif

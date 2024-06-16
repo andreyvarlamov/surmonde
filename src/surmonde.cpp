@@ -30,15 +30,14 @@ int main(int argc, char **argv)
     // gameState->level.entityTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_ONE_ROOM);
 
-    gameState->camera = MakeCamera(
-        0.0f,
-        GetWindowSize() / 2.0f,
-        GetPxPFromTileP(GetLevelTilePxDim(&gameState->level), V2I(10, 10)),
-        0.2f,
-        5.0f,
-        5);
+    gameState->camera = MakeCamera(0.0f,
+                                   GetWindowSize() / 2.0f,
+                                   GetPxPFromTileP(GetLevelTilePxDim(&gameState->level), V2I(10, 10)),
+                                   0.2f,
+                                   5.0f,
+                                   5);
 
-    gameState->uiFont = SavLoadFont("res/fonts/Jacquard12-Regular.ttf", 42);
+    gameState->uiFont = SavLoadFont("res/fonts/VT323-Regular.ttf", 30);
 
     while (!WindowShouldClose())
     {
@@ -94,7 +93,7 @@ int main(int argc, char **argv)
                         DrawEntities(&gameState->entityStore);
                     EndCameraMode();
 
-                    DrawString("Hello, world!\nhahaha\n\n\nwhere am i???????", &gameState->uiFont, 36, SAV_COLOR_WHITE, 10.0f, 10.0f, 0.0f, &gameState->worldArena);
+                    DrawEntityUI(&gameState->entityStore, &gameState->uiFont, &gameState->worldArena);
                 EndDraw();
             } break;
         }

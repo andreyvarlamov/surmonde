@@ -764,7 +764,7 @@ inline SavColor ColorAlpha(SavColor c, f32 a) { c.a = (u8) (a * 255.0f); return 
 #define SAV_COLOR_CARBONBLACK MakeColor(0x0C0A00FF)
 #define SAV_COLOR_SABLE MakeColor(0x060606FF)
 #define SAV_COLOR_MIDNIGHT MakeColor(0x2B1B17FF)
-
+#define SAV_COLOR_DARKDARKGRAY MakeColor(0x202020FF)
 // SECTION SAV header
 struct GameMemory
 {

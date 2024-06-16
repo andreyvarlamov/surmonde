@@ -92,6 +92,8 @@ api_func void InitiateCombat(Entity *attacker, Entity *defender)
     attacker->brain.opponent = defender;
     // attacker->brain.combatTimer = COMBAT_ROUND_DURATION;
 
+    defender->brain.isOrderedMovement = false;
+    defender->brain.isOrderedFollow = false;
     defender->brain.combatState = COMBAT_STATE_READY;
     defender->brain.opponent = attacker;
     // defender->brain.combatTimer = COMBAT_ROUND_DURATION;
@@ -390,4 +392,51 @@ api_func void DrawEntities(EntityStore *s)
         }
     }
 #endif
+}
+
+internal_func inline const char *getCombatStateString(CombatState combatState)
+{
+    // TODO: Haha
+    switch (combatState)
+    {
+        case COMBAT_STATE_NONE: return "None";
+        case COMBAT_STATE_READY: return "Ready";
+        case COMBAT_STATE_ATTACK_PRE: return "Attack Pre";
+        case COMBAT_STATE_ATTACK_POST: return "Attack Post";
+        case COMBAT_STATE_DEFENCE_PRE: return "Defence Pre";
+        case COMBAT_STATE_DEFENCE_READY: return "Defence Ready";
+        case COMBAT_STATE_DEFENCE_POST: return "Defence Post";
+        default: return "Unknown";
+    }
+}
+
+api_func void DrawEntityUI(EntityStore *s, SavFont *font, MemoryArena *arena)
+{
+    f32 widgetX = 10.0f;
+    f32 widgetY = 10.0f;
+    f32 widgetWidth = 350.0f;
+    f32 widgetHeight = 100.0f;
+    f32 widgetPad = 5.0f;
+    f32 widgetMargin = 5.0f;
+    
+    for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
+    {
+        Entity *e = s->entities + entityIndex;
+
+        if (e->brain.combatState != COMBAT_STATE_NONE)
+        {
+            DrawRect(MakeRect(widgetX, widgetY, widgetWidth, widgetHeight), SAV_COLOR_DARKDARKGRAY);
+
+            f32 lineHeight = 30.0f;
+            
+            f32 inWidgetX = widgetX + widgetPad;
+            f32 inWidgetY = widgetY + widgetPad;
+            DrawString(TextFormat("Entity %p", e), font, 30, SAV_COLOR_WHITE, inWidgetX, inWidgetY, 0.0f, arena);
+
+            inWidgetY += lineHeight;
+            DrawString(TextFormat("Combat state: %s", getCombatStateString(e->brain.combatState)), font, 30, SAV_COLOR_WHITE, inWidgetX, inWidgetY, 0.0f, arena);
+
+            widgetY += widgetHeight + widgetMargin;
+        }
+    }
 }
