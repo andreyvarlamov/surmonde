@@ -42,4 +42,21 @@ api_func void DrawLine(
     v2 end,
     SavColor color);
 
+struct Floater
+{
+    b32 isUsed;
+    const char *string; // TODO: Should not be alloced on stack
+    SavFont *font;
+    f32 pointSize;
+    SavColor color;
+    v2 startingWorldP;
+    
+    f32 yOffset;
+    f32 opacity;
+};
+
+api_func void InitializeFloaterState(SavFont *font, Camera2D *camera, MemoryArena *arena);
+api_func void AddFloater(const char *string, f32 pointSize, SavColor color, v2 worldP);
+api_func void DrawFloaters(f32 delta);
+
 #endif

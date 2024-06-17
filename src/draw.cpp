@@ -255,3 +255,66 @@ api_func void DrawLine(
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
 }
+
+#define FLOATERS_MAX 16
+struct FloaterState
+{
+    SavFont *font;
+    Camera2D *camera;
+    MemoryArena *arena;
+
+    Floater floaters[FLOATERS_MAX];
+};
+
+FloaterState _floaterState; // TODO: Do this better
+
+api_func void InitializeFloaterState(SavFont *font, Camera2D* camera, MemoryArena *arena)
+{
+    _floaterState.font = font;
+    _floaterState.camera = camera;
+    _floaterState.arena = arena;
+}
+
+api_func void AddFloater(const char *string, f32 pointSize, SavColor color, v2 worldP)
+{
+    for (int i = 0; i < FLOATERS_MAX; i++)
+    {
+        Floater *floater = _floaterState.floaters + i;
+        if (!floater->isUsed)
+        {
+            floater->isUsed = true;
+            floater->string = string;
+            floater->pointSize = pointSize;
+            floater->color = color;
+            floater->startingWorldP = V2(worldP.x * 32.0f, worldP.y * 32.0f);
+            floater->yOffset = 0.0f;
+            floater->opacity = 1.0f;
+            return;
+        }
+    }
+
+    InvalidCodePath; // Not enough floater slots
+}
+
+api_func void DrawFloaters(f32 delta)
+{
+    for (int i = 0; i < FLOATERS_MAX; i++)
+    {
+        Floater *floater = _floaterState.floaters + i;
+        if (floater->isUsed)
+        {
+            SavColor color = ColorAlpha(floater->color, floater->opacity);
+
+            v2 screenP = CameraWorldToScreen(_floaterState.camera, floater->startingWorldP);
+            DrawString(floater->string, _floaterState.font, floater->pointSize, color, screenP.x, screenP.y - floater->yOffset, 0.0f, _floaterState.arena);
+
+            floater->yOffset += 100.0f * delta;
+            floater->opacity -= 0.3f * delta;
+
+            if (floater->yOffset > 1000.0f || floater->opacity < 0.0f)
+            {
+                floater->isUsed = false;
+            }
+        }
+    }
+}

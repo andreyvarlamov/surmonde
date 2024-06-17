@@ -2,6 +2,7 @@
 #include "sav.h"
 #include "helpers.h"
 #include "settings.h"
+#include "draw.h"
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH)
 {
@@ -149,7 +150,7 @@ internal_func inline void setEntityCombatState(Entity *e, CombatState state, f32
 internal_func inline b32 performAttackHit(Entity *attacker, Entity *defender)
 {
     b32 attackerHits = RandomChance(80.0f);
-    b32 defenderBlocks = defender->brain.combatState == COMBAT_STATE_DEFENCE_READY && RandomChance(80.0f);
+    b32 defenderBlocks = defender->brain.combatState == COMBAT_STATE_DEFENCE_MID && RandomChance(80.0f);
 
     attacker->brain.combatStamina -= 20.0f;
     if (defenderBlocks)
@@ -159,15 +160,15 @@ internal_func inline b32 performAttackHit(Entity *attacker, Entity *defender)
 
     if (!attackerHits)
     {
-        TraceLog("%p misses %p", attacker, defender);
+        AddFloater("Miss", 20, SAV_COLOR_YELLOW, attacker->p);
     }
     else if (!defenderBlocks)
     {
-        TraceLog("%p hits %p", attacker, defender);
+        AddFloater("Hit", 20, SAV_COLOR_RED, attacker->p);
     }
     else
     {
-        TraceLog("%p hits %p, but %p blocks.", attacker, defender, defender);
+        AddFloater("Deflect", 20, SAV_COLOR_GREEN, defender->p);
     }
 
     return attackerHits && !defenderBlocks;
@@ -177,7 +178,7 @@ internal_func void processCharacterAI(EntityStore *s, Entity *e)
 {
     Assert(e->stats.isConfigured);
 
-   if (e->brain.combatState == COMBAT_STATE_NONE && isEntityInRange(e, s->controlledEntity, e->stats.attackReach))
+    if (e->brain.combatState == COMBAT_STATE_NONE && isEntityInRange(e, s->controlledEntity, e->stats.combatRadius))
     {
         e->brain.isOrderedFollow = false;
         e->brain.isOrderedMovement = false;
@@ -207,8 +208,17 @@ internal_func void recoverStamina(f32 *stamina, f32 rate, f32 delta)
     }
 }
 
+internal_func void faceEntity(Entity *e, Entity *targetEntity, f32 delta)
+{
+    v2 dir = VecNormalize(targetEntity->p - e->p);
+    f32 angle = ToDeg(GetVecFlippedYAngle(dir));
+    MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
+}
+
 internal_func void processCombatState(Entity *e, f32 delta)
-{    
+{
+    faceEntity(e, e->brain.opponent, delta);
+    
     switch (e->brain.combatState)
     {
         case COMBAT_STATE_READY:
@@ -227,25 +237,44 @@ internal_func void processCombatState(Entity *e, f32 delta)
 
         case COMBAT_STATE_ATTACK_PRE:
         {
+            v2 dir = VecNormalize(e->p - e->brain.opponent->p);
+            v2 target = e->brain.opponent->p + e->stats.attackReach * dir;
+            
+            MoveToward(&e->p, target, e->stats.speed * delta);
+            
+            if (AdvanceTimer(&e->brain.combatTimer, delta))
+            {
+                setEntityCombatState(e, COMBAT_STATE_ATTACK_MID, 0.2f);
+            }
+        } break;
+
+        case COMBAT_STATE_ATTACK_MID:
+        {
             if (AdvanceTimer(&e->brain.combatTimer, delta))
             {
                 performAttackHit(e, e->brain.opponent);
-                setEntityCombatState(e, COMBAT_STATE_ATTACK_POST, 1.0f);
+
+                if (e->brain.combatStamina > 0.0f)
+                {
+                    e->brain.combatTimer = 0.2f;
+                }
+                else
+                {
+                    setEntityCombatState(e, COMBAT_STATE_ATTACK_POST, 1.0f);
+                }
             }
         } break;
 
         case COMBAT_STATE_ATTACK_POST:
         {
+            v2 dir = VecNormalize(e->p - e->brain.opponent->p);
+            v2 target = e->brain.opponent->p + e->stats.combatRadius * dir;
+            
+            MoveToward(&e->p, target, e->stats.speed * delta);
+
             if (AdvanceTimer(&e->brain.combatTimer, delta))
             {
-                if (e->brain.combatStamina > 0.0f)
-                {
-                    setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
-                }
-                else
-                {
-                    setEntityCombatState(e, COMBAT_STATE_READY, 0.0f);
-                }
+                setEntityCombatState(e, COMBAT_STATE_READY, 0.0f);
             }
         } break;
             
@@ -253,15 +282,15 @@ internal_func void processCombatState(Entity *e, f32 delta)
         {
             if (AdvanceTimer(&e->brain.combatTimer, delta))
             {
-                setEntityCombatState(e, COMBAT_STATE_DEFENCE_READY, 0.0f);
+                setEntityCombatState(e, COMBAT_STATE_DEFENCE_MID, 0.0f);
             }
         } break;
 
-        case COMBAT_STATE_DEFENCE_READY:
+        case COMBAT_STATE_DEFENCE_MID:
         {
             recoverStamina(&e->brain.combatStamina, 15.0f, delta);
             
-            if (e->brain.opponent->brain.combatState == COMBAT_STATE_READY && e->brain.opponent->brain.combatStamina < 0.0f)
+            if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_POST && e->brain.opponent->brain.combatStamina < 0.0f)
             {
                 setEntityCombatState(e, COMBAT_STATE_DEFENCE_POST, 0.5f);
                 
@@ -437,11 +466,12 @@ internal_func inline const char *getCombatStateString(CombatState combatState)
     {
         case COMBAT_STATE_NONE: return "None";
         case COMBAT_STATE_READY: return "Ready";
-        case COMBAT_STATE_ATTACK_PRE: return "Attack Pre";
-        case COMBAT_STATE_ATTACK_POST: return "Attack Post";
-        case COMBAT_STATE_DEFENCE_PRE: return "Defence Pre";
-        case COMBAT_STATE_DEFENCE_READY: return "Defence Ready";
-        case COMBAT_STATE_DEFENCE_POST: return "Defence Post";
+        case COMBAT_STATE_ATTACK_PRE: return "Pre Attack";
+        case COMBAT_STATE_ATTACK_MID: return "Mid Attack";
+        case COMBAT_STATE_ATTACK_POST: return "Post Attack";
+        case COMBAT_STATE_DEFENCE_PRE: return "Pre Defence";
+        case COMBAT_STATE_DEFENCE_MID: return "Mid Defence";
+        case COMBAT_STATE_DEFENCE_POST: return "Post Defence";
         default: return "Unknown";
     }
 }
@@ -451,7 +481,7 @@ api_func void DrawEntityUI(EntityStore *s, SavFont *font, MemoryArena *arena)
     f32 widgetX = 10.0f;
     f32 widgetY = 10.0f;
     f32 widgetWidth = 350.0f;
-    f32 widgetHeight = 120.0f;
+    f32 widgetHeight = 140.0f;
     f32 widgetPad = 5.0f;
     f32 widgetMargin = 5.0f;
     
@@ -469,6 +499,9 @@ api_func void DrawEntityUI(EntityStore *s, SavFont *font, MemoryArena *arena)
             f32 inWidgetY = widgetY + widgetPad;
             DrawString(TextFormat("Entity %p", e), font, 30, SAV_COLOR_WHITE, inWidgetX, inWidgetY, 0.0f, arena);
 
+            inWidgetY += lineHeight;
+            DrawString(TextFormat("Pos: %.3f, %.3f", e->p.x, e->p.y), font, 30, SAV_COLOR_WHITE, inWidgetX, inWidgetY, 0.0f, arena);
+            
             inWidgetY += lineHeight;
             DrawString(TextFormat("Combat state: %s", getCombatStateString(e->brain.combatState)), font, 30, SAV_COLOR_WHITE, inWidgetX, inWidgetY, 0.0f, arena);
 

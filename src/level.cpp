@@ -63,6 +63,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     CharacterStats stats = {};
     stats.viewRadius = 10.0f;
     stats.attackReach = 1.0f;
+    stats.combatRadius = 2.0f;
     stats.speed = 10.0f;
     stats.initiative = 10.0f;
     Entity playerEntity = MakeEntity(25.0f, 20.0f, level, '@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);

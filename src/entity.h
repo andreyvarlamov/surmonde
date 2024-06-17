@@ -11,9 +11,10 @@ enum CombatState
     COMBAT_STATE_NONE,
     COMBAT_STATE_READY,
     COMBAT_STATE_ATTACK_PRE,
+    COMBAT_STATE_ATTACK_MID,
     COMBAT_STATE_ATTACK_POST,
     COMBAT_STATE_DEFENCE_PRE,
-    COMBAT_STATE_DEFENCE_READY,
+    COMBAT_STATE_DEFENCE_MID,
     COMBAT_STATE_DEFENCE_POST
 };
 
@@ -39,6 +40,7 @@ struct CharacterStats
     f32 attackReach;
     f32 speed;
     f32 initiative;
+    f32 combatRadius;
 };
 
 struct Entity
