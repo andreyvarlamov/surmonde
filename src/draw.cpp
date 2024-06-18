@@ -266,7 +266,7 @@ struct FloaterState
     Floater floaters[FLOATERS_MAX];
 };
 
-FloaterState _floaterState; // TODO: Do this better
+global_var FloaterState _floaterState; // TODO: Do this better
 
 api_func void InitializeFloaterState(SavFont *font, Camera2D* camera, MemoryArena *arena)
 {
