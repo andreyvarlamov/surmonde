@@ -283,7 +283,7 @@ api_func void AddFloater(const char *string, f32 pointSize, SavColor color, v2 w
         if (!floater->isUsed)
         {
             floater->isUsed = true;
-            floater->string = string;
+            strcpy(floater->string, string);
             floater->pointSize = pointSize;
             floater->color = color;
             floater->startingWorldP = V2(worldP.x * 32.0f, worldP.y * 32.0f);

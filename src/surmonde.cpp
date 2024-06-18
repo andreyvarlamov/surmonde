@@ -99,21 +99,6 @@ int main(int argc, char **argv)
                     DrawFloaters((f32) GetDeltaFixed());
                     
                     DrawEntityUI(&gameState->entityStore, &gameState->uiFont, &gameState->worldArena);
-
-                    #if 0
-                    v2 screenP = MousePos();
-                    v2 worldP = CameraScreenToWorld(&gameState->camera, screenP);
-
-                    TraceLog("%.3f, %.3f", MousePos().x, MousePos().y);
-
-                    v2 newScreenP = CameraWorldToScreen(&gameState->camera, worldP);
-
-                    DrawFilledCircle(newScreenP,
-                                     10.0f,
-                                     SAV_COLOR_RED,
-                                     &gameState->worldArena,
-                                     16);
-                    #endif
                 EndDraw();
             } break;
         }

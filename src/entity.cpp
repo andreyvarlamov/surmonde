@@ -164,7 +164,7 @@ internal_func inline b32 performAttackHit(Entity *attacker, Entity *defender)
     }
     else if (!defenderBlocks)
     {
-        AddFloater("Hit", 20, SAV_COLOR_RED, attacker->p);
+        AddFloater(TextFormat("-%.0f", 20.0f), 20, SAV_COLOR_RED, attacker->p);
     }
     else
     {
@@ -215,16 +215,42 @@ internal_func void faceEntity(Entity *e, Entity *targetEntity, f32 delta)
     MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
 }
 
+internal_func void stayCloseToEntity(Entity *e, Entity *targetEntity, f32 delta)
+{
+    v2 dir = VecNormalize(e->p - targetEntity->p);
+    v2 target = targetEntity->p + e->stats.combatRadius * dir;
+    MoveToward(&e->p, target, e->stats.speed * delta);
+}
+
 internal_func void processCombatState(Entity *e, f32 delta)
 {
     faceEntity(e, e->brain.opponent, delta);
+    stayCloseToEntity(e, e->brain.opponent, delta);
     
     switch (e->brain.combatState)
     {
         case COMBAT_STATE_READY:
         {
-            recoverStamina(&e->brain.combatStamina, 20.0f, delta);
+            // recoverStamina(&e->brain.combatStamina, 20.0f, delta);
 
+            if (RandomChance(5.0f))
+            {
+                v2 dir = VecNormalize(e->brain.opponent->p - e->p);
+                v2 perp = V2(-dir.y, dir.x);
+                f32 sign = GetRandomValue(0, 2) ? 1.0f : -1.0f;
+                e->brain.tempTarget = e->p + sign * perp;
+                e->brain.isMovingInCombat = true;
+            }
+
+            if (e->brain.isMovingInCombat)
+            {
+                if (MoveToward(&e->p, e->brain.tempTarget, e->stats.speed * delta))
+                {
+                    e->brain.isMovingInCombat = false;
+                }
+            }
+            
+            #if 0
             if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_PRE)
             {
                 setEntityCombatState(e, COMBAT_STATE_DEFENCE_PRE, 0.5f);
@@ -233,6 +259,7 @@ internal_func void processCombatState(Entity *e, f32 delta)
             {
                 setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
             }
+            #endif
         } break;
 
         case COMBAT_STATE_ATTACK_PRE:
@@ -448,7 +475,7 @@ api_func void DrawEntities(EntityStore *s)
         }
 
         v2 pxP = V2(e->p.x * s->tilePxW, e->p.y * s->tilePxH);
-        DrawFilledCircleSegment(pxP, 64.0f, e->yawDeg - 30.0f, e->yawDeg + 30.0f, ColorAlpha(SAV_COLOR_YELLOW, 0.1f), s->arena);
+        DrawFilledCircleSegment(pxP, 64.0f, e->yawDeg - 10.0f, e->yawDeg + 10.0f, ColorAlpha(SAV_COLOR_YELLOW, 0.1f), s->arena);
 
         if (e->brain.isOrderedMovement)
         {

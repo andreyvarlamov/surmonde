@@ -30,6 +30,8 @@ struct EntityBrain
     Entity *opponent;
     f32 combatTimer;
     f32 combatStamina;
+    v2 tempTarget;
+    b32 isMovingInCombat;
 };
 
 struct CharacterStats

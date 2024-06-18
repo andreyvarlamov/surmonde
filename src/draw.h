@@ -45,7 +45,7 @@ api_func void DrawLine(
 struct Floater
 {
     b32 isUsed;
-    const char *string; // TODO: Should not be alloced on stack
+    char string[256];
     SavFont *font;
     f32 pointSize;
     SavColor color;
