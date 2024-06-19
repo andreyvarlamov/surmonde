@@ -41,13 +41,12 @@ internal_func void removeSpatialEntity(EntityStore *s, Entity *e)
 
 api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg)
 {
-    Entity e;
+    Entity e = {};
     e.p = V2(x, y);
     e.level = level;
     e.atlasValue = atlasValue;
     e.bg = bg;
     e.fg = fg;
-    e.brain = {};
     e.isUsed = true;
     return e;
 }
@@ -212,52 +211,69 @@ internal_func void faceEntity(Entity *e, Entity *targetEntity, f32 delta)
 {
     v2 dir = VecNormalize(targetEntity->p - e->p);
     f32 angle = ToDeg(GetVecFlippedYAngle(dir));
-    MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
+    // MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
+    MoveTowardAngleDegDamped(&e->yawDeg, angle, 0.1f, getRotationSpeed(e) * delta);
 }
 
 internal_func void stayCloseToEntity(Entity *e, Entity *targetEntity, f32 delta)
 {
     v2 dir = VecNormalize(e->p - targetEntity->p);
     v2 target = targetEntity->p + e->stats.combatRadius * dir;
-    MoveToward(&e->p, target, e->stats.speed * delta);
+    // target = e->p + 0.1f * (target - e->p); // TODO: ??
+    // MoveToward(&e->p, target, e->stats.speed * delta);
+    MoveTowardDamped(&e->p, target, 0.1f, e->stats.speed * delta);
 }
 
 internal_func void processCombatState(Entity *e, f32 delta)
 {
-    faceEntity(e, e->brain.opponent, delta);
-    stayCloseToEntity(e, e->brain.opponent, delta);
     
     switch (e->brain.combatState)
     {
         case COMBAT_STATE_READY:
         {
-            // recoverStamina(&e->brain.combatStamina, 20.0f, delta);
+            recoverStamina(&e->brain.combatStamina, 20.0f, delta);
 
-            if (RandomChance(5.0f))
+            // TODO: Take diff of initiatives. And scale the sidestepping chance.
+            //       An entity with a negative initiative diff, should have a very high chance of sidestepping only
+            //       An entity with a positive intitiative diff, should have a very high chance of attacking.
+            //       That means the decision of who goes in for an attack is made by each entity, and not centrally
+                                
+            if (AdvanceTimer(&e->brain.sidestepTimer, 0.5f, delta))
             {
-                v2 dir = VecNormalize(e->brain.opponent->p - e->p);
-                v2 perp = V2(-dir.y, dir.x);
-                f32 sign = GetRandomValue(0, 2) ? 1.0f : -1.0f;
-                e->brain.tempTarget = e->p + sign * perp;
-                e->brain.isMovingInCombat = true;
+                if (RandomChance(80.0f))
+                {
+                    v2 dir = VecNormalize(e->brain.opponent->p - e->p);
+                    v2 perp = V2(-dir.y, dir.x);
+                    f32 sign = GetRandomValue(0, 2) ? 1.0f : -1.0f;
+                    e->brain.tempTarget = e->p + sign * (1.0f + 5.0f * GetRandomFloat()) * perp;
+                    e->brain.isMovingInCombat = true;
+                }
+                else
+                {
+                    if (e->brain.combatStamina > 0.0f)
+                    {
+                        setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
+                    }
+                }
+                
+                ResetTimer(&e->brain.sidestepTimer);
             }
 
             if (e->brain.isMovingInCombat)
             {
-                if (MoveToward(&e->p, e->brain.tempTarget, e->stats.speed * delta))
+                if (MoveTowardDamped(&e->p, e->brain.tempTarget, 0.3f, e->stats.speed * delta))
                 {
                     e->brain.isMovingInCombat = false;
                 }
             }
             
-            #if 0
+            faceEntity(e, e->brain.opponent, delta);
+            stayCloseToEntity(e, e->brain.opponent, delta);
+            
+            #if 1
             if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_PRE)
             {
                 setEntityCombatState(e, COMBAT_STATE_DEFENCE_PRE, 0.5f);
-            }
-            else if (e->brain.combatStamina > 0.0f)
-            {
-                setEntityCombatState(e, COMBAT_STATE_ATTACK_PRE, 1.0f);
             }
             #endif
         } break;
@@ -267,9 +283,9 @@ internal_func void processCombatState(Entity *e, f32 delta)
             v2 dir = VecNormalize(e->p - e->brain.opponent->p);
             v2 target = e->brain.opponent->p + e->stats.attackReach * dir;
             
-            MoveToward(&e->p, target, e->stats.speed * delta);
+            if (MoveTowardDamped(&e->p, target, 0.3f, e->stats.speed * delta))
             
-            if (AdvanceTimer(&e->brain.combatTimer, delta))
+            // if (AdvanceTimer(&e->brain.combatTimer, delta))
             {
                 setEntityCombatState(e, COMBAT_STATE_ATTACK_MID, 0.2f);
             }
@@ -297,9 +313,9 @@ internal_func void processCombatState(Entity *e, f32 delta)
             v2 dir = VecNormalize(e->p - e->brain.opponent->p);
             v2 target = e->brain.opponent->p + e->stats.combatRadius * dir;
             
-            MoveToward(&e->p, target, e->stats.speed * delta);
+            if (MoveTowardDamped(&e->p, target, 0.3f, e->stats.speed * delta))
 
-            if (AdvanceTimer(&e->brain.combatTimer, delta))
+            // if (AdvanceTimer(&e->brain.combatTimer, delta))
             {
                 setEntityCombatState(e, COMBAT_STATE_READY, 0.0f);
             }
@@ -317,7 +333,9 @@ internal_func void processCombatState(Entity *e, f32 delta)
         {
             recoverStamina(&e->brain.combatStamina, 15.0f, delta);
             
-            if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_POST && e->brain.opponent->brain.combatStamina < 0.0f)
+            faceEntity(e, e->brain.opponent, delta);
+            
+            if (e->brain.opponent->brain.combatState == COMBAT_STATE_ATTACK_POST)// && e->brain.opponent->brain.combatStamina < 0.0f)
             {
                 setEntityCombatState(e, COMBAT_STATE_DEFENCE_POST, 0.5f);
                 
