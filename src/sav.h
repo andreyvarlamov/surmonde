@@ -167,6 +167,37 @@ inline b32 MoveTowardAngleDeg(f32 *current, f32 target, f32 delta)
     return result;
 }
 
+inline b32 MoveTowardAngleDegDamped(f32 *current, f32 target, f32 damping, f32 delta)
+{
+    f32 diff = target - *current;
+
+    while (diff > 180.0f)
+    {
+        target -= 360.0f;
+        diff = target - *current;
+    }
+
+    while (diff < -180.0f)
+    {
+        target += 360.0f;
+        diff = target - *current;
+    }
+    
+    diff *= damping;
+    target = *current + diff;
+
+    b32 result = MoveToward(current, target, delta);
+    while (*current > 360.0f)
+    {
+        *current -= 360.0f;
+    }
+    while (*current < 0.0f)
+    {
+        *current += 360.0f;
+    }
+    return result;
+}
+
 union v2 { struct { f32 x, y; }; f32 e[2]; };
 union v3 { struct { f32 x, y, z; }; struct { f32 r, g, b; }; f32 e[3]; };
 union v4 { struct { f32 x, y, z, w; }; struct { f32 r, g, b, a; }; f32 e[4]; };
@@ -484,9 +515,28 @@ inline f32 GetVecFlippedYAngle(v2 v)
     return angle;
 }
 
-inline b32 MoveToward(v2 *position , v2 target, f32 dP)
+inline b32 MoveToward(v2 *position, v2 target, f32 dP)
 {
     v2 diff = target - *position;
+    f32 dist = VecLength(diff);
+    if (dist <= dP || dist < (f32)CMP_EPSILON)
+    {
+        *position = target;
+        return true;
+    }
+    else
+    {
+        *position += diff / dist * dP;
+        return false;
+    }
+}
+
+inline b32 MoveTowardDamped(v2 *position, v2 target, f32 damping, f32 dP)
+{
+    v2 diff = target - *position;
+    diff *= damping;
+    target = *position + diff;
+    
     f32 dist = VecLength(diff);
     if (dist <= dP || dist < (f32)CMP_EPSILON)
     {

@@ -33,6 +33,34 @@ inline b32 AdvanceTimer(f32 *timer, f32 delta)
     return false;
 }
 
+struct IngameTimer
+{
+    f32 timer;
+    b32 isRunning;
+};
+
+inline b32 AdvanceTimer(IngameTimer *timer, f32 length, f32 delta)
+{
+    if (!timer->isRunning)
+    {
+        timer->timer = length;
+        timer->isRunning = true;
+    }
+    
+    timer->timer -= delta;
+    if (timer->timer <= 0.0f)
+    {
+        timer->timer = 0.0f;
+        return true;
+    }
+    return false;
+}
+
+inline void ResetTimer(IngameTimer *timer)
+{
+    timer->isRunning = false;
+}
+
 inline b32 RandomChance(f32 chance)
 {
     b32 result = GetRandomFloat() <= chance * 0.01f;

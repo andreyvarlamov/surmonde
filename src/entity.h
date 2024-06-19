@@ -2,6 +2,7 @@
 #define ENTITY_H
 
 #include "sav.h"
+#include "helpers.h"
 
 struct Level;
 struct Entity;
@@ -32,6 +33,7 @@ struct EntityBrain
     f32 combatStamina;
     v2 tempTarget;
     b32 isMovingInCombat;
+    IngameTimer sidestepTimer;
 };
 
 struct CharacterStats
