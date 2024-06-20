@@ -66,5 +66,11 @@ inline b32 RandomChance(f32 chance)
     b32 result = GetRandomFloat() <= chance * 0.01f;
     return result;
 }
- 
+
+inline b32 CheckFlag(u32 flags, u32 checkAgainst)
+{
+    b32 result = flags & checkAgainst;
+    return result;
+}
+
 #endif

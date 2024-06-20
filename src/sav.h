@@ -874,6 +874,11 @@ struct Camera2D
     v2 target;
     v2 offset;
     f32 rotation;
+
+    b32 shouldBound;
+    Rect bounds;
+    v2 screenDim;
+    
     f32 zoom;
     f32 zoomMin;
     f32 zoomMax;
@@ -1052,8 +1057,10 @@ sav_func void PopProjection();
 sav_func void PopModelView();
 
 sav_func Camera2D MakeCamera(f32 rotation, v2 offset, v2 target, f32 zoomMin, f32 zoomMax, int zoomStepCount);
+sav_func void CameraSetBounds(Camera2D *camera, f32 screenWidth, f32 screenHeight, f32 boundsX, f32 boundsY, f32 boundsWidth, f32 boundsHeight);
 sav_func void BeginCameraMode(Camera2D *camera);
 sav_func void EndCameraMode();
+sav_func void CameraMoveTarget(Camera2D *camera, v2 dP);
 sav_func v2 CameraWorldToScreen(Camera2D *camera, v2 world);
 sav_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen);
 sav_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta);
@@ -1939,8 +1946,48 @@ sav_func Camera2D MakeCamera(f32 rotation, v2 offset, v2 target, f32 zoomMin, f3
     camera.rotation = rotation;
     camera.offset = offset;
     camera.target = target;
+
     CameraInitLogZoomSteps(&camera, zoomMin, zoomMax, zoomStepCount);
     return camera;
+}
+
+internal_func void cameraApplyBounds(Camera2D *camera)
+{
+    if (camera->shouldBound && camera->zoom >= 1.0f)
+    {
+        f32 halfWidth = camera->screenDim.x * 0.5f / camera->zoom;
+        f32 halfHeight = camera->screenDim.y * 0.5f / camera->zoom;
+    
+        f32 minX = camera->bounds.x + halfWidth;
+        f32 maxX = camera->bounds.x + camera->bounds.w - halfWidth;
+        f32 minY = camera->bounds.y + halfHeight;
+        f32 maxY = camera->bounds.y + camera->bounds.h - halfHeight;
+
+        if (camera->target.x < minX)
+        {
+            camera->target.x = minX;
+        }
+        if (camera->target.x > maxX)
+        {
+            camera->target.x = maxX;
+        }
+        if (camera->target.y < minY)
+        {
+            camera->target.y = minY;
+        }
+        if (camera->target.y > maxY)
+        {
+            camera->target.y = maxY;
+        }
+    }
+}
+
+sav_func void CameraSetBounds(Camera2D *camera, f32 screenWidth, f32 screenHeight, f32 boundsX, f32 boundsY, f32 boundsWidth, f32 boundsHeight)
+{
+    camera->shouldBound = true;
+    camera->bounds = MakeRect(boundsX, boundsY, boundsWidth, boundsHeight);
+    camera->screenDim = V2(screenWidth, screenHeight);
+    cameraApplyBounds(camera);
 }
 
 sav_func void BeginCameraMode(Camera2D *camera)
@@ -1955,6 +2002,12 @@ sav_func void EndCameraMode()
     Assert(_glState->cameraModeActive);
     PopModelView();
     _glState->cameraModeActive = false;
+}
+
+sav_func void CameraMoveTarget(Camera2D *camera, v2 dP)
+{
+    camera->target -= dP;
+    cameraApplyBounds(camera);
 }
 
 sav_func v2 CameraWorldToScreen(Camera2D *camera, v2 world)
@@ -2042,6 +2095,8 @@ sav_func void CameraIncreaseLogZoomSteps(Camera2D *camera, int steps)
     if (camera->zoomLogStepsCurrent < 0) camera->zoomLogStepsCurrent = 0;
     if (camera->zoomLogStepsCurrent > (camera->zoomLogStepsCount - 1)) camera->zoomLogStepsCurrent = (camera->zoomLogStepsCount - 1);
     camera->zoom = ExponentialInterpolation(camera->zoomMin, camera->zoomMax, camera->zoomLogSteps[camera->zoomLogStepsCurrent]);
+
+    cameraApplyBounds(camera);
 }
 
 // SECTION: Image/texture loading

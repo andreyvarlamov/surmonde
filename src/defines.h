@@ -1,5 +1,5 @@
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef DEFINES_H
+#define DEFINES_H
 
 #define LEVEL_WIDTH 100
 #define LEVEL_HEIGHT 100
@@ -11,5 +11,6 @@
 #define ENTITY_BASE_SPEED 10.0f
 #define QUICK_TURN_AROUND_MAX 120.0f
 #define COMBAT_ROUND_DURATION 2.0f
+#define FLOATERS_MAX 16
 
 #endif

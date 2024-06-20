@@ -1,6 +1,6 @@
 #include "level.h"
 #include "sav.h"
-#include "settings.h"
+#include "defines.h"
 #include "draw.h"
 #include "helpers.h"
 #include "tilemap.h"
@@ -16,29 +16,30 @@ api_func Level MakeLevel(
     level.w = w;
     level.h = h;
     level.levelTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
+    level.tileFlags = MemoryArenaPushArrayAndZero(arena, w * h, u8);
     level.arena = arena;
     return level;
 }
 
 internal_func void generateLevelOneRoom(Level *level)
 {
-    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT);
-    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL);
+    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
+    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
     for (int i = 0; i < level->w * level->h; i++)
     {
-        SetTile(&level->levelTilemap, i, floorTile);
+        SetTile(level, i, floorTile);
     }
 
     for (int x = 0; x < level->w; x++)
     {
-        SetTile(&level->levelTilemap, x, 0, wallTile);
-        SetTile(&level->levelTilemap, x, level->h - 1, wallTile);
+        SetTile(level, x, 0, wallTile);
+        SetTile(level, x, level->h - 1, wallTile);
     }
 
     for (int y = 0; y < level->h; y++)
     {
-        SetTile(&level->levelTilemap, 0, y, wallTile);
-        SetTile(&level->levelTilemap, level->w - 1, y, wallTile);
+        SetTile(level, 0, y, wallTile);
+        SetTile(level, level->w - 1, y, wallTile);
     }
 }
 
@@ -56,11 +57,11 @@ internal_func b32 doRoomsIntersect(Room a, Room b)
 
 internal_func void generateLevelClassicRooms(Level *level)
 {
-    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT);
-    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL);
+    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
+    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
     for (int i = 0; i < level->w * level->h; i++)
     {
-        SetTile(&level->levelTilemap, i, wallTile);
+        SetTile(level, i, wallTile);
     }
 
     int roomsMax = 50;
@@ -94,7 +95,7 @@ internal_func void generateLevelClassicRooms(Level *level)
             {
                 for (int x = room.x; x < (room.x + room.w); x++)
                 {
-                    SetTile(&level->levelTilemap, x, y, floorTile);
+                    SetTile(level, x, y, floorTile);
                 }
             }
             
@@ -133,22 +134,22 @@ internal_func void generateLevelClassicRooms(Level *level)
         {
             for (int x = leftCenter.x; x <= rightCenter.x; x++)
             {
-                SetTile(&level->levelTilemap, x, constY, floorTile);
+                SetTile(level, x, constY, floorTile);
             }
             for (int y = leftCenter.y; y <= rightCenter.y; y++)
             {
-                SetTile(&level->levelTilemap, constX, y, floorTile);
+                SetTile(level, constX, y, floorTile);
             }
         }
         else
         {
             for (int x = leftCenter.x; x <= rightCenter.x; x++)
             {
-                SetTile(&level->levelTilemap, x, constY, floorTile);
+                SetTile(level, x, constY, floorTile);
             }
             for (int y = rightCenter.y; y <= leftCenter.y; y++)
             {
-                SetTile(&level->levelTilemap, constX, y, floorTile);
+                SetTile(level, constX, y, floorTile);
             }
         }
     }
@@ -186,7 +187,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.initiative = 15.0f;
     Entity enemyEntity = MakeEntity(30.0f, 30.0f, level, 'E', SAV_COLOR_SABLE, SAV_COLOR_RED);
     ConfigureCharacterEntity(&enemyEntity, stats);
-    AddEntity(entityStore, enemyEntity);
+    // AddEntity(entityStore, enemyEntity);
 }
 
 api_func void DrawLevel(Level *level)
@@ -194,9 +195,32 @@ api_func void DrawLevel(Level *level)
     DrawTilemap(&level->levelTilemap, V2(-0.5f, -0.5f));
 }
 
-// TODO: tile px dim shouldn't be part of level
-api_func v2 GetLevelTilePxDim(Level *level)
+api_func Tile MakeTile(i32 atlasValue, SavColor bg, SavColor fg, u8 flags)
 {
-    v2 dim = V2(level->levelTilemap.tilePxW, level->levelTilemap.tilePxH);
-    return dim;
+    Tile tile;
+    tile.sprite = MakeTileSprite(atlasValue, bg, fg);
+    tile.flags = flags;
+    return tile;
+}
+
+api_func void SetTile(Level *level, int i, Tile tile)
+{
+    Assert(i >= 0 && i < level->w * level->h);
+    level->tileFlags[i] = tile.flags;
+    SetTileSprite(&level->levelTilemap, i, tile.sprite);
+}
+
+api_func void SetTile(Level *level, int x, int y, Tile tile)
+{
+    Assert(x >= 0 && x < level->w && y >= 0 && y <= level->h);
+    int i = XYToIdx(level->w, x, y);
+    level->tileFlags[i] = tile.flags;
+    SetTileSprite(&level->levelTilemap, x, y, tile.sprite);
+}
+
+api_func b32 IsTileBlocked(Level *level, int x, int y)
+{
+    int i = XYToIdx(level->w, x, y);
+    b32 result = CheckFlag(level->tileFlags[i], TILE_BLOCKED);
+    return result;
 }

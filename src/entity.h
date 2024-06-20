@@ -3,6 +3,7 @@
 
 #include "sav.h"
 #include "helpers.h"
+#include "navigation.h"
 
 struct Level;
 struct Entity;
@@ -65,7 +66,6 @@ struct Entity
     b32 isUsed;
 };
 
-#define MAX_CONTROLLED_ENTITIES 16
 struct EntityStore
 {
     int entityCount;
@@ -83,6 +83,9 @@ struct EntityStore
     // TODO: This shouldn't be here
     f32 tilePxW;
     f32 tilePxH;
+
+    // TODO: This has reference to current level. Will be a problem if entities in the same store are on different levels
+    NavState navState;
 };
 
 inline b32 IsControlledEntity(EntityStore *s, Entity *e)

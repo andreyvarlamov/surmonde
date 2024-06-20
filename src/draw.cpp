@@ -1,5 +1,6 @@
 #include "draw.h"
 #include "sav.h"
+#include "defines.h"
 
 api_func void DrawAtlasTilemap(
     SavTextureAtlas atlas,
@@ -256,7 +257,6 @@ api_func void DrawLine(
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
 }
 
-#define FLOATERS_MAX 16
 struct FloaterState
 {
     SavFont *font;

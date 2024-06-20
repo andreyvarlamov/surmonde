@@ -5,10 +5,23 @@
 #include "tilemap.h"
 #include "entity.h"
 
+enum TileFlags
+{
+    TILE_BLOCKED = 0x1,
+    TILE_OPAQUE = 0x2,
+};
+
+struct Tile
+{
+    TileSprite sprite;
+    u8 flags;
+};
+
 struct Level
 {
     int w, h;
     Tilemap levelTilemap;
+    u8 *tileFlags;
 
     MemoryArena *arena;
 };
@@ -26,6 +39,11 @@ api_func Level MakeLevel(int w, int h,
 api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType);
 api_func void UpdateLevel(Level *level);
 api_func void DrawLevel(Level *level);
-api_func v2 GetLevelTilePxDim(Level *level);
+
+api_func Tile MakeTile(i32 atlasValue, SavColor bg, SavColor fg, u8 flags);
+api_func void SetTile(Level *level, int i, Tile tile);
+api_func void SetTile(Level *level, int x, int y, Tile tile);
+api_func b32 IsTileBlocked(Level *level, int x, int y);
+api_func b32 IsTileOpaque(Level *level, int x, int y);
 
 #endif

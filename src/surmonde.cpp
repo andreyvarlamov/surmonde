@@ -4,7 +4,7 @@
 #include <sdl2/SDL_mouse.h>
 #include "sav.h"
 #include "level.h"
-#include "settings.h"
+#include "defines.h"
 #include "helpers.h"
 #include "draw.h"
 
@@ -27,14 +27,17 @@ int main(int argc, char **argv)
     f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
-    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_ONE_ROOM);
+    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
+
+    gameState->entityStore.navState = InitializeNavigation(gameState->level.w, gameState->level.h, gameState->level.tileFlags, &gameState->worldArena);
     
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
-                                   GetPxPFromTileP(GetLevelTilePxDim(&gameState->level), V2I(25, 20)),
+                                   GetPxPFromTileP(V2(tilePxW, tilePxH), V2I(25, 20)),
                                    0.2f,
                                    5.0f,
                                    5);
+    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
 
     gameState->uiFont = SavLoadFont("res/fonts/VT323-Regular.ttf", 30);
 
@@ -46,15 +49,15 @@ int main(int argc, char **argv)
 
         PollEvents();
 
+        if (KeyPressed(SDL_SCANCODE_B))
+        {
+            Breakpoint;
+        }
+
         if (MouseWheel() != 0) CameraIncreaseLogZoomSteps(&gameState->camera, MouseWheel());
-        if (MouseDown(SDL_BUTTON_MIDDLE)) gameState->camera.target -= CameraScreenToWorldRel(&gameState->camera, MouseRelPos());
+        if (MouseDown(SDL_BUTTON_MIDDLE)) CameraMoveTarget(&gameState->camera, CameraScreenToWorldRel(&gameState->camera, MouseRelPos()));
 
         SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
-
-	if (KeyPressed(SDL_SCANCODE_B))
-	{
-	    Breakpoint;
-	}
 
         switch (gameState->runState)
         {
@@ -73,6 +76,17 @@ int main(int argc, char **argv)
                     TraceLog("Target: %.3f, %.3f", target.x, target.y);
                     OrderEntityMovement(gameState->entityStore.controlledEntity, target);
                 }
+
+                if (MousePressed(SDL_BUTTON_LEFT))
+                {
+                    v2 p = CameraScreenToWorld(&gameState->camera, MousePos());
+                    p.x = p.x / gameState->entityStore.tilePxW;
+                    p.y = p.y / gameState->entityStore.tilePxH;
+                    v2i tileP = V2I(RoundF32ToI32(p.x), RoundF32ToI32(p.y));
+                    b32 blocked = IsTileBlocked(&gameState->level, tileP.x, tileP.y);
+                    TraceLog("[%d, %d]: %d", tileP.x, tileP.y, blocked);
+                }
+                
 
                 if (KeyDown(SDL_SCANCODE_A))
                 {
@@ -117,3 +131,4 @@ int main(int argc, char **argv)
 #include "draw.cpp"
 #include "tilemap.cpp"
 #include "entity.cpp"
+#include "navigation.cpp"

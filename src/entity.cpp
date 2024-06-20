@@ -1,8 +1,9 @@
 #include "entity.h"
 #include "sav.h"
 #include "helpers.h"
-#include "settings.h"
+#include "defines.h"
 #include "draw.h"
+#include "navigation.h"
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH)
 {
@@ -132,12 +133,19 @@ internal_func b32 moveEntity(Entity *e, v2 target, f32 delta)
         moveAmount = e->stats.speed * delta;
     }
 
-    // TODO: Pathfind to target
     MoveTowardAngleDeg(&e->yawDeg, angle, getRotationSpeed(e) * delta);
     b32 targetReached = MoveToward(&e->p, target, moveAmount);
 
     return targetReached;
 }
+
+#if 0
+internal_func b32 pathEntity(Entity *e, v2 target, f32 delta)
+{
+    v2 nextStep = NavPathToTarget(e->level, e->p, target);
+    moveEntity(e, nextStep, delta);
+}
+#endif
 
 internal_func inline void setEntityCombatState(Entity *e, CombatState state, f32 howLong)
 {
@@ -380,10 +388,12 @@ internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
     }
     else if (e->brain.isOrderedMovement)
     {
+        #if 0
         if (moveEntity(e, e->brain.movementTarget, delta))
         {
             e->brain.isOrderedMovement = false;
         }
+        #endif
     }
 }
 
@@ -497,8 +507,18 @@ api_func void DrawEntities(EntityStore *s)
 
         if (e->brain.isOrderedMovement)
         {
+            #if 1
             v2 targetPxP = V2(e->brain.movementTarget.x * s->tilePxW, e->brain.movementTarget.y * s->tilePxH);
             DrawLine(pxP, targetPxP, SAV_COLOR_DARKSLATEGRAY);
+            #else
+            NavPath path = NavPathToTarget(&s->navState, e->p, e->brain.movementTarget);
+
+            {
+                v2 prevPxP = currPxP;
+                v2 currPxP = V2(next.x * s->tilePxW, next.y * s->tilePxH);
+                DrawLine(prevPxP, currPxP, SAV_COLOR_DARKSLATEGRAY);
+            }
+            #endif
         }
     }
 #endif
