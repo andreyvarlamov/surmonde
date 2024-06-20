@@ -57,6 +57,7 @@ void __debugbreak(); // usually in <intrin.h>
 inline f32 ToRad(f32 d) { return (f32) (d * PI / 180.0f); }
 inline f32 ToDeg(f32 r) { return (f32) (r / PI * 180.0f); }
 inline f32 AbsF32(f32 a) { return fabs(a); }
+inline i32 AbsI32(i32 a) { return abs(a); }
 
 inline f32 ExponentialInterpolation(f32 min, f32 max, f32 t)
 {

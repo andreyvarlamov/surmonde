@@ -28,8 +28,6 @@ int main(int argc, char **argv)
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
-
-    gameState->entityStore.navState = InitializeNavigation(gameState->level.w, gameState->level.h, gameState->level.tileFlags, &gameState->worldArena);
     
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,

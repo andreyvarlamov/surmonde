@@ -8,6 +8,11 @@ inline i32 XYToIdx(i32 w, i32 x, i32 y)
     return (x + y * w);
 }
 
+inline i32 VecToIdx(i32 w, v2i v)
+{
+    return (v.x + v.y * w);
+}
+
 inline v2i IdxToXY(i32 w, i32 i)
 {
     return V2I(i % w, i / w);

@@ -3,19 +3,13 @@
 
 #include "sav.h"
 
-struct NavState
-{
-    int w, h;
-    u8 *tileFlags;
-    
-    MemoryArena *arena;
-};
+struct Level;
 
 struct NavPath
 {
+    b32 foundPath;
 };
 
-api_func NavState InitializeNavigation(int w, int h, u8 *tileFlags, MemoryArena *arena);
-api_func NavPath NavPathToTarget(NavState *state, v2 from, v2 to);
+api_func NavPath NavPathToTarget(Level *level, v2 from, v2 to, MemoryArena *arena);
 
 #endif

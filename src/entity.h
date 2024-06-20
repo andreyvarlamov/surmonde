@@ -83,9 +83,6 @@ struct EntityStore
     // TODO: This shouldn't be here
     f32 tilePxW;
     f32 tilePxH;
-
-    // TODO: This has reference to current level. Will be a problem if entities in the same store are on different levels
-    NavState navState;
 };
 
 inline b32 IsControlledEntity(EntityStore *s, Entity *e)
