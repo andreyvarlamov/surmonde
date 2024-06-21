@@ -33,6 +33,7 @@ internal_func v2i getLeastFScoreNode(NavOpenSet *set, int levelW, i32 *fScores)
             leastScore = fScores[pI];
         }
     }
+    return leastNode;
 }
 
 internal_func void removeFromOpenSet(NavOpenSet *set, v2i value)
@@ -80,13 +81,18 @@ internal_func Neighbors getNeighbors(Level *level, v2i node)
     {
         for (int x = -1; x <= 1; x++)
         {
-            if (!(y == 0 && x == 0) &&
-                (node.x + x >= 0 && node.x + x < level->w) &&
-                (node.y + y >= 0 && node.y + y < level->h))
+            if (!(y == 0 && x == 0))
             {
-                result.nodes[result.count] = node;
-                result.costs[result.count] = (x == 0 || y == 0) ? 10 : 14;
-                result.count++;
+                v2i neighbor = V2I(node.x + x, node.y + y);
+                
+                if ((neighbor.x >= 0 && neighbor.x < level->w) &&
+                    (neighbor.y >= 0 && neighbor.y < level->h) &&
+                    !IsTileBlocked(level, neighbor.x, neighbor.y))
+                {
+                    result.nodes[result.count] = neighbor;
+                    result.costs[result.count] = (x == 0 || y == 0) ? 10 : 14;
+                    result.count++;
+                }
             }
         }
     }
@@ -104,6 +110,33 @@ internal_func i32 getHCost(v2i from, v2i to)
 
     i32 result = 14 * minDist + 10 * (maxDist - minDist);
     return result;
+}
+
+internal_func void reconstitutePath(int fromI, int toI, Level *level, int *parents, NavPath *result, MemoryArena *arena)
+{
+    int pathNodeCount = 1;
+    int currentNodeI = toI;
+    while (currentNodeI != fromI)
+    {
+        currentNodeI = parents[currentNodeI];
+        pathNodeCount++;
+    }
+
+    result->path = MemoryArenaPushArray(arena, pathNodeCount, v2i);
+
+    currentNodeI = toI;
+    int resultIndex = pathNodeCount - 1;
+    while (currentNodeI != fromI)
+    {
+        result->path[resultIndex--] = IdxToXY(level->w, currentNodeI);
+        currentNodeI = parents[currentNodeI];
+        pathNodeCount++;
+    }
+
+    Assert(resultIndex == 0);
+
+    result->path[resultIndex] = IdxToXY(level->w, currentNodeI);
+    result->nodeCount = pathNodeCount;
 }
 
 api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *arena)
@@ -167,13 +200,12 @@ api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *ar
     }
 
     NavPath result;
-    result.foundPath = foundPath;
-    #if 0
+    result.found = foundPath;
+
     if (foundPath)
     {
-        result.path[result.path++] = ;
+        reconstitutePath(VecToIdx(level->w, from), VecToIdx(level->w, to), level, parents, &result, arena);
     }
-    #endif
     
     return result;
 }

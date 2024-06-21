@@ -388,12 +388,17 @@ internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
     }
     else if (e->brain.isOrderedMovement)
     {
-        #if 0
-        if (moveEntity(e, e->brain.movementTarget, delta))
+        MemoryArenaFreeze(s->arena);
+        NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
+
+        if (path.found)
         {
-            e->brain.isOrderedMovement = false;
+            if (moveEntity(e, V2((f32)path.path[1].x, (f32)path.path[1].y), delta))
+            {
+                // e->brain.isOrderedMovement = false;
+            }
         }
-        #endif
+        MemoryArenaUnfreeze(s->arena);
     }
 }
 
@@ -507,17 +512,26 @@ api_func void DrawEntities(EntityStore *s)
 
         if (e->brain.isOrderedMovement)
         {
-            #if 1
+            #if 0
             v2 targetPxP = V2(e->brain.movementTarget.x * s->tilePxW, e->brain.movementTarget.y * s->tilePxH);
             DrawLine(pxP, targetPxP, SAV_COLOR_DARKSLATEGRAY);
             #else
-            NavPath path = NavPathToTarget(&s->navState, e->p, e->brain.movementTarget);
+            MemoryArenaFreeze(s->arena);
+            NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
 
+            if (path.found)
             {
-                v2 prevPxP = currPxP;
-                v2 currPxP = V2(next.x * s->tilePxW, next.y * s->tilePxH);
-                DrawLine(prevPxP, currPxP, SAV_COLOR_DARKSLATEGRAY);
+                for (int i = 0; i < path.nodeCount - 1; i++)
+                {
+                    v2i nodeA = path.path[i];
+                    v2i nodeB = path.path[i + 1];
+                    
+                    v2 prevPxP = V2(nodeA.x * s->tilePxW, nodeA.y * s->tilePxH);
+                    v2 currPxP = V2(nodeB.x * s->tilePxW, nodeB.y * s->tilePxH);
+                    DrawLine(prevPxP, currPxP, SAV_COLOR_DARKSLATEGRAY);
+                }
             }
+            MemoryArenaUnfreeze(s->arena);
             #endif
         }
     }
