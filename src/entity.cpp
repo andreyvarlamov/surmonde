@@ -388,6 +388,7 @@ internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
     }
     else if (e->brain.isOrderedMovement)
     {
+        #if 0
         MemoryArenaFreeze(s->arena);
         NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
 
@@ -399,6 +400,7 @@ internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
             }
         }
         MemoryArenaUnfreeze(s->arena);
+        #endif
     }
 }
 

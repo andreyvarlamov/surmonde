@@ -4,23 +4,23 @@
 #include "level.h"
 #include "helpers.h"
 
-struct NavOpenSet
+struct NavSet
 {
     v2i *data;
     int count;
 };
 
-internal_func void addToOpenSet(NavOpenSet *set, v2i value)
+internal_func void addToSet(NavSet *set, v2i value)
 {
     set->data[set->count++] = value;
 }
 
-internal_func b32 isOpenSetEmpty(NavOpenSet *set)
+internal_func b32 isSetEmpty(NavSet *set)
 {
     return set->count <= 0;
 }
 
-internal_func v2i getLeastFScoreNode(NavOpenSet *set, int levelW, i32 *fScores)
+internal_func v2i getLeastFScoreNode(NavSet *set, int levelW, i32 *fScores)
 {
     v2i leastNode = {};
     i32 leastScore = INT_MAX;
@@ -36,7 +36,7 @@ internal_func v2i getLeastFScoreNode(NavOpenSet *set, int levelW, i32 *fScores)
     return leastNode;
 }
 
-internal_func void removeFromOpenSet(NavOpenSet *set, v2i value)
+internal_func void removeFromSet(NavSet *set, v2i value)
 {
     int toRemove = -1;
     for (int i = 0; i < set->count; i++)
@@ -54,7 +54,7 @@ internal_func void removeFromOpenSet(NavOpenSet *set, v2i value)
     }
 }
 
-internal_func b32 isInOpenSet(NavOpenSet *set, v2i value)
+internal_func b32 isInSet(NavSet *set, v2i value)
 {
     for (int i = 0; i < set->count; i++)
     {
@@ -74,32 +74,39 @@ struct Neighbors
     int count;
 };
 
+internal_func void addNeighbor(Neighbors *result, Level *level, v2i node, i32 cost)
+{
+    if ((node.x >= 0 && node.x < level->w) &&
+        (node.y >= 0 && node.y < level->h) &&
+        !IsTileBlocked(level, node.x, node.y))
+    {
+        result->nodes[result->count] = node;
+        result->costs[result->count] = cost;
+        result->count++;
+    }
+ }
+
 internal_func Neighbors getNeighbors(Level *level, v2i node)
 {
     Neighbors result = {};
-    for (int y = -1; y <= 1; y++)
-    {
-        for (int x = -1; x <= 1; x++)
-        {
-            if (!(y == 0 && x == 0))
-            {
-                v2i neighbor = V2I(node.x + x, node.y + y);
-                
-                if ((neighbor.x >= 0 && neighbor.x < level->w) &&
-                    (neighbor.y >= 0 && neighbor.y < level->h) &&
-                    !IsTileBlocked(level, neighbor.x, neighbor.y))
-                {
-                    result.nodes[result.count] = neighbor;
-                    result.costs[result.count] = (x == 0 || y == 0) ? 10 : 14;
-                    result.count++;
-                }
-            }
-        }
-    }
+
+    addNeighbor(&result, level, V2I(node.x - 1, node.y + 0), 10);
+    addNeighbor(&result, level, V2I(node.x + 1, node.y + 0), 10);
+    addNeighbor(&result, level, V2I(node.x + 0, node.y - 1), 10);
+    addNeighbor(&result, level, V2I(node.x + 0, node.y + 1), 10);
 
     return result;
 }
 
+internal_func i32 getManhattanDist(v2i from, v2i to)
+{
+    i32 distX = AbsI32(from.x - to.x);
+    i32 distY = AbsI32(from.y - to.y);
+    i32 result = distX + distY;
+    return result;
+}
+
+#if 0
 internal_func i32 getHCost(v2i from, v2i to)
 {
     i32 distX = AbsI32(from.x - to.x);
@@ -111,8 +118,9 @@ internal_func i32 getHCost(v2i from, v2i to)
     i32 result = 14 * minDist + 10 * (maxDist - minDist);
     return result;
 }
+#endif
 
-internal_func void reconstitutePath(int fromI, int toI, Level *level, int *parents, NavPath *result, MemoryArena *arena)
+internal_func void reconstructPath(int fromI, int toI, Level *level, int *parents, NavPath *result, MemoryArena *arena)
 {
     int pathNodeCount = 1;
     int currentNodeI = toI;
@@ -139,18 +147,56 @@ internal_func void reconstitutePath(int fromI, int toI, Level *level, int *paren
     result->nodeCount = pathNodeCount;
 }
 
+internal_func b32 lineOfSight(Level *level, v2i from, v2i to)
+{
+    return true;
+}
+
+internal_func void updateNode(v2i node, v2i neighbor, v2i end, Level *level, int *parents, i32 *gScores, i32 *fScores, NavSet *openSet)
+{
+    int neighborI = VecToIdx(level->w, neighbor);
+    int nodeI = VecToIdx(level->w, node);
+    v2i parent = IdxToXY(level->w, parents[nodeI]);
+    v2i parentToSet;
+    i32 tentativeGScore;
+    if (lineOfSight(level, parent, neighbor))
+    {
+        tentativeGScore = gScores[nodeI] + getManhattanDist(parent, neighbor);
+        parentToSet = parent;
+    }
+    else
+    {
+        tentativeGScore = gScores[nodeI] + 10;
+        parentToSet = node;
+    }
+
+    if (tentativeGScore < gScores[neighborI])
+    {
+        parents[neighborI] = VecToIdx(level->w, parentToSet);
+        gScores[neighborI] = tentativeGScore;
+        fScores[neighborI] = tentativeGScore + getManhattanDist(neighbor, end);
+
+        if (!isInSet(openSet, neighbor))
+        {
+            addToSet(openSet, neighbor);
+        }
+    }
+}
+
 api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *arena)
 {
     v2i from = V2I(RoundF32ToI32(fromF.x), RoundF32ToI32(fromF.y));
     v2i to = V2I(RoundF32ToI32(toF.x), RoundF32ToI32(toF.y));
 
-    NavOpenSet openSet;
+    NavSet openSet;
     openSet.data = MemoryArenaPushArray(arena, NAVIGATION_MAX_OPEN_SET, v2i);
     openSet.count = 0;
 
     int *parents = MemoryArenaPushArray(arena, level->w * level->h, int);
     i32 *gScores = MemoryArenaPushArray(arena, level->w * level->h, i32);
     i32 *fScores = MemoryArenaPushArray(arena, level->w * level->h, i32);
+    b32 *visited = MemoryArenaPushArrayAndZero(arena, level->w * level->h, b32);
+    
     for (int i = 0; i < level->w * level->h; i++)
     {
         gScores[i] = INT_MAX;
@@ -159,12 +205,12 @@ api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *ar
 
     int startI = VecToIdx(level->w, from);
     gScores[startI] = 0;
-    fScores[startI] = getHCost(from, to);
+    fScores[startI] = getManhattanDist(from, to);
     
-    addToOpenSet(&openSet, from);
+    addToSet(&openSet, from);
 
     b32 foundPath = false;
-    while (!isOpenSetEmpty(&openSet))
+    while (!isSetEmpty(&openSet))
     {
         v2i node = getLeastFScoreNode(&openSet, level->w, fScores);
         if (node == to)
@@ -175,26 +221,18 @@ api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *ar
 
         int nodeI = VecToIdx(level->w, node);
 
-        removeFromOpenSet(&openSet, node);
+        removeFromSet(&openSet, node);
+
+        visited[nodeI] = true;
 
         Neighbors neighbors = getNeighbors(level, node);
         for (int n = 0; n < neighbors.count; n++)
         {
             v2i neighbor = neighbors.nodes[n];
-            i32 neighborCost = neighbors.costs[n];
-            int neighborI = VecToIdx(level->w, neighbor);
 
-            i32 tentativeGScore = gScores[nodeI] + neighborCost;
-            if (tentativeGScore < gScores[neighborI])
+            if (!visited[VecToIdx(level->w, neighbor)])
             {
-                parents[neighborI] = nodeI;
-                gScores[neighborI] = tentativeGScore;
-                fScores[neighborI] = tentativeGScore + getHCost(neighbor, to);
-
-                if (!isInOpenSet(&openSet, neighbor))
-                {
-                    addToOpenSet(&openSet, neighbor);
-                }
+                updateNode(node, neighbor, to, level, parents, gScores, fScores, &openSet);
             }
         }
     }
@@ -204,8 +242,9 @@ api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *ar
 
     if (foundPath)
     {
-        reconstitutePath(VecToIdx(level->w, from), VecToIdx(level->w, to), level, parents, &result, arena);
+        reconstructPath(VecToIdx(level->w, from), VecToIdx(level->w, to), level, parents, &result, arena);
     }
     
     return result;
 }
+
