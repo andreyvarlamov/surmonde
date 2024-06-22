@@ -220,6 +220,7 @@ api_func void SetTile(Level *level, int x, int y, Tile tile)
 
 api_func b32 IsTileBlocked(Level *level, int x, int y)
 {
+    Assert(x >= 0 && x < level->w && y >= 0 && y <= level->h);
     int i = XYToIdx(level->w, x, y);
     b32 result = CheckFlag(level->tileFlags[i], TILE_BLOCKED);
     return result;

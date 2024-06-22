@@ -9,7 +9,7 @@ struct NavPath
 {
     b32 found;
     
-    v2i *path;
+    v2 *path;
     int nodeCount;
 };
 

@@ -72,7 +72,7 @@ int main(int argc, char **argv)
                     target.x = target.x / gameState->entityStore.tilePxW;
                     target.y = target.y / gameState->entityStore.tilePxH;
                     TraceLog("Target: %.3f, %.3f", target.x, target.y);
-                    OrderEntityMovement(gameState->entityStore.controlledEntity, target);
+                    OrderEntityMovement(&gameState->entityStore, gameState->entityStore.controlledEntity, target);
                 }
 
                 if (MousePressed(SDL_BUTTON_LEFT))

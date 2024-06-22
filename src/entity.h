@@ -35,6 +35,8 @@ struct EntityBrain
     v2 tempTarget;
     b32 isMovingInCombat;
     IngameTimer sidestepTimer;
+
+    NavPath path;
 };
 
 struct CharacterStats
@@ -96,7 +98,7 @@ api_func void ConfigureCharacterEntity(Entity *e, CharacterStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
-api_func void OrderEntityMovement(Entity *e, v2 target);
+api_func void OrderEntityMovement(EntityStore *s, Entity *e, v2 target);
 api_func void UpdateEntities(EntityStore *s, f32 delta);
 
 api_func void DrawEntities(EntityStore *s);

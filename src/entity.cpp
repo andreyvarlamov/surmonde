@@ -68,11 +68,17 @@ api_func Entity *AddEntity(EntityStore *s, Entity e)
     return entityInStore;
 }
 
-api_func void OrderEntityMovement(Entity *e, v2 target)
+api_func void OrderEntityMovement(EntityStore *s, Entity *e, v2 target)
 {
-    e->brain.isOrderedMovement = true;
-    // TODO: Check if target is valid
-    e->brain.movementTarget = target;
+    MemoryArenaFreeze(s->arena);
+    NavPath path = NavPathToTarget(e->level, e->p, target, s->arena);
+    if (path.found)
+    {
+        e->brain.isOrderedMovement = true;
+        e->brain.movementTarget = target;
+        e->brain.path = path;
+    }
+    MemoryArenaUnfreeze(s->arena);
 }
 
 api_func void OrderFollowEntity(Entity *follower, Entity *followed)
@@ -201,7 +207,7 @@ internal_func void processCharacterAI(EntityStore *s, Entity *e)
     {
         if (GetRandomValue(0, 100) == 0)
         {
-            OrderEntityMovement(e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
+            OrderEntityMovement(s, e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
         }
     }
 }
@@ -388,19 +394,19 @@ internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
     }
     else if (e->brain.isOrderedMovement)
     {
-        #if 0
-        MemoryArenaFreeze(s->arena);
-        NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
-
-        if (path.found)
+        NavPath *path = &e->brain.path;
+        if (moveEntity(e, V2((f32)path->path[0].x, (f32)path->path[0].y), delta))
         {
-            if (moveEntity(e, V2((f32)path.path[1].x, (f32)path.path[1].y), delta))
+            MemoryArenaFreeze(s->arena);
+            NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
+            if (path.found)
             {
-                // e->brain.isOrderedMovement = false;
+                e->brain.path = path;
             }
+            MemoryArenaUnfreeze(s->arena);
+            
+            // e->brain.isOrderedMovement = false;
         }
-        MemoryArenaUnfreeze(s->arena);
-        #endif
     }
 }
 
@@ -517,7 +523,7 @@ api_func void DrawEntities(EntityStore *s)
             #if 0
             v2 targetPxP = V2(e->brain.movementTarget.x * s->tilePxW, e->brain.movementTarget.y * s->tilePxH);
             DrawLine(pxP, targetPxP, SAV_COLOR_DARKSLATEGRAY);
-            #else
+            #elif 1
             MemoryArenaFreeze(s->arena);
             NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
 
@@ -525,8 +531,8 @@ api_func void DrawEntities(EntityStore *s)
             {
                 for (int i = 0; i < path.nodeCount - 1; i++)
                 {
-                    v2i nodeA = path.path[i];
-                    v2i nodeB = path.path[i + 1];
+                    v2 nodeA = path.path[i];
+                    v2 nodeB = path.path[i + 1];
                     
                     v2 prevPxP = V2(nodeA.x * s->tilePxW, nodeA.y * s->tilePxH);
                     v2 currPxP = V2(nodeB.x * s->tilePxW, nodeB.y * s->tilePxH);

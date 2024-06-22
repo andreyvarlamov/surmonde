@@ -12,6 +12,7 @@ struct NavSet
 
 internal_func void addToSet(NavSet *set, v2i value)
 {
+    Assert(set->count < NAVIGATION_MAX_OPEN_SET);
     set->data[set->count++] = value;
 }
 
@@ -120,9 +121,9 @@ internal_func i32 getHCost(v2i from, v2i to)
 }
 #endif
 
-internal_func void reconstructPath(int fromI, int toI, Level *level, int *parents, NavPath *result, MemoryArena *arena)
+internal_func void reconstructPath(int fromI, int toI, Level *level, int *parents, NavPath *result, MemoryArena *arena, v2 toF)
 {
-    int pathNodeCount = 1;
+    int pathNodeCount = 0;
     int currentNodeI = toI;
     while (currentNodeI != fromI)
     {
@@ -130,37 +131,94 @@ internal_func void reconstructPath(int fromI, int toI, Level *level, int *parent
         pathNodeCount++;
     }
 
-    result->path = MemoryArenaPushArray(arena, pathNodeCount, v2i);
+    result->path = MemoryArenaPushArray(arena, pathNodeCount, v2);
 
     currentNodeI = toI;
     int resultIndex = pathNodeCount - 1;
     while (currentNodeI != fromI)
     {
-        result->path[resultIndex--] = IdxToXY(level->w, currentNodeI);
+        result->path[resultIndex--] = V2(IdxToXY(level->w, currentNodeI));
         currentNodeI = parents[currentNodeI];
-        pathNodeCount++;
     }
 
-    Assert(resultIndex == 0);
+    Assert(resultIndex == -1);
 
-    result->path[resultIndex] = IdxToXY(level->w, currentNodeI);
+    result->path[pathNodeCount - 1] = toF;
+
     result->nodeCount = pathNodeCount;
 }
 
 internal_func b32 lineOfSight(Level *level, v2i from, v2i to)
 {
-    return true;
+    i32 x0 = from.x;
+    i32 y0 = from.y;
+    i32 x1 = to.x;
+    i32 y1 = to.y;
+
+    i32 dx = AbsI32(x1 - x0);
+    i32 dy = -AbsI32(y1 - y0);
+
+    i32 sx = -1;
+    i32 sy = -1;
+    if (x0 < x1)
+    {
+        sx = 1;
+    }
+
+    if (y0 < y1)
+    {
+        sy = 1;
+    }
+
+    i32 e = dx + dy;
+
+    while(true)
+    {
+        if (IsTileBlocked(level, x0, y0))
+        {
+            return false;
+        }
+
+        if (x0 == x1 && y0 == y1)
+        {
+            return true;
+        }
+
+        i32 e2 = 2 * e;
+        if (e2 >= dy)
+        {
+            if (x0 == x1)
+            {
+                return true;
+            }
+
+            e += dy;
+            x0 += sx;
+        }
+
+        if (e2 <= dx)
+        {
+            if (y0 == y1)
+            {
+                return true;
+            }
+
+            e += dx;
+            y0 += sy;
+        }
+    }
 }
 
 internal_func void updateNode(v2i node, v2i neighbor, v2i end, Level *level, int *parents, i32 *gScores, i32 *fScores, NavSet *openSet)
 {
     int neighborI = VecToIdx(level->w, neighbor);
     int nodeI = VecToIdx(level->w, node);
-    v2i parent = IdxToXY(level->w, parents[nodeI]);
+    
     v2i parentToSet;
     i32 tentativeGScore;
-    if (lineOfSight(level, parent, neighbor))
+    if (parents[nodeI] != -1 && lineOfSight(level, IdxToXY(level->w, parents[nodeI]), neighbor))
     {
+        v2i parent = IdxToXY(level->w, parents[nodeI]);
         tentativeGScore = gScores[nodeI] + getManhattanDist(parent, neighbor);
         parentToSet = parent;
     }
@@ -206,6 +264,7 @@ api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *ar
     int startI = VecToIdx(level->w, from);
     gScores[startI] = 0;
     fScores[startI] = getManhattanDist(from, to);
+    parents[startI] = -1;
     
     addToSet(&openSet, from);
 
@@ -242,7 +301,7 @@ api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *ar
 
     if (foundPath)
     {
-        reconstructPath(VecToIdx(level->w, from), VecToIdx(level->w, to), level, parents, &result, arena);
+        reconstructPath(VecToIdx(level->w, from), VecToIdx(level->w, to), level, parents, &result, arena, toF);
     }
     
     return result;

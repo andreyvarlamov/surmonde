@@ -207,6 +207,7 @@ struct m3 { f32 e[3][3]; };
 struct m4 { f32 e[4][4]; };
 
 inline v2 V2(f32 x, f32 y) { v2 result; result.x = x; result.y = y; return result; }
+inline v2 V2(v2i v) { v2 result; result.x = (f32)v.x; result.y = (f32)v.y; return result; }
 inline v3 V3(f32 x, f32 y, f32 z) { v3 result; result.x = x; result.y = y; result.z = z; return result; }
 inline v3 V3(v2 v) { v3 result; result.x = v.x; result.y = v.y; result.z = 0.0f; return result; }
 inline v4 V4(f32 x, f32 y, f32 z, f32 w ) { v4 result; result.x = x; result.y = y; result.z = z; result.w = w; return result; }
