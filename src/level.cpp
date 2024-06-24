@@ -21,7 +21,7 @@ api_func Level MakeLevel(
     return level;
 }
 
-internal_func void generateLevelOneRoom(Level *level)
+internal_func void generateLevelOneRoom(Level *level, v2 *whereToPlacePlayer)
 {
     Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
     Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
@@ -41,6 +41,8 @@ internal_func void generateLevelOneRoom(Level *level)
         SetTile(level, 0, y, wallTile);
         SetTile(level, level->w - 1, y, wallTile);
     }
+
+    *whereToPlacePlayer = V2(25.0f, 25.0f);
 }
 
 struct Room
@@ -55,7 +57,7 @@ internal_func b32 doRoomsIntersect(Room a, Room b)
     return result;
 }
 
-internal_func void generateLevelClassicRooms(Level *level)
+internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlayer)
 {
     Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
     Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
@@ -153,20 +155,23 @@ internal_func void generateLevelClassicRooms(Level *level)
             }
         }
     }
+
+    *whereToPlacePlayer = V2((f32)rooms[0].x + (f32)rooms[0].w * 0.5f, (f32)rooms[0].y + (f32)rooms[0].h * 0.5f);
 }
 
 api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType)
 {
+    v2 playerPos = {};
     switch (genType)
     {
         case LEVEL_ONE_ROOM:
         {
-            generateLevelOneRoom(level);
+            generateLevelOneRoom(level, &playerPos);
         } break;
 
         case LEVEL_CLASSIC_ROOMS:
         {
-            generateLevelClassicRooms(level);
+            generateLevelClassicRooms(level, &playerPos);
         } break;
 
         default: InvalidCodePath;
@@ -179,7 +184,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.combatRadius = 2.0f;
     stats.speed = 10.0f;
     stats.initiative = 10.0f;
-    Entity playerEntity = MakeEntity(25.0f, 20.0f, level, '@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);
+    Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, '@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);
     ConfigureCharacterEntity(&playerEntity, stats);
     Entity *addedEntity = AddEntity(entityStore, playerEntity);
     entityStore->controlledEntity = addedEntity;

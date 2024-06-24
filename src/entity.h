@@ -36,7 +36,7 @@ struct EntityBrain
     b32 isMovingInCombat;
     IngameTimer sidestepTimer;
 
-    NavPath path;
+    v2 pathNextTarget;
 };
 
 struct CharacterStats

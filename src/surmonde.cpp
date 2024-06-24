@@ -31,10 +31,11 @@ int main(int argc, char **argv)
     
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
-                                   GetPxPFromTileP(V2(tilePxW, tilePxH), V2I(25, 20)),
+                                   V2(tilePxW * gameState->entityStore.controlledEntity->p.x, tilePxH * gameState->entityStore.controlledEntity->p.y),
                                    0.2f,
                                    5.0f,
                                    5);
+    
     CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
 
     gameState->uiFont = SavLoadFont("res/fonts/VT323-Regular.ttf", 30);
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
 
             case RS_GAME_RUNNING:
             {
-                if (MouseDown(SDL_BUTTON_RIGHT))
+                if (MousePressed(SDL_BUTTON_RIGHT))
                 {
                     v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
                     target.x = target.x / gameState->entityStore.tilePxW;

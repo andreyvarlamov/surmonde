@@ -123,29 +123,38 @@ internal_func i32 getHCost(v2i from, v2i to)
 
 internal_func void reconstructPath(int fromI, int toI, Level *level, int *parents, NavPath *result, MemoryArena *arena, v2 toF)
 {
-    int pathNodeCount = 0;
-    int currentNodeI = toI;
-    while (currentNodeI != fromI)
+    if (fromI != toI)
     {
-        currentNodeI = parents[currentNodeI];
-        pathNodeCount++;
+        int pathNodeCount = 0;
+        int currentNodeI = toI;
+        while (currentNodeI != fromI)
+        {
+            currentNodeI = parents[currentNodeI];
+            pathNodeCount++;
+        }
+
+        result->path = MemoryArenaPushArray(arena, pathNodeCount, v2);
+
+        currentNodeI = toI;
+        int resultIndex = pathNodeCount - 1;
+        while (currentNodeI != fromI)
+        {
+            result->path[resultIndex--] = V2(IdxToXY(level->w, currentNodeI));
+            currentNodeI = parents[currentNodeI];
+        }
+
+        Assert(resultIndex == -1);
+
+        result->path[pathNodeCount - 1] = toF;
+
+        result->nodeCount = pathNodeCount;
     }
-
-    result->path = MemoryArenaPushArray(arena, pathNodeCount, v2);
-
-    currentNodeI = toI;
-    int resultIndex = pathNodeCount - 1;
-    while (currentNodeI != fromI)
+    else
     {
-        result->path[resultIndex--] = V2(IdxToXY(level->w, currentNodeI));
-        currentNodeI = parents[currentNodeI];
+        result->path = MemoryArenaPushArray(arena, 1, v2);
+        result->path[0] = toF;
+        result->nodeCount = 1;
     }
-
-    Assert(resultIndex == -1);
-
-    result->path[pathNodeCount - 1] = toF;
-
-    result->nodeCount = pathNodeCount;
 }
 
 internal_func b32 lineOfSight(Level *level, v2i from, v2i to)
@@ -243,6 +252,16 @@ internal_func void updateNode(v2i node, v2i neighbor, v2i end, Level *level, int
 
 api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *arena)
 {
+    if (VecEqual(fromF, toF, CMP_EPSILON))
+    {
+        NavPath result = {};
+        result.found = true;
+        result.alreadyAtTarget = true;
+        result.path = MemoryArenaPushArray(arena, 1, v2);
+        result.path[0] = toF;
+        return result;
+    }
+    
     v2i from = V2I(RoundF32ToI32(fromF.x), RoundF32ToI32(fromF.y));
     v2i to = V2I(RoundF32ToI32(toF.x), RoundF32ToI32(toF.y));
 
@@ -296,7 +315,7 @@ api_func NavPath NavPathToTarget(Level *level, v2 fromF, v2 toF, MemoryArena *ar
         }
     }
 
-    NavPath result;
+    NavPath result = {};
     result.found = foundPath;
 
     if (foundPath)

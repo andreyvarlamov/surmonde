@@ -52,7 +52,7 @@ void __debugbreak(); // usually in <intrin.h>
 // SECTION Math
 #define PI 3.14159265358979311599796346854
 #define PI32 3.14159265358979311599796346854f
-#define CMP_EPSILON 0.00001
+#define CMP_EPSILON 0.00001f
 
 inline f32 ToRad(f32 d) { return (f32) (d * PI / 180.0f); }
 inline f32 ToDeg(f32 r) { return (f32) (r / PI * 180.0f); }
@@ -155,9 +155,9 @@ inline b32 MoveTowardAngleDeg(f32 *current, f32 target, f32 delta)
         target += 360.0f;
         diff = target - *current;
     }
-
+    
     b32 result = MoveToward(current, target, delta);
-    while (*current > 360.0f)
+    while (*current >= 360.0f)
     {
         *current -= 360.0f;
     }
@@ -166,6 +166,25 @@ inline b32 MoveTowardAngleDeg(f32 *current, f32 target, f32 delta)
         *current += 360.0f;
     }
     return result;
+}
+
+inline f32 GetAngleDegDiff(f32 a, f32 b)
+{
+    f32 diff = b - a;
+
+    while (diff > 180.0f)
+    {
+        b -= 360.0f;
+        diff = b - a;
+    }
+
+    while (diff < -180.0f)
+    {
+        b += 360.0f;
+        diff = b - a;
+    }
+
+    return diff;
 }
 
 inline b32 MoveTowardAngleDegDamped(f32 *current, f32 target, f32 damping, f32 delta)
@@ -1116,6 +1135,8 @@ sav_func void SavFreeString(char **text);
 
 sav_func const char *TextFormat(const char *format, ...);
 sav_func void TraceLog(const char *format, ...);
+sav_func void TraceLogPartialStart(const char *format, ...);
+sav_func void TraceLogPartial(const char *format, ...);
 sav_func void TraceError(const char *format, ...);
 
 sav_func int GetRandomValue(int min, int max);
@@ -3198,6 +3219,25 @@ sav_func void TraceLog(const char *format, ...)
     va_list varArgs;
     va_start(varArgs, format);
     vprintf_s(formatBuf, varArgs);
+    va_end(varArgs);
+}
+
+sav_func void TraceLogPartialStart(const char *format, ...)
+{
+    char formatBuf[STRING_BUFFER];
+    sprintf_s(formatBuf, "GAME: INFO: [F %06zu] %s", _sdlState->currentFrame, format);
+    
+    va_list varArgs;
+    va_start(varArgs, format);
+    vprintf_s(formatBuf, varArgs);
+    va_end(varArgs);
+}
+
+sav_func void TraceLogPartial(const char *format, ...)
+{
+    va_list varArgs;
+    va_start(varArgs, format);
+    vprintf_s(format, varArgs);
     va_end(varArgs);
 }
 

@@ -8,6 +8,7 @@ struct Level;
 struct NavPath
 {
     b32 found;
+    b32 alreadyAtTarget;
     
     v2 *path;
     int nodeCount;

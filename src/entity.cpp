@@ -68,17 +68,41 @@ api_func Entity *AddEntity(EntityStore *s, Entity e)
     return entityInStore;
 }
 
-api_func void OrderEntityMovement(EntityStore *s, Entity *e, v2 target)
+internal_func void recalculatePath(Entity *e, MemoryArena *arena)
 {
-    MemoryArenaFreeze(s->arena);
-    NavPath path = NavPathToTarget(e->level, e->p, target, s->arena);
+    Assert(e->brain.isOrderedMovement);
+
+    TraceLogPartialStart("Recalculating path... ");
+    
+    MemoryArenaFreeze(arena);
+    NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, arena);
     if (path.found)
     {
-        e->brain.isOrderedMovement = true;
-        e->brain.movementTarget = target;
-        e->brain.path = path;
+        if (path.alreadyAtTarget)
+        {
+            e->brain.isOrderedMovement = false;
+            TraceLogPartial("Arrived at target.\n");
+        }
+        else
+        {
+            e->brain.pathNextTarget = path.path[0];
+            TraceLogPartial("Next target: %.2f, %.2f\n", e->brain.pathNextTarget.x, e->brain.pathNextTarget.y);
+        }
     }
-    MemoryArenaUnfreeze(s->arena);
+    else
+    {
+        e->brain.isOrderedMovement = false;
+        TraceLogPartial("Target unreachable.\n");
+    }
+    MemoryArenaUnfreeze(arena);
+}
+
+api_func void OrderEntityMovement(EntityStore *s, Entity *e, v2 target)
+{
+    e->brain.isOrderedMovement = true;
+    e->brain.movementTarget = target;
+
+    recalculatePath(e, s->arena);
 }
 
 api_func void OrderFollowEntity(Entity *follower, Entity *followed)
@@ -130,7 +154,7 @@ internal_func b32 moveEntity(Entity *e, v2 target, f32 delta)
     f32 angle = ToDeg(GetVecFlippedYAngle(dir));
 
     f32 moveAmount;
-    if (AbsF32(angle - e->yawDeg) > QUICK_TURN_AROUND_MAX)
+    if (AbsF32(GetAngleDegDiff(e->yawDeg, angle)) > QUICK_TURN_AROUND_MAX)
     {    
        	moveAmount = e->stats.speed * 0.2f * delta;
     }
@@ -394,18 +418,10 @@ internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
     }
     else if (e->brain.isOrderedMovement)
     {
-        NavPath *path = &e->brain.path;
-        if (moveEntity(e, V2((f32)path->path[0].x, (f32)path->path[0].y), delta))
+        // TraceLog("Moving towards: %.3f, %.3f", e->brain.pathNextTarget.x, e->brain.pathNextTarget.y);
+        if (moveEntity(e, e->brain.pathNextTarget, delta))
         {
-            MemoryArenaFreeze(s->arena);
-            NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
-            if (path.found)
-            {
-                e->brain.path = path;
-            }
-            MemoryArenaUnfreeze(s->arena);
-            
-            // e->brain.isOrderedMovement = false;
+            recalculatePath(e, s->arena);
         }
     }
 }
@@ -512,7 +528,6 @@ api_func void DrawEntities(EntityStore *s)
             v2 pxP = V2(e->p.x * s->tilePxW, e->p.y * s->tilePxH);
             // NOTE: This visualization wouldn't work with non-square tiles.
             DrawFilledCircle(pxP, e->stats.viewRadius * s->tilePxW, ColorAlpha(SAV_COLOR_GRAY, 0.1f), s->arena);
-            
         }
 
         v2 pxP = V2(e->p.x * s->tilePxW, e->p.y * s->tilePxH);
@@ -520,13 +535,12 @@ api_func void DrawEntities(EntityStore *s)
 
         if (e->brain.isOrderedMovement)
         {
-            #if 0
             v2 targetPxP = V2(e->brain.movementTarget.x * s->tilePxW, e->brain.movementTarget.y * s->tilePxH);
             DrawLine(pxP, targetPxP, SAV_COLOR_DARKSLATEGRAY);
-            #elif 1
+
+            #if 0
             MemoryArenaFreeze(s->arena);
             NavPath path = NavPathToTarget(e->level, e->p, e->brain.movementTarget, s->arena);
-
             if (path.found)
             {
                 for (int i = 0; i < path.nodeCount - 1; i++)
