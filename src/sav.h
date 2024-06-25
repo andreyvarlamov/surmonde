@@ -931,6 +931,13 @@ struct SavFont
     int height;
 };
 
+enum SavDrawMode
+{
+    SAV_DRAW_TRIANGLES,
+    SAV_DRAW_LINES,
+    SAV_DRAW_POINTS
+};
+
 enum VertexAttribType
 {
     SAV_VA_TYPE_FLOAT,
@@ -1116,6 +1123,7 @@ sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, Vert
 sav_func void VertexBatchSubIndexData(VertexBatch *batch, VertexCountedData data);
 sav_func void VertexBatchEndSub(VertexBatch *batch);
 sav_func void DrawVertexBatch(VertexBatch *batch);
+sav_func void SetDrawMode(SavDrawMode drawMode);
 
 sav_func void ClearBackground(SavColor c);
 sav_func void BeginDraw();
@@ -1214,6 +1222,8 @@ struct GlState
     SavRenderTexture currentRenderTexture;
 
     SavShader currentShader;
+
+    GLenum drawMode;
 };
 
 struct InputState
@@ -2610,7 +2620,7 @@ sav_func void DrawVertexBatch(VertexBatch *batch)
 
     Assert(batch->indexCount > 0); // TODO: Handle no ebo case
     glBindVertexArray(batch->vao);
-    glDrawElements(GL_TRIANGLES, batch->indexCount, GL_UNSIGNED_INT, 0);
+    glDrawElements(_glState->drawMode, batch->indexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
     // TODO: We may not want to reset the batch automatically after every draw call
@@ -2619,68 +2629,28 @@ sav_func void DrawVertexBatch(VertexBatch *batch)
     batch->indexCount = 0;
 }
 
-#if 0
-enum ExampleVertAttribs
+sav_func void SetDrawMode(SavDrawMode drawMode)
 {
-    POSITIONS = 0,
-    TEXCOORDS,
-    COLORS1,
-    COLORS2
-};
-
-// NOTE:
-// One possible addition: giving data for sets of vertices at a time
-// Two alternatives:
-// 1) Partially sub data to gpu
-//    * Data will be added at vert count and index count, need to add it to offset when subbing
-//    * BeginSub and EndSub to specify data for the same set of vertices
-//    + No RAM usage
-//    + Easier to add to existing solution
-//    - More gl calls
-// 2) Store all attribs in ram first, then sub all right before draw call
-//    * API changes pretty much the same as (1)
-//    + Less gl calls
-//    - Need to store data in RAM; data is duplicated from the buffers coming from the user of engine
-
-#define EXAMPLE_VERT_COUNT 256
-#define EXAMPLE_INDEX_COUNT 1024
-void Example()
-{
-    // INIT
-    // Vertex batch specification
-    VertexBatchSpec spec = BeginVertexBatchSpec(1024, 4096, sizeof(u32));
-    VertexBatchSpecAddAttrib(&spec, POSTIONS, false, 3, SAV_VA_TYPE_FLOAT, sizeof(v3));
-    VertexBatchSpecAddAttrib(&spec, TEXCOORDS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
-    VertexBatchSpecAddAttrib(&spec, COLORS1, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
-    VertexBatchSpecAddAttrib(&spec, COLORS2, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
-    EndVertexBatchSpec(&spec);
-    // Init buffers on GPU
-    VertexBatch batch = PrepareVertexBatch(spec);
-
-    // FRAME
-    while (true)
+    switch (drawMode)
     {
-        // Data comes from elsewhere
-        v3 positions[EXAMPLE_VERT_COUNT] = {};
-        v4 texCoords[EXAMPLE_VERT_COUNT] = {};
-        v4 colors1[EXAMPLE_VERT_COUNT] = {};
-        v4 colors2[EXAMPLE_VERT_COUNT] = {};
-        u32 indices[EXAMPLE_INDEX_COUNT] = {};
+        case SAV_DRAW_TRIANGLES:
+        {
+            _glState->drawMode = GL_TRIANGLES;
+        } break;
 
-        // Sub data for this frame (attribs can be out of order)
-        VertexBatchBeginSub(&batch, ArrayCount(positions), ArrayCount(indices));
-        VertexBatchSubVertexData(&batch, COLORS1, MakeVertexCountedData(colors1, ArrayCount(colors1), sizeof(colors1[0])));
-        VertexBatchSubVertexData(&batch, POSITIONS, MakeVertexCountedData(positions, ArrayCount(positions), sizeof(positions[0])));
-        VertexBatchSubVertexData(&batch, TEXCOORDS, MakeVertexCountedData(texCoords, ArrayCount(texCoords), sizeof(texCoords[0])));
-        VertexBatchSubVertexData(&batch, COLORS2, MakeVertexCountedData(colors2, ArrayCount(colors2), sizeof(colors2[0])));
-        VertexBatchSubIndexData(&batch, MakeVertexCountedData(indices, ArrayCount(indices), sizeof(indices[0])));
-        VertexBatchEndSub(&batch);
+        case SAV_DRAW_LINES:
+        {
+            _glState->drawMode = GL_LINES;
+        } break;
 
-        // Issue draw calls (1)
-        DrawVertexBatch(&batch);
+        case SAV_DRAW_POINTS:
+        {
+            _glState->drawMode = GL_POINTS;
+        } break;
+
+        default: InvalidCodePath;
     }
 }
-#endif
 
 // SECTION Graphics: drawing
 sav_func void ClearBackground(SavColor c)

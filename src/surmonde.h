@@ -11,6 +11,7 @@ enum RunState
 struct GameState
 {
     MemoryArena worldArena;
+    MemoryArena debugRenderArena;
     
     SavTextureAtlas mainTileAtlas;
     SavFont uiFont;

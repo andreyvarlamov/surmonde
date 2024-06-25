@@ -7,6 +7,7 @@
 #include "defines.h"
 #include "helpers.h"
 #include "draw.h"
+#include "debug_draw.h"
 
 int main(int argc, char **argv)
 {
@@ -41,6 +42,9 @@ int main(int argc, char **argv)
     gameState->uiFont = SavLoadFont("res/fonts/VT323-Regular.ttf", 30);
 
     InitializeFloaterState(&gameState->uiFont, &gameState->camera, &gameState->worldArena);
+
+    gameState->debugRenderArena = AllocArena(Megabytes(4));
+    DDrawInit(&gameState->debugRenderArena);
     
     while (!WindowShouldClose())
     {
@@ -85,7 +89,15 @@ int main(int argc, char **argv)
                     b32 blocked = IsTileBlocked(&gameState->level, tileP.x, tileP.y);
                     TraceLog("[%d, %d]: %d", tileP.x, tileP.y, blocked);
                 }
-                
+
+                if (MouseDown(SDL_BUTTON_LEFT))
+                {
+                    v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
+                    target.x = target.x / gameState->entityStore.tilePxW;
+                    target.y = target.y / gameState->entityStore.tilePxH;
+
+                    DDrawPoint(target, SAV_COLOR_WHITE);
+                }
 
                 if (KeyDown(SDL_SCANCODE_A))
                 {
@@ -105,6 +117,8 @@ int main(int argc, char **argv)
                     BeginCameraMode(&gameState->camera);
                         DrawLevel(&gameState->level);
                         DrawEntities(&gameState->entityStore);
+
+                        DDraw();
                     EndCameraMode();
 
                     DrawFloaters((f32) GetDeltaFixed());
@@ -131,3 +145,4 @@ int main(int argc, char **argv)
 #include "tilemap.cpp"
 #include "entity.cpp"
 #include "navigation.cpp"
+#include "debug_draw.cpp"
