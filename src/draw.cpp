@@ -318,3 +318,60 @@ api_func void DrawFloaters(f32 delta)
         }
     }
 }
+
+#if 0
+api_func void DrawAtlasTilemap(
+    SavTextureAtlas atlas,
+    int tilemapWidth,
+    int tilemapHeight,
+    f32 tilePxW,
+    f32 tilePxH,
+    i32 *atlasValues,
+    SavColor *colorsFg,
+    SavColor *colorsBg,
+    v2 origin,
+    MemoryArena *arena)
+{
+    int tileCount = tilemapWidth * tilemapHeight;
+    int vertCount = tileCount * 4;
+    int indexCount = tileCount * 6;
+
+    int vertsAdded = 0;
+    int indicesAdded = 0;
+    for (int tileI = 0; tileI < tileCount; tileI++)
+    {
+        i32 tileVal = atlasValues[tileI];
+        i32 tileX = tileI % tilemapWidth;
+        i32 tileY = tileI / tilemapWidth;
+        f32 pxX = ((f32) tileX + origin.x) * tilePxW;
+        f32 pxY = ((f32) tileY + origin.y) * tilePxH;
+        Rect destRect = MakeRect(pxX, pxY, tilePxW, tilePxH);
+        FourV3 points = ConvertFourV2V3(RectGetPoints(destRect));
+
+        Rect atlasRect = GetAtlasSourceRect(atlas, tileVal);
+        FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(atlas.texture, atlasRect));
+
+        VertexBatchBeginVertexSet();
+        for (int i = 0; i < 4; i++)
+        {
+            v4 c = GetColorV4(colorsFg[tileI]);
+            
+            VertexBatchVertBegin();
+            VertexBatchVertAttrib(DEFAULT_VERT_POSITIONS, &points.e[i]);
+            VertexBatchVertAttrib(DEFAULT_VERT_TEXCOORDS, &texCoordPoints.e[i]);
+            VertexBatchVertAttrib(DEFAULT_VERT_COLORS, &c);
+            VertexBatchVertEnd();
+        }
+
+        u32 localIndices[] = {0, 1, 2, 2, 3, 0};
+        for (int i = 0; i < ArrayCount(localIndices); i++)
+        {
+            VertexBatchAddLocalIndex(localIndices[i]);
+        }
+    }
+
+    BindTextureSlot(0, atlas.texture);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
+    UnbindTextureSlot(0);
+}
+#endif

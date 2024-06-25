@@ -7,14 +7,14 @@
 - My own printf/format string extensions. E.g. for v2, etc.
 
 ## SURMONDE
-- Use pathfinding in combat
-  - Simple: just don't walk into walls
-  - Complex: adjust position based on that data, e.g. if cornered, get out
 - Line of sight
   - Limiting character field of vision
   - Limiting player field of vision
   - Map memory/fog of war
   - Lighting
+- Use pathfinding in combat
+  - Simple: just don't walk into walls
+  - Complex: adjust position based on that data, e.g. if cornered, get out
 - Non-combat character AI
 - Multiple levels
   - Relation between level and entity store

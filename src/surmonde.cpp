@@ -18,6 +18,15 @@ int main(int argc, char **argv)
 
     SetTargetFPS(60.0);
 
+    gameState->renderArena = AllocArena(Megabytes(4));
+    SavUseRenderArena(&gameState->renderArena);
+
+    VertBatchSpec debugDrawSpec = VertBatchSpecBegin(DEFAULT_BATCH_MAX_VERT_COUNT, DEFAULT_BATCH_MAX_INDEX_COUNT, sizeof(u32));
+    VertBatchSpecAddAttrib(&debugDrawSpec, DEFAULT_VERT_POSITIONS, false, 3, SAV_VA_TYPE_FLOAT, sizeof(v3));
+    VertBatchSpecAddAttrib(&debugDrawSpec, DEFAULT_VERT_COLORS, false, 4, SAV_VA_TYPE_FLOAT, sizeof(v4));
+    VertBatchSpecEnd(&debugDrawSpec);
+    VertBatchPrepare(VERTBATCH_DEBUG_DRAW, debugDrawSpec);
+    
     gameState->mainTileAtlas = SavLoadTextureAtlas("res/textures/hack64.png", 16, 16);
     SavSetTextureFilterMode(gameState->mainTileAtlas.texture, SAV_LINEAR);
 

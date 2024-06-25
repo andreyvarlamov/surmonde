@@ -948,20 +948,15 @@ struct VertexAttrib
 };
 
 #define VERTEX_BATCH_MAX_ATTRIB 16
-struct VertexBatchSpec
+struct VertexBatch
 {
     VertexAttrib attribs[VERTEX_BATCH_MAX_ATTRIB];
     int attribMax;
     size_t vertBufferByteSize;
     int vertMax;
-
     int indexMax;
     size_t indexByteSize;
-};
 
-struct VertexBatch
-{
-    VertexBatchSpec spec;
     u32 vbo;
     u32 vao;
     u32 ebo;
@@ -1106,10 +1101,12 @@ sav_func void EndTextureMode();
 sav_func void BindTextureSlot(int slot, SavTexture texture);
 sav_func void UnbindTextureSlot(int slot);
 
-sav_func VertexBatchSpec BeginVertexBatchSpec(int vertMax, int indexMax, size_t indexByteSize);
-sav_func void VertexBatchSpecAddAttrib(VertexBatchSpec *spec, int attribIndex, b32 isInteger, int componentCount, VertexAttribType type, size_t byteSize);
-sav_func void EndVertexBatchSpec(VertexBatchSpec *spec);
-sav_func VertexBatch PrepareVertexBatch(VertexBatchSpec spec);
+sav_func void VertBatchUseArena();
+
+sav_func void VertBatchBeginSpec(int batchId, int vertMax, int indexMax, size_t indexByteSize);
+sav_func void VertBatchSpecAddAttrib(int batchId, int attribIndex, b32 isInteger, int componentCount, VertexAttribType type, size_t byteSize);
+sav_func void VertBatchPrepare(int batchId, VertexBatchSpec spec);
+
 sav_func void VertexBatchBeginSub(VertexBatch *batch, int vertCount, int indexCount);
 sav_func VertexCountedData MakeVertexCountedData(void *data, size_t elemSize, size_t elemCount);
 sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, VertexCountedData data);

@@ -169,14 +169,6 @@ internal_func b32 moveEntity(Entity *e, v2 target, f32 delta)
     return targetReached;
 }
 
-#if 0
-internal_func b32 pathEntity(Entity *e, v2 target, f32 delta)
-{
-    v2 nextStep = NavPathToTarget(e->level, e->p, target);
-    moveEntity(e, nextStep, delta);
-}
-#endif
-
 internal_func inline void setEntityCombatState(Entity *e, CombatState state, f32 howLong)
 {
     e->brain.combatState = state;
@@ -418,7 +410,6 @@ internal_func void processCharacterOrders(EntityStore *s, Entity *e, f32 delta)
     }
     else if (e->brain.isOrderedMovement)
     {
-        // TraceLog("Moving towards: %.3f, %.3f", e->brain.pathNextTarget.x, e->brain.pathNextTarget.y);
         if (moveEntity(e, e->brain.pathNextTarget, delta))
         {
             recalculatePath(e, s->arena);
