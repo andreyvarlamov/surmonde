@@ -126,7 +126,7 @@ internal_func void reconstructPath(int fromI, int toI, Level *level, int *parent
         int resultIndex = pathNodeCount - 1;
         while (currentNodeI != fromI)
         {
-            result->path[resultIndex--] = V2(IdxToXY(level->w, currentNodeI));
+            result->path[resultIndex--] = V2(IdxToXY(level->w, currentNodeI)) + V2(0.5f, 0.5f);
             currentNodeI = parents[currentNodeI];
         }
 
@@ -211,9 +211,9 @@ api_func NavPath NavPathToTarget(Level *level, v2 startF, v2 endF, MemoryArena *
         return result;
     }
     
-    v2i start = V2I(RoundF32ToI32(startF.x), RoundF32ToI32(startF.y));
+    v2i start = V2I((i32)startF.x, (i32)startF.y);
     int startI = VecToIdx(level->w, start);
-    v2i end = V2I(RoundF32ToI32(endF.x), RoundF32ToI32(endF.y));
+    v2i end = V2I((i32)endF.x, (i32)endF.y);
     int endI = VecToIdx(level->w, end);
 
     NavSet openSet;

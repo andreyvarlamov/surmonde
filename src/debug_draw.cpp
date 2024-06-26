@@ -92,7 +92,7 @@ internal_func void drawLines()
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
 
-    SetLineWidth(10.0f);
+    SetLineWidth(6.0f);
     SetDrawMode(SAV_DRAW_LINES);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
     SetDrawMode(SAV_DRAW_TRIANGLES);
@@ -130,7 +130,7 @@ internal_func void drawPoints()
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
 
-    SetPointSize(10.0f);
+    SetPointSize(8.0f);
     SetDrawMode(SAV_DRAW_POINTS);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
     SetDrawMode(SAV_DRAW_TRIANGLES);

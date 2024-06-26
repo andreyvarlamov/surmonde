@@ -29,6 +29,7 @@ int main(int argc, char **argv)
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
+    PreprocessLevel(&gameState->level);
     
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
@@ -85,7 +86,7 @@ int main(int argc, char **argv)
                     v2 p = CameraScreenToWorld(&gameState->camera, MousePos());
                     p.x = p.x / gameState->entityStore.tilePxW;
                     p.y = p.y / gameState->entityStore.tilePxH;
-                    v2i tileP = V2I(RoundF32ToI32(p.x), RoundF32ToI32(p.y));
+                    v2i tileP = V2I((i32)p.x, (i32)p.y);
                     b32 blocked = IsTileBlocked(&gameState->level, tileP.x, tileP.y);
                     TraceLog("[%d, %d]: %d", tileP.x, tileP.y, blocked);
                 }
@@ -120,6 +121,7 @@ int main(int argc, char **argv)
                         DrawLevel(&gameState->level);
                         DrawEntities(&gameState->entityStore);
 
+                        DrawLevelMeshDebug(&gameState->level);
                         DDraw();
                     EndCameraMode();
 

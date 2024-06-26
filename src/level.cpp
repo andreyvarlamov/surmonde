@@ -197,7 +197,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
 
 api_func void DrawLevel(Level *level)
 {
-    DrawTilemap(&level->levelTilemap, V2(-0.5f, -0.5f));
+    DrawTilemap(&level->levelTilemap, V2(0.0f, 0.0f));
 }
 
 api_func Tile MakeTile(i32 atlasValue, SavColor bg, SavColor fg, u8 flags)
@@ -229,4 +229,88 @@ api_func b32 IsTileBlocked(Level *level, int x, int y)
     int i = XYToIdx(level->w, x, y);
     b32 result = CheckFlag(level->tileFlags[i], TILE_BLOCKED);
     return result;
+}
+
+api_func b32 IsTileOpaque(Level *level, int x, int y)
+{
+    Assert(x >= 0 && x < level->w && y >= 0 && y <= level->h);
+    int i = XYToIdx(level->w, x, y);
+    b32 result = CheckFlag(level->tileFlags[i], TILE_OPAQUE);
+    return result;
+}
+
+api_func void PreprocessLevel(Level *level)
+{
+    LevelMesh mesh = {};
+
+    mesh.tiles = MemoryArenaPushArrayAndZero(level->arena, level->w * level->h, MeshTile);
+    mesh.verts = MemoryArenaPushArrayAndZero(level->arena, 16384, MeshVert);
+    mesh.edges = MemoryArenaPushArrayAndZero(level->arena, 16384, MeshEdge);
+    
+    
+    for (int y = 1; y < level->h - 1; y++)
+    {
+        for (int x = 1; x < level->w - 1; x++)
+        {
+            // if (IsTileOpaque(level, x, y))
+            {
+                if ((IsTileOpaque(level, x, y) && !IsTileOpaque(level, x + 1, y)) ||
+                    (!IsTileOpaque(level, x, y) && IsTileOpaque(level, x + 1, y)))
+                {
+                    MeshEdge *existingEdge = mesh.tiles[XYToIdx(level->w, x, y - 1)].edges[1];
+                    if (existingEdge)
+                    {
+                        mesh.tiles[XYToIdx(level->w, x, y)].edges[1] = existingEdge;
+                        existingEdge->verts[1]->p.y = (f32)(y + 1);
+                    }
+                    else
+                    {
+                        MeshEdge *newEdge = mesh.edges + mesh.edgeCount++;
+                        newEdge->verts[0] = mesh.verts + mesh.vertCount++;
+                        newEdge->verts[1] = mesh.verts + mesh.vertCount++;
+                        newEdge->verts[0]->p = V2((f32)(x + 1), (f32)y);
+                        newEdge->verts[1]->p = V2((f32)(x + 1), (f32)(y + 1));
+                        
+                        mesh.tiles[XYToIdx(level->w, x, y)].edges[1] = newEdge;
+                    }
+                }
+
+                if ((IsTileOpaque(level, x, y) && !IsTileOpaque(level, x, y + 1)) ||
+                    (!IsTileOpaque(level, x, y) && IsTileOpaque(level, x, y + 1)))
+                {
+                    MeshEdge *existingEdge = mesh.tiles[XYToIdx(level->w, x - 1, y)].edges[2];
+                    if (existingEdge)
+                    {
+                        mesh.tiles[XYToIdx(level->w, x, y)].edges[2] = existingEdge;
+                        existingEdge->verts[1]->p.x = (f32)(x + 1);
+                    }
+                    else
+                    {
+                        MeshEdge *newEdge = mesh.edges + mesh.edgeCount++;
+                        newEdge->verts[0] = mesh.verts + mesh.vertCount++;
+                        newEdge->verts[1] = mesh.verts + mesh.vertCount++;
+                        newEdge->verts[0]->p = V2((f32)(x), (f32)(y + 1));
+                        newEdge->verts[1]->p = V2((f32)(x + 1), (f32)(y + 1));
+                        
+                        mesh.tiles[XYToIdx(level->w, x, y)].edges[2] = newEdge;
+                    }
+                }
+            }
+        }
+    }
+
+    level->mesh = mesh;
+}
+
+api_func void DrawLevelMeshDebug(Level *level)
+{
+    for (int i = 0; i < level->mesh.edgeCount; i++)
+    {
+        v2 start = level->mesh.edges[i].verts[0]->p * level->levelTilemap.tilePxW;
+        v2 end = level->mesh.edges[i].verts[1]->p * level->levelTilemap.tilePxW;
+
+        DDrawLine(start, end, SAV_COLOR_YELLOW);
+        DDrawPoint(start, SAV_COLOR_ORANGE);
+        DDrawPoint(end, SAV_COLOR_ORANGE);
+    }
 }
