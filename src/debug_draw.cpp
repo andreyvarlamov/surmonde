@@ -41,7 +41,7 @@ api_func void DDrawPoint(v2 p, SavColor color)
     point->point = p;
     point->color = color;
     point->next = _ddState->points;
-    _ddState->points = point->next;
+    _ddState->points = point;
     _ddState->pointCount++;
 }
 
@@ -52,7 +52,7 @@ api_func void DDrawLine(v2 start, v2 end, SavColor color)
     line->end = end;
     line->color = color;
     line->next = _ddState->lines;
-    _ddState->lines = line->next;
+    _ddState->lines = line;
     _ddState->lineCount++;
 }
 
@@ -92,9 +92,11 @@ internal_func void drawLines()
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
 
+    SetLineWidth(10.0f);
     SetDrawMode(SAV_DRAW_LINES);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
     SetDrawMode(SAV_DRAW_TRIANGLES);
+    SetLineWidth(1.0f);
 }
 
 internal_func void drawPoints()
@@ -128,9 +130,11 @@ internal_func void drawPoints()
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
 
+    SetPointSize(10.0f);
     SetDrawMode(SAV_DRAW_POINTS);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
     SetDrawMode(SAV_DRAW_TRIANGLES);
+    SetPointSize(1.0f);
 }
 
 api_func void DDraw()
@@ -143,5 +147,12 @@ api_func void DDraw()
     {
         drawPoints();
     }
-    MemoryArenaUnfreeze(_ddState->arena);
+
+    MemoryArenaRevert(_ddState->arena);
+
+    _ddState->lines = NULL;
+    _ddState->points = NULL;
+    _ddState->lineCount = 0;
+    _ddState->pointCount = 0;
+    
 }

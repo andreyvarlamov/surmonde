@@ -652,6 +652,13 @@ inline void MemoryArenaFreeze(MemoryArena *arena)
     arena->frozenPrevUsed = arena->prevUsed;
 }
 
+inline void MemoryArenaRevert(MemoryArena *arena)
+{
+    Assert(arena->freezeCount > 0);
+    arena->used = arena->frozenUsed;
+    arena->prevUsed = arena->frozenPrevUsed;
+}
+
 inline void MemoryArenaUnfreeze(MemoryArena *arena)
 {
     Assert(arena->freezeCount > 0);
@@ -1123,6 +1130,8 @@ sav_func void VertexBatchSubVertexData(VertexBatch *batch, int attribIndex, Vert
 sav_func void VertexBatchSubIndexData(VertexBatch *batch, VertexCountedData data);
 sav_func void VertexBatchEndSub(VertexBatch *batch);
 sav_func void DrawVertexBatch(VertexBatch *batch);
+sav_func void SetPointSize(f32 size);
+sav_func void SetLineWidth(f32 size);
 sav_func void SetDrawMode(SavDrawMode drawMode);
 
 sav_func void ClearBackground(SavColor c);
@@ -1321,6 +1330,8 @@ internal_func void initGlDefaults()
     _glState->modelViewStackCurrent = -1;
     PushProjection(M4(1));
     PushModelView(M4(1));
+
+    _glState->drawMode = GL_TRIANGLES;
 
     SDL_GL_SetSwapInterval(0);
 }
@@ -2627,6 +2638,16 @@ sav_func void DrawVertexBatch(VertexBatch *batch)
     batch->readyToDraw = false;
     batch->vertCount = 0;
     batch->indexCount = 0;
+}
+
+sav_func void SetPointSize(f32 size)
+{
+    glPointSize(size);
+}
+
+sav_func void SetLineWidth(f32 size)
+{
+    glLineWidth(size);
 }
 
 sav_func void SetDrawMode(SavDrawMode drawMode)

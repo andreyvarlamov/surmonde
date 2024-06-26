@@ -92,11 +92,13 @@ int main(int argc, char **argv)
 
                 if (MouseDown(SDL_BUTTON_LEFT))
                 {
-                    v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
-                    target.x = target.x / gameState->entityStore.tilePxW;
-                    target.y = target.y / gameState->entityStore.tilePxH;
+                    v2 start = gameState->entityStore.controlledEntity->p * gameState->entityStore.tilePxW;
+                    v2 end = CameraScreenToWorld(&gameState->camera, MousePos());
 
-                    DDrawPoint(target, SAV_COLOR_WHITE);
+                    DDrawLine(start, end, SAV_COLOR_GREEN);
+                    
+                    DDrawPoint(start, SAV_COLOR_WHITE); 
+                    DDrawPoint(end, SAV_COLOR_WHITE);
                 }
 
                 if (KeyDown(SDL_SCANCODE_A))
