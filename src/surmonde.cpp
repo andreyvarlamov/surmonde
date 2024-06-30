@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
-    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
+    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_EMPTY);
     PreprocessLevel(&gameState->level);
     
     gameState->camera = MakeCamera(0.0f,
@@ -38,7 +38,8 @@ int main(int argc, char **argv)
                                    5.0f,
                                    5);
     
-    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
+    // CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
+    // CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, 0.0f, 0.0f, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
 
     gameState->uiFont = SavLoadFont("res/fonts/VT323-Regular.ttf", 30);
 
@@ -46,6 +47,11 @@ int main(int argc, char **argv)
 
     gameState->debugRenderArena = AllocArena(Megabytes(4));
     DDrawInit(&gameState->debugRenderArena);
+
+    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
+    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
+
+    int debugEdge = 0;
     
     while (!WindowShouldClose())
     {
@@ -87,21 +93,19 @@ int main(int argc, char **argv)
                     p.x = p.x / gameState->entityStore.tilePxW;
                     p.y = p.y / gameState->entityStore.tilePxH;
                     v2i tileP = V2I((i32)p.x, (i32)p.y);
-                    b32 blocked = IsTileBlocked(&gameState->level, tileP.x, tileP.y);
-                    TraceLog("[%d, %d]: %d", tileP.x, tileP.y, blocked);
+
+                    if (IsTileOpaque(&gameState->level, tileP.x, tileP.y))
+                    {
+                        SetTile(&gameState->level, tileP.x, tileP.y, floorTile);
+                    }
+                    else
+                    {
+                        SetTile(&gameState->level, tileP.x, tileP.y, wallTile);
+                    }
+
+                    PreprocessLevel(&gameState->level);
+
                 }
-
-                if (MouseDown(SDL_BUTTON_LEFT))
-                {
-                    v2 start = gameState->entityStore.controlledEntity->p * gameState->entityStore.tilePxW;
-                    v2 end = CameraScreenToWorld(&gameState->camera, MousePos());
-
-                    DDrawLine(start, end, SAV_COLOR_GREEN);
-                    
-                    DDrawPoint(start, SAV_COLOR_WHITE); 
-                    DDrawPoint(end, SAV_COLOR_WHITE);
-                }
-
                 if (KeyDown(SDL_SCANCODE_A))
                 {
                     gameState->entityStore.controlledEntity->yawDeg += 90.0f * (f32) GetDeltaFixed();
@@ -110,6 +114,11 @@ int main(int argc, char **argv)
                 if (KeyDown(SDL_SCANCODE_D))
                 {
                     gameState->entityStore.controlledEntity->yawDeg -= 90.0f * (f32) GetDeltaFixed();
+                }
+
+                if (KeyPressed(SDL_SCANCODE_SPACE))
+                {
+                    debugEdge++;
                 }
 
                 UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
@@ -121,6 +130,7 @@ int main(int argc, char **argv)
                         DrawLevel(&gameState->level);
                         DrawEntities(&gameState->entityStore);
 
+                        DebugEdgeOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p, debugEdge);
                         DrawLevelMeshDebug(&gameState->level);
                         DDraw();
                     EndCameraMode();

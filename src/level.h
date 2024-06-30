@@ -57,6 +57,7 @@ struct Level
 
 enum LevelGenType
 {
+    LEVEL_EMPTY,
     LEVEL_ONE_ROOM,
     LEVEL_CLASSIC_ROOMS
 };
@@ -76,6 +77,8 @@ api_func void SetTile(Level *level, int x, int y, Tile tile);
 api_func b32 IsTileBlocked(Level *level, int x, int y);
 api_func b32 IsTileOpaque(Level *level, int x, int y);
 
+api_func void DrawLevelOcclusion(Level *level, v2 pov);
+api_func void DebugEdgeOcclusion(Level *level, v2 pov, int i);
 api_func void DrawLevelMeshDebug(Level *level);
 
 #endif

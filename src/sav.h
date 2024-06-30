@@ -252,6 +252,7 @@ inline f32 VecLength(v2 v) { return sqrtf(v.x * v.x + v.y * v.y); }
 inline v2 VecNormalize(v2 v) { f32 l = sqrtf(v.x * v.x + v.y * v.y); Assert(l > 0.0f); return { v.x / l, v.y / l }; }
 inline v2 VecNormalizeIN0(v2 v) { f32 l = sqrtf(v.x * v.x + v.y * v.y); if(l == 0.0f) return {}; return { v.x / l, v.y / l }; }
 inline b32 VecEqual(v2 a, v2 b, f32 epsilon) { return (fabs(a.x - b.x) <= epsilon && fabs(a.y - b.y) <= epsilon); }
+inline f32 VecCross2(v2 a, v2 b) { return (a.x * b.y - b.x * a.y); }
 
 inline v3 operator+(v3 a, v3 b) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
 inline v3 operator-(v3 a, v3 b) { return { a.x - b.x, a.y - b.y, a.z - b.z }; }

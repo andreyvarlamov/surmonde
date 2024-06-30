@@ -12,13 +12,24 @@ api_func Level MakeLevel(
     f32 tilePxW, f32 tilePxH,
     MemoryArena *arena)
 {
-    Level level;
+    Level level = {};
     level.w = w;
     level.h = h;
     level.levelTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
     level.tileFlags = MemoryArenaPushArrayAndZero(arena, w * h, u8);
     level.arena = arena;
     return level;
+}
+
+internal_func void generateLevelEmpty(Level *level, v2 *whereToPlacePlayer)
+{
+    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
+    for (int i = 0; i < level->w * level->h; i++)
+    {
+        SetTile(level, i, floorTile);
+    }
+
+    *whereToPlacePlayer = V2(20.0f, 20.0f);
 }
 
 internal_func void generateLevelOneRoom(Level *level, v2 *whereToPlacePlayer)
@@ -164,6 +175,11 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     v2 playerPos = {};
     switch (genType)
     {
+        case LEVEL_EMPTY:
+        {
+            generateLevelEmpty(level, &playerPos);
+        } break;
+        
         case LEVEL_ONE_ROOM:
         {
             generateLevelOneRoom(level, &playerPos);
@@ -241,12 +257,20 @@ api_func b32 IsTileOpaque(Level *level, int x, int y)
 
 api_func void PreprocessLevel(Level *level)
 {
-    LevelMesh mesh = {};
+    LevelMesh *mesh = &level->mesh;
 
-    mesh.tiles = MemoryArenaPushArrayAndZero(level->arena, level->w * level->h, MeshTile);
-    mesh.verts = MemoryArenaPushArrayAndZero(level->arena, 16384, MeshVert);
-    mesh.edges = MemoryArenaPushArrayAndZero(level->arena, 16384, MeshEdge);
-    
+    if (mesh->tiles == NULL)
+    {
+        mesh->tiles = MemoryArenaPushArray(level->arena, level->w * level->h, MeshTile);
+        mesh->verts = MemoryArenaPushArray(level->arena, 16384, MeshVert);
+        mesh->edges = MemoryArenaPushArray(level->arena, 16384, MeshEdge);
+        mesh->w = level->w;
+        mesh->h = level->h;
+    }
+
+    mesh->vertCount = 0;
+    mesh->edgeCount = 0;
+    memset(mesh->tiles, 0, mesh->w * mesh->h * sizeof(MeshTile));
     
     for (int y = 1; y < level->h - 1; y++)
     {
@@ -257,49 +281,139 @@ api_func void PreprocessLevel(Level *level)
                 if ((IsTileOpaque(level, x, y) && !IsTileOpaque(level, x + 1, y)) ||
                     (!IsTileOpaque(level, x, y) && IsTileOpaque(level, x + 1, y)))
                 {
-                    MeshEdge *existingEdge = mesh.tiles[XYToIdx(level->w, x, y - 1)].edges[1];
+                    MeshEdge *existingEdge = mesh->tiles[XYToIdx(level->w, x, y - 1)].edges[1];
                     if (existingEdge)
                     {
-                        mesh.tiles[XYToIdx(level->w, x, y)].edges[1] = existingEdge;
+                        mesh->tiles[XYToIdx(level->w, x, y)].edges[1] = existingEdge;
                         existingEdge->verts[1]->p.y = (f32)(y + 1);
                     }
                     else
                     {
-                        MeshEdge *newEdge = mesh.edges + mesh.edgeCount++;
-                        newEdge->verts[0] = mesh.verts + mesh.vertCount++;
-                        newEdge->verts[1] = mesh.verts + mesh.vertCount++;
+                        MeshEdge *newEdge = mesh->edges + mesh->edgeCount++;
+                        newEdge->verts[0] = mesh->verts + mesh->vertCount++;
+                        newEdge->verts[1] = mesh->verts + mesh->vertCount++;
                         newEdge->verts[0]->p = V2((f32)(x + 1), (f32)y);
                         newEdge->verts[1]->p = V2((f32)(x + 1), (f32)(y + 1));
                         
-                        mesh.tiles[XYToIdx(level->w, x, y)].edges[1] = newEdge;
+                        mesh->tiles[XYToIdx(level->w, x, y)].edges[1] = newEdge;
                     }
                 }
 
                 if ((IsTileOpaque(level, x, y) && !IsTileOpaque(level, x, y + 1)) ||
                     (!IsTileOpaque(level, x, y) && IsTileOpaque(level, x, y + 1)))
                 {
-                    MeshEdge *existingEdge = mesh.tiles[XYToIdx(level->w, x - 1, y)].edges[2];
+                    MeshEdge *existingEdge = mesh->tiles[XYToIdx(level->w, x - 1, y)].edges[2];
                     if (existingEdge)
                     {
-                        mesh.tiles[XYToIdx(level->w, x, y)].edges[2] = existingEdge;
+                        mesh->tiles[XYToIdx(level->w, x, y)].edges[2] = existingEdge;
                         existingEdge->verts[1]->p.x = (f32)(x + 1);
                     }
                     else
                     {
-                        MeshEdge *newEdge = mesh.edges + mesh.edgeCount++;
-                        newEdge->verts[0] = mesh.verts + mesh.vertCount++;
-                        newEdge->verts[1] = mesh.verts + mesh.vertCount++;
+                        MeshEdge *newEdge = mesh->edges + mesh->edgeCount++;
+                        newEdge->verts[0] = mesh->verts + mesh->vertCount++;
+                        newEdge->verts[1] = mesh->verts + mesh->vertCount++;
                         newEdge->verts[0]->p = V2((f32)(x), (f32)(y + 1));
                         newEdge->verts[1]->p = V2((f32)(x + 1), (f32)(y + 1));
                         
-                        mesh.tiles[XYToIdx(level->w, x, y)].edges[2] = newEdge;
+                        mesh->tiles[XYToIdx(level->w, x, y)].edges[2] = newEdge;
                     }
                 }
             }
         }
     }
+}
 
-    level->mesh = mesh;
+struct MapEdge { v2 a; v2 b; };
+
+struct CastRayOnMapBoundaryResult
+{
+    MapEdge edge;
+    v2 projection;
+};
+
+internal_func CastRayOnMapBoundaryResult castRayOnMapBoundaries(Level *level, v2 p, v2 r)
+{
+    MapEdge mapEdges[4] = {
+        { V2(0.0f, 0.0f),          V2((f32)level->w, 0.0f) },
+        { V2((f32)level->w, 0.0f), V2((f32)level->w, (f32)level->h) },
+        { V2(0.0f, 0.0f),          V2(0.0f, (f32)level->h) },
+        { V2(0.0f, (f32)level->h), V2((f32)level->w, (f32)level->h) },
+    };
+
+    CastRayOnMapBoundaryResult result = {};
+
+    b32 isFound = false;
+    for (int mapEdgeI = 0; mapEdgeI < 4; mapEdgeI++)
+    {
+        MapEdge mapEdge = mapEdges[mapEdgeI];
+
+        v2 q = mapEdge.a;
+        v2 s = mapEdge.b - mapEdge.a;
+
+        f32 t = VecCross2(q - p, s) / VecCross2(r, s);
+        f32 u = VecCross2(p - q, r) / VecCross2(s, r);
+
+        if (t >= 0.0f && u >= 0.0f && u <= 1.0f)
+        {
+            result.edge = mapEdge;
+            result.projection = p + t * r;
+            
+            isFound = true;
+            break;
+        }
+    }
+
+    Assert(isFound);
+
+    return result;
+}
+
+
+struct EdgeOcclusionResult
+{
+    v2 edgeStartProjection;
+    v2 edgeEndProjection;
+};
+
+api_func EdgeOcclusionResult EdgeOcclusion(Level *level, v2 pov, MeshEdge *edge)
+{
+    v2 start = edge->verts[0]->p;
+    v2 end = edge->verts[1]->p;
+
+    CastRayOnMapBoundaryResult startProj = castRayOnMapBoundaries(level, pov, start - pov);
+    CastRayOnMapBoundaryResult endProj = castRayOnMapBoundaries(level, pov, end - pov);
+
+    EdgeOcclusionResult result;
+    result.edgeStartProjection = startProj.projection;
+    result.edgeEndProjection = endProj.projection;
+    return result;
+}
+
+api_func void DebugEdgeOcclusion(Level *level, v2 pov, int i)
+{
+    if (level->mesh.edgeCount > 0)
+    {
+        MeshEdge *edge = &level->mesh.edges[i % level->mesh.edgeCount];
+        EdgeOcclusionResult occlusion = EdgeOcclusion(level, pov, edge);
+
+        DDrawLine(pov * level->levelTilemap.tilePxW, occlusion.edgeStartProjection * level->levelTilemap.tilePxW, SAV_COLOR_BLUE);
+        DDrawLine(pov * level->levelTilemap.tilePxW, occlusion.edgeEndProjection * level->levelTilemap.tilePxW, SAV_COLOR_BLUE);
+        
+        DDrawPoint(edge->verts[0]->p * level->levelTilemap.tilePxW, SAV_COLOR_PURPLE);
+        DDrawPoint(edge->verts[1]->p * level->levelTilemap.tilePxW, SAV_COLOR_PURPLE);
+
+        DDrawPoint(occlusion.edgeStartProjection * level->levelTilemap.tilePxW, SAV_COLOR_RED);
+        DDrawPoint(occlusion.edgeEndProjection * level->levelTilemap.tilePxW, SAV_COLOR_RED);
+    }
+}
+
+api_func void DrawLevelOcclusion(Level *level, v2 pov)
+{
+    for (int i = 0; i < level->mesh.edgeCount; i++)
+    {
+        EdgeOcclusion(level, pov, &level->mesh.edges[i]);
+    }
 }
 
 api_func void DrawLevelMeshDebug(Level *level)
