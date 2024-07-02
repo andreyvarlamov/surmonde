@@ -603,10 +603,8 @@ struct MemoryArena
 inline MemoryArena MakeMemoryArena(void *base, size_t size)
 {
     MemoryArena arena = {};
-    
     arena.size = size;
     arena.base = (u8 *) base;
-
     return arena;
 }
 
@@ -1040,6 +1038,8 @@ inline Rect GetAtlasSourceRect(SavTextureAtlas atlas, int i)
 
 sav_func GameMemory AllocGameMemory(size_t size);
 sav_func MemoryArena AllocArena(size_t size);
+sav_func MemoryArena *MemoryArenaScratch(MemoryArena *dontCollideWithThis);
+sav_func void MemoryArenaResetScratch();
 
 sav_func void InitWindow(const char *title, int width, int height);
 sav_func void Quit();
@@ -1180,8 +1180,15 @@ sav_func v2 GetRandomVec(f32 length);
 #define STRING_BUFFER 1024
 #define MVP_MATRIX_STACK_COUNT 32
 #define MAX_VERTEX_BATCH_COUNT 64
+#define MAX_SCRATCH_ARENAS 2
+#define SCRATCH_ARENA_SIZE Megabytes(1)
 
 // SECTION Sav internal data
+struct SavState
+{
+    MemoryArena scratchArenas[MAX_SCRATCH_ARENAS];
+};
+
 struct SdlState
 {
     SDL_Window *window;
@@ -1250,6 +1257,7 @@ struct InputState
     i32 mouseWheel;
 };
 
+global_var SavState *_savState;
 global_var SdlState *_sdlState;
 global_var GlState *_glState;
 global_var InputState *_inputState;
@@ -1272,10 +1280,12 @@ internal_func void *win32AllocMemory(size_t size)
     {
         traceLogEngine("ERROR", "Win32: Could not VirtualAlloc (%zu bytes).\n", size);
     }
+    Assert(memory);
     return memory;
 }
 
 // SECTION Memory management
+
 sav_func GameMemory AllocGameMemory(size_t size)
 {
     GameMemory gameMemory;
@@ -1289,6 +1299,31 @@ sav_func MemoryArena AllocArena(size_t size)
     void *allocatedMemory = win32AllocMemory(size);
     return MakeMemoryArena((u8 *)allocatedMemory, size);
 }
+
+sav_func MemoryArena *MemoryArenaScratch(MemoryArena *dontCollideWithThis)
+{
+    MemoryArena *scratch = _savState->scratchArenas;
+    if (scratch == dontCollideWithThis)
+    {
+        scratch++;
+    }
+    if (scratch->base == NULL)
+    {
+        *scratch = AllocArena(SCRATCH_ARENA_SIZE);
+    }
+
+    return scratch;
+}
+
+sav_func void MemoryArenaResetScratch()
+{
+    for (int i = 0; i < MAX_SCRATCH_ARENAS; i++)
+    {
+        MemoryArenaReset(_savState->scratchArenas + i);
+    }
+}
+
+// SECTION Window fundamentals
 
 internal_func SavShader buildBasicShader();
 
@@ -1337,15 +1372,16 @@ internal_func void initGlDefaults()
     SDL_GL_SetSwapInterval(0);
 }
 
-// SECTION Window fundamentals
 sav_func void InitWindow(const char *title, int width, int height)
 {
     // TODO: Let user provide memory (maybe optionally!)
+    //       Also use arena here and don't use crt allocation?
+    _savState = (SavState *)calloc(1, sizeof(SavState));
     _sdlState = (SdlState *)calloc(1, sizeof(SdlState));
     _glState = (GlState *)calloc(1, sizeof(GlState));
     _inputState = (InputState *)calloc(1, sizeof(InputState));
 
-    if (_sdlState == NULL || _glState == NULL || _inputState == NULL)
+    if (_savState == NULL || _sdlState == NULL || _glState == NULL || _inputState == NULL)
     {
         traceLogEngine("ERROR", "Failed to allocate memory for sav state.");
         InvalidCodePath;

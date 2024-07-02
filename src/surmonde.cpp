@@ -142,6 +142,8 @@ int main(int argc, char **argv)
             } break;
         }
 
+        MemoryArenaResetScratch();
+        
         SavSwapBuffers();
 
         EndFrameTiming();

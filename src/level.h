@@ -34,6 +34,8 @@ struct MeshTile
 
 struct LevelMesh
 {
+    MemoryArena arena;
+    
     MeshVert *verts;
     int vertCount;
 

@@ -5,6 +5,12 @@
 - SAV managing its own memory for rendering (collect data in ram before subbing to gpu ram) + simplifying passing vertex data from user code
 - Better string drawing/extending into a GUI library
 - My own printf/format string extensions. E.g. for v2, etc.
+- Memory Arena: dynamic arrays.
+  - Reserve size on a mother arena to make a "dynamic array" memory arena
+  - Push elements onto dynamic array one by one, keep track of count internally
+  - GetElement() -- checks bounds
+  - Iterator
+  - Potential problem: a lot of the times I want to deal with counts explicitly in user code
 
 ## SURMONDE
 - Use pathfinding in combat
