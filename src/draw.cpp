@@ -231,7 +231,7 @@ api_func void DrawFilledCircleSegment(
         arena);
 }
 
-api_func void DrawLine(
+api_func void DrawBadLine(
     v2 start,
     v2 end,
     SavColor color)
@@ -256,6 +256,58 @@ api_func void DrawLine(
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
 }
+
+api_func void DrawFilledPolygon(v2 *verts, int vertCount, SavColor color)
+{
+    Assert(vertCount > 2);
+    
+    MemoryArena *scratch = MemoryArenaScratch(NULL);
+
+    v3 *positions = MemoryArenaPushArray(scratch, vertCount, v3);
+    v4 *colors = MemoryArenaPushArray(scratch, vertCount, v4);
+
+    v4 colorV4 = GetColorV4(color);
+    
+    for (int i = 0; i < vertCount; i++)
+    {
+        positions[i] = V3(verts[i]);
+        colors[i] = colorV4;
+    }
+
+    int indexTotal = (vertCount - 2) * 3;
+    u32 *indices = MemoryArenaPushArray(scratch, indexTotal, u32);
+    int indexCount = 0;
+
+    for (int vertIndex = 0; vertIndex  < vertCount - 1; vertIndex++)
+    {
+        if (vertIndex == 0)
+        {
+            indices[indexCount++] = 0;
+            indices[indexCount++] = 1;
+            indices[indexCount++] = 2;
+        }
+        else if (vertIndex == 1)
+        {
+            continue;
+        }
+        else
+        {
+            indices[indexCount++] = 0;
+            indices[indexCount++] = vertIndex;
+            indices[indexCount++] = vertIndex + 1;
+        }
+    }
+
+    Assert(indexCount == indexTotal);
+
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexTotal);
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, vertCount, sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexTotal, sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
+}
+
 
 struct FloaterState
 {

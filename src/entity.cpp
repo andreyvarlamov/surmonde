@@ -536,7 +536,7 @@ api_func void DrawEntities(EntityStore *s)
         if (e->brain.isOrderedMovement)
         {
             v2 targetPxP = V2(e->brain.movementTarget.x * s->tilePxW, e->brain.movementTarget.y * s->tilePxH);
-            DrawLine(pxP, targetPxP, SAV_COLOR_DARKSLATEGRAY);
+            DrawBadLine(pxP, targetPxP, SAV_COLOR_DARKSLATEGRAY);
 
             #if 0
             MemoryArenaFreeze(s->arena);

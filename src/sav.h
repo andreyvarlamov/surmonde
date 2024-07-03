@@ -40,8 +40,9 @@ void __debugbreak(); // usually in <intrin.h>
 #define Gigabytes(Value) (Megabytes(Value) * 1024LL)
 #define Terabytes(Value) (Gigabytes(Value) * 1024LL)
 
-#define Max(X, Y) (((X) > (Y)) ? (X) : (Y))
-#define Min(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define Max(x, y) (((x) > (y)) ? (x) : (y))
+#define Min(x, y) (((x) < (y)) ? (x) : (y))
+#define Swap(x, y, type) do { type temp = x; x = y; y = temp; } while(0)
 
 #define global_var static
 #define local_persist static

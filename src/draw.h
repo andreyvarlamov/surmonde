@@ -37,10 +37,12 @@ api_func void DrawFilledCircleSegment(
     SavColor color,
     MemoryArena *arena);
 
-api_func void DrawLine(
+api_func void DrawBadLine(
     v2 start,
     v2 end,
     SavColor color);
+
+api_func void DrawFilledPolygon(v2 *verts, int vertCount, SavColor color);
 
 struct Floater
 {

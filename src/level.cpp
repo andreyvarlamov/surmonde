@@ -399,25 +399,60 @@ internal_func CastRayOnMapBoundaryResult castRayOnMapBoundaries(Level *level, v2
 
 struct EdgeOcclusionPolygon
 {
+    b32 occlusionExists;
     v2 *verts;
     int vertCount;
 };
 
 internal_func EdgeOcclusionPolygon getEdgeOcclusionPolygon(Level *level, v2 pov, MeshEdge *edge, MemoryArena *resultArena)
 {
-    v2 start = edge->verts[0]->p;
-    v2 end = edge->verts[1]->p;
-
-    CastRayOnMapBoundaryResult startProj = castRayOnMapBoundaries(level, pov, start - pov);
-    CastRayOnMapBoundaryResult endProj = castRayOnMapBoundaries(level, pov, end - pov);
-
     EdgeOcclusionPolygon result = {};
+
+    v2 x = edge->verts[0]->p;
+    v2 y = edge->verts[1]->p;
+    v2 px = x - pov;
+    v2 py = y - pov;
+
+    // NOTE: Keep p, x, y clockwise
+    f32 signedArea = VecCross2(px, py);
+    if (AbsF32(signedArea) <= CMP_EPSILON)
+    {
+        return result;
+    }
+
+    if (signedArea < 0.0f)
+    {
+        Swap(x, y, v2);
+    }
+
+    CastRayOnMapBoundaryResult xProj = castRayOnMapBoundaries(level, pov, x - pov);
+    CastRayOnMapBoundaryResult yProj = castRayOnMapBoundaries(level, pov, y - pov);
 
     // NOTE: Up to 7 vertices are possible
     result.verts = MemoryArenaPushArrayAndZero(resultArena, 7, v2);
+    int vertCount = 0;
 
-    // TODO: The algorithm
+    result.verts[result.vertCount++] = x;
+    result.verts[result.vertCount++] = xProj.projection;
 
+    int currentMapEdge = xProj.mapEdge;
+    while (currentMapEdge != yProj.mapEdge)
+    {
+        result.verts[result.vertCount++] = getMapEdge(level, currentMapEdge).b;
+        
+        currentMapEdge++;
+        if (currentMapEdge > 3)
+        {
+            currentMapEdge = 0;
+        }
+    }
+
+    result.verts[result.vertCount++] = yProj.projection;
+    result.verts[result.vertCount++] = y;
+    MemoryArenaResizePreviousPushArray(resultArena, result.vertCount, v2);
+
+    result.occlusionExists = true;
+        
     return result;
 }
 
@@ -428,6 +463,27 @@ api_func void DebugEdgeOcclusion(Level *level, v2 pov, int i)
         MeshEdge *edge = &level->mesh.edges[i % level->mesh.edgeCount];
 
         EdgeOcclusionPolygon occlusion = getEdgeOcclusionPolygon(level, pov, edge, MemoryArenaScratch(NULL));
+
+        if (occlusion.occlusionExists)
+        {
+            for (int vertI = 0; vertI < occlusion.vertCount; vertI++)
+            {
+                occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
+            }
+            
+            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_GRAY);
+            
+            for (int vertI = 0; vertI < occlusion.vertCount - 1; vertI++)
+            {
+                SavColor c = (vertI == 0 ? SAV_COLOR_RED : SAV_COLOR_BLUE);
+                v2 p1 = occlusion.verts[vertI];
+                v2 p2 = occlusion.verts[vertI + 1];
+                DDrawLine(p1, p2, c);
+                DDrawPoint(p1, c);
+            }
+
+            DDrawPoint(occlusion.verts[occlusion.vertCount - 1] * level->levelTilemap.tilePxW, SAV_COLOR_BLUE);
+        }
     }
 }
 
@@ -435,7 +491,16 @@ api_func void DrawLevelOcclusion(Level *level, v2 pov)
 {
     for (int i = 0; i < level->mesh.edgeCount; i++)
     {
-        getEdgeOcclusionPolygon(level, pov, &level->mesh.edges[i], MemoryArenaScratch(NULL));
+        EdgeOcclusionPolygon occlusion = getEdgeOcclusionPolygon(level, pov, &level->mesh.edges[i], MemoryArenaScratch(NULL));
+        if (occlusion.occlusionExists)
+        {
+            for (int vertI = 0; vertI < occlusion.vertCount; vertI++)
+            {
+                occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
+            }
+            
+            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_GRAY);
+        }
     }
 }
 
