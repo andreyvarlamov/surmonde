@@ -271,7 +271,31 @@ api_func void PreprocessLevel(Level *level)
     mesh->tiles = MemoryArenaPushArrayAndZero(&mesh->arena, mesh->w * mesh->h, MeshTile);
     mesh->verts = MemoryArenaPushArrayAndZero(&mesh->arena, LEVEL_MESH_MAX_VERTS, MeshVert);
     mesh->edges = MemoryArenaPushArrayAndZero(&mesh->arena, LEVEL_MESH_MAX_EDGES, MeshEdge);
-    
+
+    mesh->edgeTiles = MemoryArenaPushArrayAndZero(&mesh->arena, mesh->w * mesh->h, u8);
+
+    for (int y = 1; y < level->h - 1; y++)
+    {
+        for (int x = 1; x < level->w - 1; x++)
+        {
+            if (IsTileOpaque(level, x, y))
+            {
+                if (!IsTileOpaque(level, x    , y - 1) ||
+                    !IsTileOpaque(level, x + 1, y - 1) ||
+                    !IsTileOpaque(level, x + 1, y    ) ||
+                    !IsTileOpaque(level, x + 1, y + 1) ||
+                    !IsTileOpaque(level, x    , y + 1) ||
+                    !IsTileOpaque(level, x - 1, y + 1) ||
+                    !IsTileOpaque(level, x - 1, y    ) ||
+                    !IsTileOpaque(level, x - 1, y - 1))
+                {
+                    mesh->edgeTiles[XYToIdx(level->w, x, y)] = 1;
+                }
+            }
+        }
+    }
+
+    #if 0
     for (int y = 1; y < level->h - 1; y++)
     {
         for (int x = 1; x < level->w - 1; x++)
@@ -319,6 +343,7 @@ api_func void PreprocessLevel(Level *level)
             }
         }
     }
+    #endif
 }
 
 struct MapEdge { v2 a; v2 b; };
@@ -456,7 +481,24 @@ internal_func EdgeOcclusionPolygon getEdgeOcclusionPolygon(Level *level, v2 pov,
     return result;
 }
 
-api_func void DebugEdgeOcclusion(Level *level, v2 pov, int i)
+api_func void DrawLevelOcclusion(Level *level, v2 pov)
+{
+    for (int i = 0; i < level->mesh.edgeCount; i++)
+    {
+        EdgeOcclusionPolygon occlusion = getEdgeOcclusionPolygon(level, pov, &level->mesh.edges[i], MemoryArenaScratch(NULL));
+        if (occlusion.occlusionExists)
+        {
+            for (int vertI = 0; vertI < occlusion.vertCount; vertI++)
+            {
+                occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
+            }
+            
+            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_GRAY);
+        }
+    }
+}
+
+api_func void DebugDrawEdgeOcclusion(Level *level, v2 pov, int i)
 {
     if (level->mesh.edgeCount > 0)
     {
@@ -487,24 +529,7 @@ api_func void DebugEdgeOcclusion(Level *level, v2 pov, int i)
     }
 }
 
-api_func void DrawLevelOcclusion(Level *level, v2 pov)
-{
-    for (int i = 0; i < level->mesh.edgeCount; i++)
-    {
-        EdgeOcclusionPolygon occlusion = getEdgeOcclusionPolygon(level, pov, &level->mesh.edges[i], MemoryArenaScratch(NULL));
-        if (occlusion.occlusionExists)
-        {
-            for (int vertI = 0; vertI < occlusion.vertCount; vertI++)
-            {
-                occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
-            }
-            
-            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_GRAY);
-        }
-    }
-}
-
-api_func void DrawLevelMeshDebug(Level *level)
+api_func void DebugDrawLevelMesh(Level *level)
 {
     for (int i = 0; i < level->mesh.edgeCount; i++)
     {
@@ -515,4 +540,37 @@ api_func void DrawLevelMeshDebug(Level *level)
         DDrawPoint(start, SAV_COLOR_ORANGE);
         DDrawPoint(end, SAV_COLOR_ORANGE);
     }
+}
+
+api_func void DebugDrawEdgeTiles(Level *level)
+{
+    MemoryArena *scratch = MemoryArenaScratch(NULL);
+    
+    SavColor *colorsFg = MemoryArenaPushArray(scratch, level->w * level->h, SavColor);
+    SavColor *colorsBg = MemoryArenaPushArray(scratch, level->w * level->h, SavColor);
+    i32 *glyphs = MemoryArenaPushArray(scratch, level->w * level->h, i32);
+
+    for (int i = 0; i < level->w * level->h; i++)
+    {
+        if (level->mesh.edgeTiles[i])
+        {
+            glyphs[i] =  'O';
+            colorsFg[i] = SAV_COLOR_VIOLET;
+            colorsBg[i] = SAV_COLOR_SABLE;
+        }
+        else
+        {
+            glyphs[i] =  '.';
+            colorsFg[i] = SAV_COLOR_MIDNIGHT;
+            colorsBg[i] = SAV_COLOR_SABLE;
+        }
+    }
+    
+    DrawAtlasTilemap(*level->levelTilemap.atlas,
+                     level->w, level->h,
+                     level->levelTilemap.tilePxW,
+                     level->levelTilemap.tilePxH,
+                     glyphs, colorsFg, colorsBg,
+                     V2(0.0f, 0.0f),
+                     scratch);
 }

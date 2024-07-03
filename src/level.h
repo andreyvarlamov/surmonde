@@ -25,6 +25,7 @@ struct MeshVert
 struct MeshEdge
 {
     MeshVert *verts[2];
+    v2 n;
 };
 
 struct MeshTile
@@ -42,6 +43,7 @@ struct LevelMesh
     MeshEdge *edges;
     int edgeCount;
 
+    u8 *edgeTiles;
     MeshTile *tiles;
     int w, h;
 };
@@ -80,7 +82,9 @@ api_func b32 IsTileBlocked(Level *level, int x, int y);
 api_func b32 IsTileOpaque(Level *level, int x, int y);
 
 api_func void DrawLevelOcclusion(Level *level, v2 pov);
-api_func void DebugEdgeOcclusion(Level *level, v2 pov, int i);
-api_func void DrawLevelMeshDebug(Level *level);
+
+api_func void DebugDrawEdgeOcclusion(Level *level, v2 pov, int i);
+api_func void DebugDrawLevelMesh(Level *level);
+api_func void DebugDrawEdgeTiles(Level *level);
 
 #endif

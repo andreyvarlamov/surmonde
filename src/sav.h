@@ -1182,7 +1182,7 @@ sav_func v2 GetRandomVec(f32 length);
 #define MVP_MATRIX_STACK_COUNT 32
 #define MAX_VERTEX_BATCH_COUNT 64
 #define MAX_SCRATCH_ARENAS 2
-#define SCRATCH_ARENA_SIZE Megabytes(1)
+#define SCRATCH_ARENA_SIZE Megabytes(4)
 
 // SECTION Sav internal data
 struct SavState

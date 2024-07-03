@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
-    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
+    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_EMPTY);
     PreprocessLevel(&gameState->level);
     
     gameState->camera = MakeCamera(0.0f,
@@ -52,6 +52,7 @@ int main(int argc, char **argv)
     Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
 
     int debugEdge = 0;
+    b32 debugEdgeTiles = false; 
     
     while (!WindowShouldClose())
     {
@@ -121,17 +122,29 @@ int main(int argc, char **argv)
                     debugEdge++;
                 }
 
+                if (KeyPressed(SDL_SCANCODE_F1))
+                {
+                    debugEdgeTiles = !debugEdgeTiles;
+                }
+
                 UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
 
                 BeginDraw();
                     ClearBackground(SAV_COLOR_LIGHTBLUE);
 
                     BeginCameraMode(&gameState->camera);
-                        DrawLevel(&gameState->level);
+                        if (debugEdgeTiles)
+                        {
+                            DebugDrawEdgeTiles(&gameState->level);
+                        }
+                        else
+                        {
+                            DrawLevel(&gameState->level);
+                        }
                         DrawEntities(&gameState->entityStore);
 
                         // DebugEdgeOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p, debugEdge);
-                        DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p);
+                        // DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p);
                         // DrawLevelMeshDebug(&gameState->level);
                         DDraw();
                     EndCameraMode();
