@@ -135,17 +135,18 @@ int main(int argc, char **argv)
                     BeginCameraMode(&gameState->camera);
                         if (debugEdgeTiles)
                         {
-                            DebugDrawEdgeTiles(&gameState->level);
+                            DrawLevel(&gameState->level);
+                            DebugDrawEdgeOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p, debugEdge);
+                            DebugDrawLevelMesh(&gameState->level);
                         }
                         else
                         {
                             DrawLevel(&gameState->level);
+                            DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p);
                         }
+
                         DrawEntities(&gameState->entityStore);
 
-                        // DebugEdgeOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p, debugEdge);
-                        // DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p);
-                        // DrawLevelMeshDebug(&gameState->level);
                         DDraw();
                     EndCameraMode();
 

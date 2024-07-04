@@ -255,6 +255,14 @@ api_func b32 IsTileOpaque(Level *level, int x, int y)
     return result;
 }
 
+enum EdgeDirection
+{
+    EDGE_NORTH,
+    EDGE_EAST,
+    EDGE_SOUTH,
+    EDGE_WEST
+};
+
 api_func void PreprocessLevel(Level *level)
 {
     LevelMesh *mesh = &level->mesh;
@@ -295,18 +303,29 @@ api_func void PreprocessLevel(Level *level)
         }
     }
 
-    #if 0
     for (int y = 1; y < level->h - 1; y++)
     {
         for (int x = 1; x < level->w - 1; x++)
         {
-            if ((IsTileOpaque(level, x, y) && !IsTileOpaque(level, x + 1, y)) ||
-                (!IsTileOpaque(level, x, y) && IsTileOpaque(level, x + 1, y)))
+            int currentI = XYToIdx(level->w, x, y);
+            int eastI = XYToIdx(level->w, x + 1, y);
+            int southI = XYToIdx(level->w, x, y + 1);
+            b32 isCurrentFilled = mesh->edgeTiles[currentI];
+            b32 isEastFilled = mesh->edgeTiles[eastI];
+            b32 isSouthFilled = mesh->edgeTiles[southI];
+            b32 isHorizontalTransitionFromFilled = (isCurrentFilled && !isEastFilled);
+            b32 isHorizontalTransitionFromOpen = (!isCurrentFilled && isEastFilled);
+            b32 isHorizontalTransition = (isHorizontalTransitionFromFilled || isHorizontalTransitionFromOpen);
+            b32 isVerticalTransitionFromFilled = (isCurrentFilled && !isSouthFilled);
+            b32 isVerticalTransitionFromOpen = (!isCurrentFilled && isSouthFilled);
+            b32 isVerticalTransition = (isVerticalTransitionFromFilled || isVerticalTransitionFromOpen);
+
+            if (isHorizontalTransition)
             {
-                MeshEdge *existingEdge = mesh->tiles[XYToIdx(level->w, x, y - 1)].edges[1];
+                MeshEdge *existingEdge = mesh->tiles[XYToIdx(level->w, x, y - 1)].edges[EDGE_EAST];
                 if (existingEdge)
                 {
-                    mesh->tiles[XYToIdx(level->w, x, y)].edges[1] = existingEdge;
+                    mesh->tiles[currentI].edges[EDGE_EAST] = existingEdge;
                     existingEdge->verts[1]->p.y = (f32)(y + 1);
                 }
                 else
@@ -316,18 +335,17 @@ api_func void PreprocessLevel(Level *level)
                     newEdge->verts[1] = mesh->verts + mesh->vertCount++;
                     newEdge->verts[0]->p = V2((f32)(x + 1), (f32)y);
                     newEdge->verts[1]->p = V2((f32)(x + 1), (f32)(y + 1));
-                        
-                    mesh->tiles[XYToIdx(level->w, x, y)].edges[1] = newEdge;
+                    newEdge->n = isHorizontalTransitionFromFilled ? V2(1.0f, 0.0f) : V2(-1.0f, 0.0f);
+                    mesh->tiles[currentI].edges[EDGE_EAST] = newEdge;
                 }
             }
 
-            if ((IsTileOpaque(level, x, y) && !IsTileOpaque(level, x, y + 1)) ||
-                (!IsTileOpaque(level, x, y) && IsTileOpaque(level, x, y + 1)))
+            if (isVerticalTransition)
             {
-                MeshEdge *existingEdge = mesh->tiles[XYToIdx(level->w, x - 1, y)].edges[2];
+                MeshEdge *existingEdge = mesh->tiles[XYToIdx(level->w, x - 1, y)].edges[EDGE_SOUTH];
                 if (existingEdge)
                 {
-                    mesh->tiles[XYToIdx(level->w, x, y)].edges[2] = existingEdge;
+                    mesh->tiles[currentI].edges[EDGE_SOUTH] = existingEdge;
                     existingEdge->verts[1]->p.x = (f32)(x + 1);
                 }
                 else
@@ -337,24 +355,15 @@ api_func void PreprocessLevel(Level *level)
                     newEdge->verts[1] = mesh->verts + mesh->vertCount++;
                     newEdge->verts[0]->p = V2((f32)(x), (f32)(y + 1));
                     newEdge->verts[1]->p = V2((f32)(x + 1), (f32)(y + 1));
-                        
-                    mesh->tiles[XYToIdx(level->w, x, y)].edges[2] = newEdge;
+                    newEdge->n = isVerticalTransitionFromFilled ? V2(0.0, 1.0f) : V2(0.0f, -1.0f);
+                    mesh->tiles[currentI].edges[EDGE_SOUTH] = newEdge;
                 }
             }
         }
     }
-    #endif
 }
 
 struct MapEdge { v2 a; v2 b; };
-
-enum EdgeDirection
-{
-    EDGE_NORTH,
-    EDGE_EAST,
-    EDGE_SOUTH,
-    EDGE_WEST
-};
 
 internal_func inline MapEdge getMapEdge(Level *level, int dir)
 {
@@ -433,50 +442,54 @@ internal_func EdgeOcclusionPolygon getEdgeOcclusionPolygon(Level *level, v2 pov,
 {
     EdgeOcclusionPolygon result = {};
 
-    v2 x = edge->verts[0]->p;
-    v2 y = edge->verts[1]->p;
-    v2 px = x - pov;
-    v2 py = y - pov;
-
-    // NOTE: Keep p, x, y clockwise
-    f32 signedArea = VecCross2(px, py);
-    if (AbsF32(signedArea) <= CMP_EPSILON)
+    if (VecDot(pov - edge->verts[0]->p, edge->n) < -CMP_EPSILON)
     {
-        return result;
-    }
+        // NOTE: pov is in negative half space of edge's line
+        v2 x = edge->verts[0]->p;
+        v2 y = edge->verts[1]->p;
+        v2 px = x - pov;
+        v2 py = y - pov;
 
-    if (signedArea < 0.0f)
-    {
-        Swap(x, y, v2);
-    }
-
-    CastRayOnMapBoundaryResult xProj = castRayOnMapBoundaries(level, pov, x - pov);
-    CastRayOnMapBoundaryResult yProj = castRayOnMapBoundaries(level, pov, y - pov);
-
-    // NOTE: Up to 7 vertices are possible
-    result.verts = MemoryArenaPushArrayAndZero(resultArena, 7, v2);
-    int vertCount = 0;
-
-    result.verts[result.vertCount++] = x;
-    result.verts[result.vertCount++] = xProj.projection;
-
-    int currentMapEdge = xProj.mapEdge;
-    while (currentMapEdge != yProj.mapEdge)
-    {
-        result.verts[result.vertCount++] = getMapEdge(level, currentMapEdge).b;
-        
-        currentMapEdge++;
-        if (currentMapEdge > 3)
+        // NOTE: Keep p, x, y clockwise
+        f32 signedArea = VecCross2(px, py);
+        if (AbsF32(signedArea) <= CMP_EPSILON)
         {
-            currentMapEdge = 0;
+            return result;
         }
+
+        if (signedArea < 0.0f)
+        {
+            Swap(x, y, v2);
+        }
+
+        CastRayOnMapBoundaryResult xProj = castRayOnMapBoundaries(level, pov, x - pov);
+        CastRayOnMapBoundaryResult yProj = castRayOnMapBoundaries(level, pov, y - pov);
+
+        // NOTE: Up to 7 vertices are possible
+        result.verts = MemoryArenaPushArrayAndZero(resultArena, 7, v2);
+        int vertCount = 0;
+
+        result.verts[result.vertCount++] = x;
+        result.verts[result.vertCount++] = xProj.projection;
+
+        int currentMapEdge = xProj.mapEdge;
+        while (currentMapEdge != yProj.mapEdge)
+        {
+            result.verts[result.vertCount++] = getMapEdge(level, currentMapEdge).b;
+        
+            currentMapEdge++;
+            if (currentMapEdge > 3)
+            {
+                currentMapEdge = 0;
+            }
+        }
+
+        result.verts[result.vertCount++] = yProj.projection;
+        result.verts[result.vertCount++] = y;
+        MemoryArenaResizePreviousPushArray(resultArena, result.vertCount, v2);
+
+        result.occlusionExists = true;
     }
-
-    result.verts[result.vertCount++] = yProj.projection;
-    result.verts[result.vertCount++] = y;
-    MemoryArenaResizePreviousPushArray(resultArena, result.vertCount, v2);
-
-    result.occlusionExists = true;
         
     return result;
 }
@@ -493,7 +506,7 @@ api_func void DrawLevelOcclusion(Level *level, v2 pov)
                 occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
             }
             
-            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_GRAY);
+            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_BLACK);
         }
     }
 }
@@ -504,28 +517,35 @@ api_func void DebugDrawEdgeOcclusion(Level *level, v2 pov, int i)
     {
         MeshEdge *edge = &level->mesh.edges[i % level->mesh.edgeCount];
 
-        EdgeOcclusionPolygon occlusion = getEdgeOcclusionPolygon(level, pov, edge, MemoryArenaScratch(NULL));
 
-        if (occlusion.occlusionExists)
-        {
-            for (int vertI = 0; vertI < occlusion.vertCount; vertI++)
-            {
-                occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
-            }
-            
-            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_GRAY);
-            
-            for (int vertI = 0; vertI < occlusion.vertCount - 1; vertI++)
-            {
-                SavColor c = (vertI == 0 ? SAV_COLOR_RED : SAV_COLOR_BLUE);
-                v2 p1 = occlusion.verts[vertI];
-                v2 p2 = occlusion.verts[vertI + 1];
-                DDrawLine(p1, p2, c);
-                DDrawPoint(p1, c);
-            }
+            EdgeOcclusionPolygon occlusion = getEdgeOcclusionPolygon(level, pov, edge, MemoryArenaScratch(NULL));
 
-            DDrawPoint(occlusion.verts[occlusion.vertCount - 1] * level->levelTilemap.tilePxW, SAV_COLOR_BLUE);
-        }
+            if (occlusion.occlusionExists)
+            {
+                for (int vertI = 0; vertI < occlusion.vertCount; vertI++)
+                {
+                    occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
+                }
+            
+                DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_GRAY);
+            
+                for (int vertI = 0; vertI < occlusion.vertCount - 1; vertI++)
+                {
+                    SavColor c = (vertI == 0 ? SAV_COLOR_RED : SAV_COLOR_BLUE);
+                    v2 p1 = occlusion.verts[vertI];
+                    v2 p2 = occlusion.verts[vertI + 1];
+                    DDrawLine(p1, p2, c);
+                    DDrawPoint(p1, c);
+                }
+
+                DDrawPoint(occlusion.verts[occlusion.vertCount - 1] * level->levelTilemap.tilePxW, SAV_COLOR_BLUE);
+            }
+            else
+            {
+                v2 start = edge->verts[0]->p * level->levelTilemap.tilePxW;
+                v2 end = edge->verts[1]->p * level->levelTilemap.tilePxW;
+                DDrawLine(start, end, SAV_COLOR_PURPLE);
+            }
     }
 }
 
@@ -533,12 +553,17 @@ api_func void DebugDrawLevelMesh(Level *level)
 {
     for (int i = 0; i < level->mesh.edgeCount; i++)
     {
-        v2 start = level->mesh.edges[i].verts[0]->p * level->levelTilemap.tilePxW;
-        v2 end = level->mesh.edges[i].verts[1]->p * level->levelTilemap.tilePxW;
+        MeshEdge *edge = level->mesh.edges + i;
+        v2 start = edge->verts[0]->p * level->levelTilemap.tilePxW;
+        v2 end = edge->verts[1]->p * level->levelTilemap.tilePxW;
+
+        v2 middle = (end + start) * 0.5f;
+        v2 normalEnd = middle + edge->n * 0.5f * level->levelTilemap.tilePxW;
 
         DDrawLine(start, end, SAV_COLOR_YELLOW);
         DDrawPoint(start, SAV_COLOR_ORANGE);
         DDrawPoint(end, SAV_COLOR_ORANGE);
+        DDrawLine(middle, normalEnd, SAV_COLOR_CYAN);
     }
 }
 
