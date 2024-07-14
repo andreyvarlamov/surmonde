@@ -442,7 +442,7 @@ internal_func EdgeOcclusionPolygon getEdgeOcclusionPolygon(Level *level, v2 pov,
 {
     EdgeOcclusionPolygon result = {};
 
-    if (VecDot(pov - edge->verts[0]->p, edge->n) < -CMP_EPSILON)
+    // if (VecDot(pov - edge->verts[0]->p, edge->n) < -CMP_EPSILON)
     {
         // NOTE: pov is in negative half space of edge's line
         v2 x = edge->verts[0]->p;
@@ -506,7 +506,7 @@ api_func void DrawLevelOcclusion(Level *level, v2 pov)
                 occlusion.verts[vertI] *= level->levelTilemap.tilePxW;
             }
             
-            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_BLACK);
+            DrawFilledPolygon(occlusion.verts, occlusion.vertCount, SAV_COLOR_PURPLE);
         }
     }
 }
@@ -583,12 +583,12 @@ api_func void DebugDrawEdgeTiles(Level *level)
             colorsFg[i] = SAV_COLOR_VIOLET;
             colorsBg[i] = SAV_COLOR_SABLE;
         }
-        else
-        {
-            glyphs[i] =  '.';
-            colorsFg[i] = SAV_COLOR_MIDNIGHT;
-            colorsBg[i] = SAV_COLOR_SABLE;
-        }
+        // else
+        // {
+        //     glyphs[i] =  '.';
+        //     colorsFg[i] = SAV_COLOR_MIDNIGHT;
+        //     colorsBg[i] = SAV_COLOR_SABLE;
+        // }
     }
     
     DrawAtlasTilemap(*level->levelTilemap.atlas,
