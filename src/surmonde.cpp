@@ -29,7 +29,6 @@ int main(int argc, char **argv)
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
-    PreprocessLevel(&gameState->level);
     
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
@@ -103,10 +102,8 @@ int main(int argc, char **argv)
                     {
                         SetTile(&gameState->level, tileP.x, tileP.y, wallTile);
                     }
-
-                    PreprocessLevel(&gameState->level);
-
                 }
+                
                 if (KeyDown(SDL_SCANCODE_A))
                 {
                     gameState->entityStore.controlledEntity->yawDeg += 90.0f * (f32) GetDeltaFixed();
@@ -133,18 +130,7 @@ int main(int argc, char **argv)
                     ClearBackground(SAV_COLOR_LIGHTBLUE);
 
                     BeginCameraMode(&gameState->camera);
-                        if (debugEdgeTiles)
-                        {
-                            DrawLevel(&gameState->level);
-                            DebugDrawEdgeOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p, debugEdge);
-                            DebugDrawLevelMesh(&gameState->level);
-                        }
-                        else
-                        {
-                            DrawLevel(&gameState->level);
-                            DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntity->p);
-                            // DebugDrawEdgeTiles(&gameState->level);
-                        }
+                        DrawLevel(&gameState->level);
                         DrawEntities(&gameState->entityStore);
 
                         DDraw();

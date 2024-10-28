@@ -1,5 +1,33 @@
 # TODO
 
+## Changelog
+
+- Clean up and review
+- Simplify pathfinding - just A star; but don't walk through corners
+
+## Planned
+
+- Some bug with pathfinding (goes in the wrong direction at first)
+
+## Backlog
+
+- Simple line of sight
+- Simplify combat; get rid of everything; just each entity going through its own attack cycle
+- Integrate IMGUI
+- Inventory and items
+- Machines, processing, basic crafting
+- UIs for inventory, for machines, for containers, etc.
+- Enemy AI; considering line of sight; etc.
+
+### For the rest of the first pass
+
+- Death
+- Moving between levels and storing existing levels
+- Saving/loading
+- Controlling any character on the screen
+
+# OLD
+
 ## SAV
 - String manangement (pool/bucket array)
 - SAV managing its own memory for rendering (collect data in ram before subbing to gpu ram) + simplifying passing vertex data from user code

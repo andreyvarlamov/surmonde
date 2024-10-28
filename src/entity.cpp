@@ -23,23 +23,6 @@ api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextu
     return s;
 }
 
-#if 0
-internal_func void addSpatialEntity(EntityStore *s, Entity *e)
-{
-    int i = XYToIdx(s->w, e->p.x, e->p.y);
-    // TODO: Multiple entities per spatial slot
-    Assert(s->spatialEntities[i] == NULL);
-    s->spatialEntities[i] = e;
-}
-
-internal_func void removeSpatialEntity(EntityStore *s, Entity *e)
-{
-    int i = XYToIdx(s->w, e->p.x, e->p.y);
-    Assert(s->spatialEntities[i] == e);
-    s->spatialEntities[i] = NULL;
-}
-#endif
-
 api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg)
 {
     Entity e = {};

@@ -74,17 +74,21 @@ struct Neighbors
     int count;
 };
 
-internal_func void addNeighbor(Neighbors *result, Level *level, int x, int y, i32 cost)
+internal_func void addNeighbor(Neighbors *result, Level *level, v2i node, i32 cost)
 {
-    if ((x >= 0 && x < level->w) &&
-        (y >= 0 && y < level->h) &&
-        !IsTileBlocked(level, x, y))
-    {
-        result->nodes[result->count] = XYToIdx(level->w, x, y);
-        result->costs[result->count] = cost;
-        result->count++;
-    }
- }
+    result->nodes[result->count] = XYToIdx(level->w, node.x, node.y);
+    result->costs[result->count] = cost;
+    result->count++;
+}
+
+internal_func b32 isUnblocked(Level *level, v2i node)
+{
+    i32 x = node.x;
+    i32 y = node.y;
+    return ((x >= 0 && x < level->w) &&
+            (y >= 0 && y < level->h) &&
+            !IsTileBlocked(level, x, y));
+}
 
 internal_func Neighbors getNeighbors(Level *level, int nodeI)
 {
@@ -92,10 +96,30 @@ internal_func Neighbors getNeighbors(Level *level, int nodeI)
     
     Neighbors result = {};
 
-    addNeighbor(&result, level, node.x - 1, node.y + 0, 10);
-    addNeighbor(&result, level, node.x + 1, node.y + 0, 10);
-    addNeighbor(&result, level, node.x + 0, node.y - 1, 10);
-    addNeighbor(&result, level, node.x + 0, node.y + 1, 10);
+    v2i westNeighbor      = node + V2I(-1,  0);
+    v2i eastNeighbor      = node + V2I( 1,  0);
+    v2i northNeighbor     = node + V2I( 0, -1);
+    v2i southNeighbor     = node + V2I( 0,  1);
+    v2i northWestNeighbor = node + V2I(-1, -1);
+    v2i northEastNeighbor = node + V2I( 1, -1);
+    v2i southWestNeighbor = node + V2I(-1,  1);
+    v2i southEastNeighbor = node + V2I( 1,  1);
+    b32 isWestUnblocked      = isUnblocked(level, westNeighbor);
+    b32 isEastUnblocked      = isUnblocked(level, eastNeighbor);
+    b32 isNorthUnblocked     = isUnblocked(level, northNeighbor);
+    b32 isSouthUnblocked     = isUnblocked(level, southNeighbor);
+    b32 isNorthWestUnblocked = isUnblocked(level, northWestNeighbor) && isNorthUnblocked && isWestUnblocked;
+    b32 isNorthEastUnblocked = isUnblocked(level, northEastNeighbor) && isNorthUnblocked && isEastUnblocked;
+    b32 isSouthWestUnblocked = isUnblocked(level, southWestNeighbor) && isSouthUnblocked && isWestUnblocked;
+    b32 isSouthEastUnblocked = isUnblocked(level, southEastNeighbor) && isSouthUnblocked && isEastUnblocked;
+    if (isWestUnblocked)      addNeighbor(&result, level, westNeighbor,      10);
+    if (isEastUnblocked)      addNeighbor(&result, level, eastNeighbor,      10);
+    if (isNorthUnblocked)     addNeighbor(&result, level, northNeighbor,     10);
+    if (isSouthUnblocked)     addNeighbor(&result, level, southNeighbor,     10);
+    if (isNorthWestUnblocked) addNeighbor(&result, level, northWestNeighbor, 14);
+    if (isNorthEastUnblocked) addNeighbor(&result, level, northEastNeighbor, 14);
+    if (isSouthWestUnblocked) addNeighbor(&result, level, southWestNeighbor, 14);
+    if (isSouthEastUnblocked) addNeighbor(&result, level, southEastNeighbor, 14);
 
     return result;
 }
@@ -174,13 +198,13 @@ internal_func void updateNode(int nodeI, int neighborI, int endI, Level *level, 
     int parentToSet;
     i32 tentativeGScore;
     int parentI = parents[nodeI];
-    if (parentI != -1 && lineOfSight(level, parentI, neighborI))
-    {
-        v2i parent = IdxToXY(level->w, parentI);
-        tentativeGScore = gScores[nodeI] + getManhattanDist(parent, neighbor);
-        parentToSet = parentI;
-    }
-    else
+    // if (parentI != -1 && lineOfSight(level, parentI, neighborI))
+    // {
+    //     v2i parent = IdxToXY(level->w, parentI);
+    //     tentativeGScore = gScores[nodeI] + getManhattanDist(parent, neighbor);
+    //     parentToSet = parentI;
+    // }
+    // else
     {
         tentativeGScore = gScores[nodeI] + 10;
         parentToSet = nodeI;
