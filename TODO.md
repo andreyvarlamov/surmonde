@@ -2,29 +2,32 @@
 
 ## Changelog
 
-- Clean up and review
-- Simplify pathfinding - just A star; but don't walk through corners
+- Removed old line of sight code
+- Think, think, think; update TODO
 
 ## Planned
 
-- Some bug with pathfinding (goes in the wrong direction at first)
 
 ## Backlog
 
+- Some bug with pathfinding (goes in the wrong direction at first)
 - Simple line of sight
-- Simplify combat; get rid of everything; just each entity going through its own attack cycle
+- Enemy AI; considering line of sight; etc.
+- Simplify combat; get rid of everything; just each entity going through its own attack cycle; death
+- Controlling any character on the screen
+- Considering entities for collisions
+- Transition to tiles instead of ASCII
+- World gen same as it was in unity
 - Integrate IMGUI
 - Inventory and items
 - Machines, processing, basic crafting
 - UIs for inventory, for machines, for containers, etc.
-- Enemy AI; considering line of sight; etc.
-
-### For the rest of the first pass
-
-- Death
+- Pausing game
 - Moving between levels and storing existing levels
-- Saving/loading
-- Controlling any character on the screen
+
+### Consider for first pass
+
+- Saving/loading (different now than it was in unity -- I could even just dump memory as first "save files")
 
 # OLD
 
