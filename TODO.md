@@ -2,13 +2,12 @@
 
 ## Changelog
 
-- Simple line of sight
+- Transition to tiles instead of ASCII
+- World gen same as it was in unity
 
 ## Planned
 
-- Optimize tilemap drawing slightly (to hit 60 at least)
-- Transition to tiles instead of ASCII
-- World gen same as it was in unity
+- Integrate IMGUI
 
 ## Backlog
 
@@ -19,7 +18,6 @@
 - Controlling any character on the screen
 - Considering entities for collisions
 - Considering entities for line of sight
-- Integrate IMGUI
 - Inventory and items
 - Machines, processing, basic crafting
 - UIs for inventory, for machines, for containers, etc.

@@ -8,8 +8,7 @@ api_func void DrawAtlasTilemap(
     f32 tilePxW,
     f32 tilePxH,
     i32 *atlasValues,
-    SavColor *colorsFg,
-    SavColor *colorsBg,
+    v4 *colors,
     v2 origin,
     MemoryArena *arena);
 

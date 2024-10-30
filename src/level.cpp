@@ -23,7 +23,7 @@ api_func Level MakeLevel(
 
 internal_func void generateLevelEmpty(Level *level, v2 *whereToPlacePlayer)
 {
-    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
+    Tile floorTile = MakeTile(4, V4(1,1,1,1), 0);
     for (int i = 0; i < level->w * level->h; i++)
     {
         SetTile(level, i, floorTile);
@@ -34,8 +34,8 @@ internal_func void generateLevelEmpty(Level *level, v2 *whereToPlacePlayer)
 
 internal_func void generateLevelOneRoom(Level *level, v2 *whereToPlacePlayer)
 {
-    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
-    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
+    Tile floorTile = MakeTile(4, V4(1,1,1,1), 0);
+    Tile wallTile = MakeTile(3, V4(1,1,1,1), TILE_BLOCKED | TILE_OPAQUE);
     for (int i = 0; i < level->w * level->h; i++)
     {
         SetTile(level, i, floorTile);
@@ -70,11 +70,14 @@ internal_func b32 doRoomsIntersect(Room a, Room b)
 
 internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlayer)
 {
-    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
-    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
+    Tile grassTile = MakeTile(0, V4(1,1,1,1), 0);
+    Tile dirtTile = MakeTile(1, V4(1,1,1,1), 0);
+    Tile stonePathTile = MakeTile(2, V4(1,1,1,1), 0);
+    Tile wallTile = MakeTile(3, V4(1,1,1,1), TILE_BLOCKED | TILE_OPAQUE);
+    
     for (int i = 0; i < level->w * level->h; i++)
     {
-        SetTile(level, i, wallTile);
+        SetTile(level, i, ((GetRandomFloat() > 0.5f) ? grassTile : dirtTile));
     }
 
     int roomsMax = 50;
@@ -108,8 +111,20 @@ internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlaye
             {
                 for (int x = room.x; x < (room.x + room.w); x++)
                 {
-                    SetTile(level, x, y, floorTile);
+                    SetTile(level, x, y, stonePathTile);
                 }
+            }
+
+            for (int y = room.y; y < (room.y + room.h); y++)
+            {
+                SetTile(level, room.x, y, wallTile);
+                SetTile(level, room.x + room.w - 1, y, wallTile);
+            }
+
+            for (int x = room.x; x < (room.x + room.w); x++)
+            {
+                SetTile(level, x, room.y, wallTile);
+                SetTile(level, x, room.y + room.h - 1, wallTile);
             }
             
             rooms[roomCount++] = room;
@@ -147,22 +162,22 @@ internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlaye
         {
             for (int x = leftCenter.x; x <= rightCenter.x; x++)
             {
-                SetTile(level, x, constY, floorTile);
+                SetTile(level, x, constY, stonePathTile);
             }
             for (int y = leftCenter.y; y <= rightCenter.y; y++)
             {
-                SetTile(level, constX, y, floorTile);
+                SetTile(level, constX, y, stonePathTile);
             }
         }
         else
         {
             for (int x = leftCenter.x; x <= rightCenter.x; x++)
             {
-                SetTile(level, x, constY, floorTile);
+                SetTile(level, x, constY, stonePathTile);
             }
             for (int y = rightCenter.y; y <= leftCenter.y; y++)
             {
-                SetTile(level, constX, y, floorTile);
+                SetTile(level, constX, y, stonePathTile);
             }
         }
     }
@@ -200,15 +215,15 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.combatRadius = 2.0f;
     stats.speed = 10.0f;
     stats.initiative = 10.0f;
-    Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, '@', SAV_COLOR_SABLE, SAV_COLOR_ASHGRAY);
+    Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, 0, V4(1,1,1,1));
     ConfigureCharacterEntity(&playerEntity, stats);
     Entity *addedEntity = AddEntity(entityStore, playerEntity);
     entityStore->controlledEntity = addedEntity;
 
     stats.initiative = 15.0f;
-    Entity enemyEntity = MakeEntity(30.0f, 30.0f, level, 'E', SAV_COLOR_SABLE, SAV_COLOR_RED);
+    Entity enemyEntity = MakeEntity(30.0f, 30.0f, level, 1, V4(1,1,1,1));
     ConfigureCharacterEntity(&enemyEntity, stats);
-    // AddEntity(entityStore, enemyEntity);
+    AddEntity(entityStore, enemyEntity);
 }
 
 api_func void DrawLevel(Level *level)
@@ -277,10 +292,10 @@ api_func void DrawLevelOcclusion(Level *level, u8 *visibleTiles)
     MemoryArenaUnfreeze(arena);
 }
 
-api_func Tile MakeTile(i32 atlasValue, SavColor bg, SavColor fg, u8 flags)
+api_func Tile MakeTile(i32 atlasValue, v4 color, u8 flags)
 {
     Tile tile;
-    tile.sprite = MakeTileSprite(atlasValue, bg, fg);
+    tile.sprite = MakeTileSprite(atlasValue, color);
     tile.flags = flags;
     return tile;
 }

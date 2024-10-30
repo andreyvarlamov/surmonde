@@ -14,23 +14,15 @@ api_func Tilemap MakeTilemap(MemoryArena *arena, SavTextureAtlas *atlas, f32 til
     tilemap.h = h;
     int count = w * h;
     tilemap.atlasValues = MemoryArenaPushArrayAndZero(arena, count, i32);
-    tilemap.colorsBg = MemoryArenaPushArrayAndZero(arena, count, SavColor);
-    tilemap.colorsFg = MemoryArenaPushArrayAndZero(arena, count, SavColor);
-    // for (int i = 0; i < count; i++)
-    // {
-    //     tilemap.atlasValues[i] = '!';
-    //     tilemap.colorsBg[i] = SAV_COLOR_RED;
-    //     tilemap.colorsFg[i] = SAV_COLOR_YELLOW;
-    // }
+    tilemap.colors = MemoryArenaPushArrayAndZero(arena, count, v4);
     return tilemap;
 }
 
-api_func TileSprite MakeTileSprite(i32 atlasValue, SavColor bg, SavColor fg)
+api_func TileSprite MakeTileSprite(int atlasValue, v4 color)
 {
     TileSprite tileSprite;
     tileSprite.atlasValue = atlasValue;
-    tileSprite.bg = bg;
-    tileSprite.fg = fg;
+    tileSprite.color = color;
     return tileSprite;
 }
 
@@ -39,8 +31,7 @@ api_func TileSprite GetTileSprite(Tilemap *tilemap, int i)
     Assert(i >= 0 && i < tilemap->w * tilemap->h);
     TileSprite tileSprite;
     tileSprite.atlasValue = tilemap->atlasValues[i];
-    tileSprite.bg = tilemap->colorsBg[i];
-    tileSprite.fg = tilemap->colorsFg[i];
+    tileSprite.color = tilemap->colors[i];
     return tileSprite;
 }
 
@@ -50,8 +41,7 @@ api_func TileSprite GetTileSprite(Tilemap *tilemap, int x, int y)
     int i = XYToIdx(tilemap->w, x, y);
     TileSprite tileSprite;
     tileSprite.atlasValue = tilemap->atlasValues[i];
-    tileSprite.bg = tilemap->colorsBg[i];
-    tileSprite.fg = tilemap->colorsFg[i];
+    tileSprite.color = tilemap->colors[i];
     return tileSprite;
 }
 
@@ -59,8 +49,7 @@ api_func void SetTileSprite(Tilemap *tilemap, int i, TileSprite tileSprite)
 {
     Assert(i >= 0 && i < tilemap->w * tilemap->h);
     tilemap->atlasValues[i] = tileSprite.atlasValue;
-    tilemap->colorsBg[i] = tileSprite.bg;
-    tilemap->colorsFg[i] = tileSprite.fg;
+    tilemap->colors[i] = tileSprite.color;
 }
 
 api_func void SetTileSprite(Tilemap *tilemap, int x, int y, TileSprite tileSprite)
@@ -68,8 +57,7 @@ api_func void SetTileSprite(Tilemap *tilemap, int x, int y, TileSprite tileSprit
     Assert(x >= 0 && x < tilemap->w && y >= 0 && y <= tilemap->h);
     int i = XYToIdx(tilemap->w, x, y);
     tilemap->atlasValues[i] = tileSprite.atlasValue;
-    tilemap->colorsBg[i] = tileSprite.bg;
-    tilemap->colorsFg[i] = tileSprite.fg;
+    tilemap->colors[i] = tileSprite.color;
 }
 
 api_func void DrawTilemap(Tilemap *tilemap, v2 origin)
@@ -81,8 +69,7 @@ api_func void DrawTilemap(Tilemap *tilemap, v2 origin)
         tilemap->tilePxW,
         tilemap->tilePxH,
         tilemap->atlasValues,
-        tilemap->colorsFg,
-        tilemap->colorsBg,
+        tilemap->colors,
         origin,
         tilemap->arena);
 }

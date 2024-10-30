@@ -2203,7 +2203,7 @@ sav_func void CameraInitLogZoomSteps(Camera2D *camera, f32 min, f32 max, int ste
 
     camera->zoomMin = min;
     camera->zoomMax = max;
-    camera->zoomLogStepsCurrent = iClosestToNeutral;
+    camera->zoomLogStepsCurrent = iClosestToNeutral + 1;
     camera->zoomLogSteps[iClosestToNeutral] = logZoomNeutral;
     CameraIncreaseLogZoomSteps(camera, 0);
 }

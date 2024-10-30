@@ -22,14 +22,13 @@ api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextu
     return s;
 }
 
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg)
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color)
 {
     Entity e = {};
     e.p = V2(x, y);
     e.level = level;
     e.atlasValue = atlasValue;
-    e.bg = bg;
-    e.fg = fg;
+    e.color = color;
     e.isUsed = true;
     return e;
 }
@@ -436,8 +435,7 @@ api_func void DrawEntities(EntityStore *s)
 
     v3 *positions = MemoryArenaPushArrayAndZero(s->arena, vertCount, v3);
     v4 *texCoords = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
-    v4 *colorsBg = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
-    v4 *colorsFg = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
+    v4 *vertColors = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
     u32 *indices = MemoryArenaPushArrayAndZero(s->arena, indexCount, u32);
 
     int vertsAdded = 0;
@@ -457,20 +455,12 @@ api_func void DrawEntities(EntityStore *s)
         Rect atlasRect = GetAtlasSourceRect(*s->atlas, e->atlasValue);
         FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(s->atlas->texture, atlasRect));
 
-        SavColor bg = {};
-
-        if (e->brain.combatState != COMBAT_STATE_NONE)
-        {
-            bg = ColorAlpha(SAV_COLOR_CRIMSON, 0.2f);
-        }
-
         u32 indexBase = vertsAdded;
         for (int i = 0; i < 4; i++)
         {
             positions[vertsAdded] = points.e[i];
             texCoords[vertsAdded] = texCoordPoints.e[i];
-            colorsBg[vertsAdded] = GetColorV4(bg);
-            colorsFg[vertsAdded] = GetColorV4(e->fg);
+            vertColors[vertsAdded] = e->color;
             vertsAdded++;
         }
 
@@ -487,15 +477,7 @@ api_func void DrawEntities(EntityStore *s)
     VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colorsBg, vertCount, sizeof(colorsBg[0])));
-    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
-    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
-    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
-    
-    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colorsFg, vertCount, sizeof(colorsFg[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(vertColors, vertCount, sizeof(vertColors[0])));
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
     BindTextureSlot(0, s->atlas->texture);

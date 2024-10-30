@@ -13,7 +13,9 @@ struct GameState
     MemoryArena worldArena;
     MemoryArena debugRenderArena;
     
-    SavTextureAtlas mainTileAtlas;
+    SavTextureAtlas worldAtlas;
+    SavTextureAtlas charAtlas;
+    SavTextureAtlas itemAtlas;
     SavFont uiFont;
     
     Level level;

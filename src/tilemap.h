@@ -5,9 +5,8 @@
 
 struct TileSprite
 {
-    i32 atlasValue;
-    SavColor fg;
-    SavColor bg;
+    int atlasValue;
+    v4 color;
 };
 
 struct Tilemap
@@ -18,12 +17,11 @@ struct Tilemap
 
     int w, h;
     i32 *atlasValues;
-    SavColor *colorsFg;
-    SavColor *colorsBg;
+    v4 *colors;
 };
 
 api_func Tilemap MakeTilemap(MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH, int w, int h);
-api_func TileSprite MakeTileSprite(i32 atlasValue, SavColor bg, SavColor fg);
+api_func TileSprite MakeTileSprite(int atlasValue, v4 color);
 api_func TileSprite GetTileSprite(Tilemap *tilemap, int i);
 api_func TileSprite GetTileSprite(Tilemap *tilemap, int x, int y);
 api_func void SetTileSprite(Tilemap *tilemap, int i, TileSprite tileSprite);

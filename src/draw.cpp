@@ -9,8 +9,7 @@ api_func void DrawAtlasTilemap(
     f32 tilePxW,
     f32 tilePxH,
     i32 *atlasValues,
-    SavColor *colorsFg,
-    SavColor *colorsBg,
+    v4 *colors,
     v2 origin,
     MemoryArena *arena)
 {
@@ -22,8 +21,7 @@ api_func void DrawAtlasTilemap(
 
     v3 *positions = MemoryArenaPushArrayAndZero(arena, vertCount, v3);
     v4 *texCoords = MemoryArenaPushArrayAndZero(arena, vertCount, v4);
-    v4 *colFg = MemoryArenaPushArrayAndZero(arena, vertCount, v4);
-    v4 *colBg = MemoryArenaPushArrayAndZero(arena, vertCount, v4);
+    v4 *vertColors = MemoryArenaPushArrayAndZero(arena, vertCount, v4);
     u32 *indices = MemoryArenaPushArrayAndZero(arena, indexCount, u32);
     int vertsAdded = 0;
     int indicesAdded = 0;
@@ -45,8 +43,7 @@ api_func void DrawAtlasTilemap(
         {
             positions[vertsAdded] = points.e[i];
             texCoords[vertsAdded] = texCoordPoints.e[i];
-            colFg[vertsAdded] = GetColorV4(colorsFg[tileI]);
-            colBg[vertsAdded] = GetColorV4(colorsBg[tileI]);
+            vertColors[vertsAdded] = colors[tileI];
             vertsAdded++;
         }
 
@@ -63,15 +60,7 @@ api_func void DrawAtlasTilemap(
     VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colBg, vertCount, sizeof(colBg[0])));
-    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
-    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
-    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
-
-    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colFg, vertCount, sizeof(colFg[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(vertColors, vertCount, sizeof(vertColors[0])));
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
     BindTextureSlot(0, atlas.texture);

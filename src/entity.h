@@ -57,9 +57,8 @@ struct Entity
 
     Level *level;
 
-    i32 atlasValue;
-    SavColor fg;
-    SavColor bg;
+    int atlasValue;
+    v4 color;
 
     CharacterStats stats;
 
@@ -91,7 +90,7 @@ inline b32 IsControlledEntity(EntityStore *s, Entity *e)
 }
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, Level *level);
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg);
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color);
 api_func void ConfigureCharacterEntity(Entity *e, CharacterStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 

@@ -17,25 +17,29 @@ int main(int argc, char **argv)
     GameMemory gameMemory = AllocGameMemory(Megabytes(4));
     GameState *gameState = (GameState *) gameMemory.data;
 
-    SetTargetFPS(60.0);
+    SetTargetFPS(164.0);
 
-    gameState->mainTileAtlas = SavLoadTextureAtlas("res/textures/hack64.png", 16, 16);
-    SavSetTextureFilterMode(gameState->mainTileAtlas.texture, SAV_LINEAR);
+    gameState->worldAtlas = SavLoadTextureAtlas("res/textures/monde_atlas.png", 16, 16);
+    SavSetTextureFilterMode(gameState->worldAtlas.texture, SAV_NEAREST);
+    gameState->charAtlas = SavLoadTextureAtlas("res/textures/monde_atlas_chars.png", 16, 16);
+    SavSetTextureFilterMode(gameState->charAtlas.texture, SAV_NEAREST);
+    gameState->itemAtlas = SavLoadTextureAtlas("res/textures/monde_atlas_items.png", 16, 16);
+    SavSetTextureFilterMode(gameState->itemAtlas.texture, SAV_NEAREST);
 
     gameState->worldArena = AllocArena(Megabytes(4));
 
-    f32 tilePxW = gameState->mainTileAtlas.cellW * LEVEL_ATLAS_SCALE;
-    f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
-    gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
-    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, &gameState->level);
+    f32 tilePxW = gameState->worldAtlas.cellW * LEVEL_ATLAS_SCALE;
+    f32 tilePxH = gameState->worldAtlas.cellH * LEVEL_ATLAS_SCALE;
+    gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->worldAtlas, tilePxW, tilePxH, &gameState->worldArena);
+    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->charAtlas, &gameState->level);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
     
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
                                    V2(tilePxW * gameState->entityStore.controlledEntity->p.x, tilePxH * gameState->entityStore.controlledEntity->p.y),
                                    0.2f,
-                                   5.0f,
-                                   5);
+                                   6.0f,
+                                   7);
     
     // CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
     // CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, 0.0f, 0.0f, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
@@ -47,8 +51,8 @@ int main(int argc, char **argv)
     gameState->debugRenderArena = AllocArena(Megabytes(4));
     DDrawInit(&gameState->debugRenderArena);
 
-    Tile floorTile = MakeTile('.', SAV_COLOR_SABLE, SAV_COLOR_MIDNIGHT, 0);
-    Tile wallTile = MakeTile('#', SAV_COLOR_SABLE, SAV_COLOR_OIL, TILE_BLOCKED | TILE_OPAQUE);
+    Tile floorTile = MakeTile(4, V4(1,1,1,1), 0);
+    Tile wallTile = MakeTile(3, V4(1,1,1,1), TILE_BLOCKED | TILE_OPAQUE);
 
     int debugEdge = 0;
     b32 debugEdgeTiles = false; 
@@ -131,7 +135,7 @@ int main(int argc, char **argv)
 
                     BeginCameraMode(&gameState->camera);
                         DrawLevel(&gameState->level);
-                        DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntityVisibleTiles);
+                        // DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntityVisibleTiles);
                         DrawEntities(&gameState->entityStore);
 
                         DDraw();
