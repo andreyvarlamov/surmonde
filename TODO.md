@@ -2,22 +2,23 @@
 
 ## Changelog
 
-- Removed old line of sight code
-- Think, think, think; update TODO
+- Simple line of sight
 
 ## Planned
 
+- Optimize tilemap drawing slightly (to hit 60 at least)
+- Transition to tiles instead of ASCII
+- World gen same as it was in unity
 
 ## Backlog
 
 - Some bug with pathfinding (goes in the wrong direction at first)
-- Simple line of sight
-- Enemy AI; considering line of sight; etc.
-- Simplify combat; get rid of everything; just each entity going through its own attack cycle; death
+- Enemy AI
+  - Determining whether another entity is in line of sight
+  - Simplify combat; get rid of everything; just each entity going through its own attack cycle; death
 - Controlling any character on the screen
 - Considering entities for collisions
-- Transition to tiles instead of ASCII
-- World gen same as it was in unity
+- Considering entities for line of sight
 - Integrate IMGUI
 - Inventory and items
 - Machines, processing, basic crafting
@@ -28,6 +29,10 @@
 ### Consider for first pass
 
 - Saving/loading (different now than it was in unity -- I could even just dump memory as first "save files")
+
+### Unsure
+
+- How can I smoothly transition between a map "thing" -- tile -- and an entity. E.g. breaking wall. Controlling a tree. Tree-growing logic. Etc. Do those just become entities when they need to be?
 
 # OLD
 

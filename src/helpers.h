@@ -18,13 +18,16 @@ inline v2i IdxToXY(i32 w, i32 i)
     return V2I(i % w, i / w);
 }
 
-inline v2 GetPxPFromTileP(v2 tilePxDim, v2i tileP)
+inline v2i GetTilePFromFloatP(v2 floatP)
 {
-    v2 pxP = V2(
-        (f32) tileP.x * tilePxDim.x + tilePxDim.x / 2.0f,
-        (f32) tileP.y * tilePxDim.y + tilePxDim.y / 2.0f
-    );
-    return pxP;
+    v2i tileP = V2I((i32)floatP.x, (i32)floatP.y);
+    return tileP;
+}
+
+inline v2 GetFloatPFromTileP(v2i tileP)
+{
+    v2 floatP = V2(tileP.x + 0.5f, tileP.y + 0.5f);
+    return floatP;
 }
 
 inline b32 AdvanceTimer(f32 *timer, f32 delta)

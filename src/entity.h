@@ -43,7 +43,7 @@ struct CharacterStats
 {
     b32 isConfigured;
     
-    f32 viewRadius;
+    i32 viewRadius;
     f32 attackReach;
     f32 speed;
     f32 initiative;
@@ -74,10 +74,8 @@ struct EntityStore
     int entityMax;
     Entity *entities;
 
-    // int w, h;
-    // Entity **spatialEntities;
-
     Entity *controlledEntity;
+    u8 *controlledEntityVisibleTiles;
 
     MemoryArena *arena;
 
@@ -92,7 +90,7 @@ inline b32 IsControlledEntity(EntityStore *s, Entity *e)
     return e == s->controlledEntity;
 }
 
-api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH);
+api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, Level *level);
 api_func Entity MakeEntity(f32 x, f32 y, Level *level, i32 atlasValue, SavColor bg, SavColor fg);
 api_func void ConfigureCharacterEntity(Entity *e, CharacterStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);

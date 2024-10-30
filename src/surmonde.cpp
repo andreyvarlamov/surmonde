@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     f32 tilePxW = gameState->mainTileAtlas.cellW * LEVEL_ATLAS_SCALE;
     f32 tilePxH = gameState->mainTileAtlas.cellH * LEVEL_ATLAS_SCALE;
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->mainTileAtlas, tilePxW, tilePxH, &gameState->worldArena);
-    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, tilePxW, tilePxH);
+    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->mainTileAtlas, &gameState->level);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
     
     gameState->camera = MakeCamera(0.0f,
@@ -131,6 +131,7 @@ int main(int argc, char **argv)
 
                     BeginCameraMode(&gameState->camera);
                         DrawLevel(&gameState->level);
+                        DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntityVisibleTiles);
                         DrawEntities(&gameState->entityStore);
 
                         DDraw();
@@ -163,3 +164,4 @@ int main(int argc, char **argv)
 #include "entity.cpp"
 #include "navigation.cpp"
 #include "debug_draw.cpp"
+#include "vision.cpp"

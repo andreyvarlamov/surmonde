@@ -113,6 +113,11 @@ inline f32 Square(f32 value)
     return value * value;
 }
 
+inline i32 Square(i32 value)
+{
+    return value * value;
+}
+
 inline f32 MoveToward(f32 from, f32 to, f32 delta)
 {
     f32 diff = AbsF32(from - to);
@@ -505,6 +510,37 @@ inline v2 RectGetMin(Rect r) { return { r.x, r.y }; }
 inline v2 RectGetMax(Rect r) { return { r.x + r.w, r.y + r.h }; }
 inline v2 RectGetMid(Rect r) { return { r.x + r.w * 0.5f, r.y + r.h * 0.5f }; }
 
+struct RectInt { i32 x, y, w, h; };
+inline RectInt MakeRect(i32 x, i32 y, i32 w, i32 h) { RectInt r; r.x = x; r.y = y; r.w = w; r.h = h; return r; };
+inline RectInt RectMinMax(v2i min, v2i max) { return { min.x, min.y, max.x - min.x, max.y - min.y }; }
+inline v2i RectGetMin(RectInt r) { return { r.x, r.y }; }
+inline v2i RectGetMax(RectInt r) { return { r.x + r.w, r.y + r.h }; }
+inline v2i RectGetMid(RectInt r) { return { r.x + r.w / 2, r.y + r.h / 2 }; }
+
+inline Rect RectIntersect(Rect r1, Rect r2)
+{
+    v2 r1Min = RectGetMin(r1);
+    v2 r2Min = RectGetMin(r2);
+    v2 r1Max = RectGetMax(r1);
+    v2 r2Max = RectGetMax(r2);
+    v2 min = V2(Max(r1Min.x, r2Min.x), Max(r1Min.y, r2Min.y));
+    v2 max = V2(Min(r1Max.x, r2Max.x), Min(r1Max.y, r2Max.y));
+    Rect result = RectMinMax(min, max);
+    return result;
+}
+
+inline RectInt RectIntersect(RectInt r1, RectInt r2)
+{
+    v2i r1Min = RectGetMin(r1);
+    v2i r2Min = RectGetMin(r2);
+    v2i r1Max = RectGetMax(r1);
+    v2i r2Max = RectGetMax(r2);
+    v2i min = V2I(Max(r1Min.x, r2Min.x), Max(r1Min.y, r2Min.y));
+    v2i max = V2I(Min(r1Max.x, r2Max.x), Min(r1Max.y, r2Max.y));
+    RectInt result = RectMinMax(min, max);
+    return result;
+}
+
 inline FourV2 RectGetPoints(Rect r)
 {
     FourV2 points;
@@ -682,7 +718,7 @@ union SavColor { struct { u8 a; u8 b; u8 g; u8 r; }; u32 c32; };
 inline SavColor MakeColor(u8 r, u8 g, u8 b, u8 a) { SavColor c; c.r = r; c.g = g; c.b = b; c.a = a; return c; }
 inline SavColor MakeColor(f32 r, f32 g, f32 b, f32 a) { SavColor c; c.r = (u8) (r * 255.0f); c.g = (u8) (g * 255.0f); c.b = (u8) (b * 255.0f); c.a = (u8) (a * 255.0f); return c; }
 inline SavColor MakeColor(u32 c32) { SavColor c; c.c32 = c32; return c; }
-inline v4 GetColorV4(SavColor c) { v4 result = V4(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f); return result; }
+inline v4 GetColorV4(SavColor c) { f32 oo255 = 0.0039215686274509803921568627451f; v4 result = V4(c.r * oo255, c.g * oo255, c.b * oo255, c.a * oo255); return result; }
 inline SavColor ColorAlpha(SavColor c, f32 a) { c.a = (u8) (a * 255.0f); return c; }
 
 #define SAV_COLOR_ALICEBLUE MakeColor(0xF0F8FFFF)
@@ -1157,6 +1193,7 @@ sav_func void TraceLog(const char *format, ...);
 sav_func void TraceLogPartialStart(const char *format, ...);
 sav_func void TraceLogPartial(const char *format, ...);
 sav_func void TraceError(const char *format, ...);
+sav_func void Memset(void *ptr, int value, size_t num);
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
@@ -3279,6 +3316,11 @@ sav_func void TraceError(const char *format, ...)
     va_start(varArgs, format);
     vprintf_s(formatBuf, varArgs);
     va_end(varArgs);
+}
+
+sav_func void Memset(void *ptr, int value, size_t num)
+{
+    memset(ptr, value, num);
 }
 
 // SECTION Random

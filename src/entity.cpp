@@ -4,21 +4,20 @@
 #include "defines.h"
 #include "draw.h"
 #include "navigation.h"
+#include "vision.h"
 
-api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, f32 tilePxW, f32 tilePxH)
+api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, Level *level)
 {
     EntityStore s = {};
     s.entityMax = entityMax;
     s.entities = MemoryArenaPushArrayAndZero(arena, entityMax, Entity);
 
-    // s.w = spatialW;
-    // s.h = spatialH;
-    // s.spatialEntities = MemoryArenaPushArrayAndZero(arena, spatialW * spatialH, Entity *);
+    s.controlledEntityVisibleTiles = MemoryArenaPushArray(arena, level->w * level->h, u8);
 
     s.arena = arena;
     s.atlas = atlas;
-    s.tilePxW = tilePxW;
-    s.tilePxH = tilePxH;
+    s.tilePxW = level->levelTilemap.tilePxW;
+    s.tilePxH = level->levelTilemap.tilePxH;
 
     return s;
 }
@@ -196,27 +195,27 @@ internal_func inline b32 performAttackHit(Entity *attacker, Entity *defender)
 
 internal_func void processCharacterAI(EntityStore *s, Entity *e)
 {
-    Assert(e->stats.isConfigured);
+//     Assert(e->stats.isConfigured);
 
-    if (e->brain.combatState == COMBAT_STATE_NONE && isEntityInRange(e, s->controlledEntity, e->stats.combatRadius))
-    {
-        e->brain.isOrderedFollow = false;
-        e->brain.isOrderedMovement = false;
-        InitiateCombat(e, s->controlledEntity);
-    }
-    else if (!e->brain.isOrderedFollow && isEntityInRange(e, s->controlledEntity, e->stats.viewRadius))
-    {
-        // TODO: Check if in line of sight
-        e->brain.isOrderedMovement = false;
-        OrderFollowEntity(e, s->controlledEntity);
-    }
-    else if (!e->brain.isOrderedFollow && !e->brain.isOrderedMovement)
-    {
-        if (GetRandomValue(0, 100) == 0)
-        {
-            OrderEntityMovement(s, e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
-        }
-    }
+//     if (e->brain.combatState == COMBAT_STATE_NONE && isEntityInRange(e, s->controlledEntity, e->stats.combatRadius))
+//     {
+//         e->brain.isOrderedFollow = false;
+//         e->brain.isOrderedMovement = false;
+//         InitiateCombat(e, s->controlledEntity);
+//     }
+//     else if (!e->brain.isOrderedFollow && isEntityInRange(e, s->controlledEntity, e->stats.viewRadius))
+//     {
+//         // TODO: Check if in line of sight
+//         e->brain.isOrderedMovement = false;
+//         OrderFollowEntity(e, s->controlledEntity);
+//     }
+//     else if (!e->brain.isOrderedFollow && !e->brain.isOrderedMovement)
+//     {
+//         if (GetRandomValue(0, 100) == 0)
+//         {
+//             OrderEntityMovement(s, e, e->p + GetRandomVec(2.0f + GetRandomFloat() * 5.0f));
+//         }
+//     }
 }
 
 internal_func void recoverStamina(f32 *stamina, f32 rate, f32 delta)
@@ -422,6 +421,10 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
 
         processCharacterOrders(s, e, delta);
     }
+
+    Entity *controlled = s->controlledEntity;
+    v2i tileP = GetTilePFromFloatP(controlled->p);
+    CalculateVision(controlled->level, tileP, controlled->stats.viewRadius, s->controlledEntityVisibleTiles);
 }
 
 api_func void DrawEntities(EntityStore *s)

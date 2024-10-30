@@ -195,7 +195,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
 
     // TODO: Maybe don't do this inside level gen
     CharacterStats stats = {};
-    stats.viewRadius = 10.0f;
+    stats.viewRadius = 30;
     stats.attackReach = 1.0f;
     stats.combatRadius = 2.0f;
     stats.speed = 10.0f;
@@ -214,6 +214,67 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
 api_func void DrawLevel(Level *level)
 {
     DrawTilemap(&level->levelTilemap, V2(0.0f, 0.0f));
+}
+
+api_func void DrawLevelOcclusion(Level *level, u8 *visibleTiles)
+{
+    MemoryArena *arena = level->arena;
+    int allTileCount = level->w * level->h;
+    int tileCount = 0;
+    for (int i = 0; i < allTileCount; i++)
+    {
+        if (!visibleTiles[i]) tileCount++;
+    }
+    int vertCount = tileCount * 4;
+    int indexCount = tileCount * 6;
+    f32 tilePxW = level->levelTilemap.tilePxW;
+    f32 tilePxH = level->levelTilemap.tilePxH;
+
+    MemoryArenaFreeze(arena);
+
+    v3 *positions = MemoryArenaPushArrayAndZero(arena, vertCount, v3);
+    v4 *colors = MemoryArenaPushArrayAndZero(arena, vertCount, v4);
+    u32 *indices = MemoryArenaPushArrayAndZero(arena, indexCount, u32);
+    int vertsAdded = 0;
+    int indicesAdded = 0;
+    for (int tileI = 0; tileI < allTileCount; tileI++)
+    {
+        if (!visibleTiles[tileI])
+        {
+            i32 tileX = tileI % level->w;
+            i32 tileY = tileI / level->w;
+            f32 pxX = (f32) tileX * tilePxW;
+            f32 pxY = (f32) tileY * tilePxH;
+            Rect destRect = MakeRect(pxX, pxY, tilePxW, tilePxH);
+            FourV3 points = ConvertFourV2V3(RectGetPoints(destRect));
+
+            u32 indexBase = vertsAdded;
+            for (int i = 0; i < 4; i++)
+            {
+                positions[vertsAdded] = points.e[i];
+                colors[vertsAdded] = V4(0.0f, 0.0f, 0.0f, 1.0f);
+                vertsAdded++;
+            }
+
+            u32 localIndices[] = {0, 1, 2, 2, 3, 0};
+            for (int i = 0; i < ArrayCount(localIndices); i++)
+            {
+                indices[indicesAdded++] = indexBase + localIndices[i];
+            }
+        }
+    }
+
+    Assert(vertsAdded == vertCount);
+    Assert(indicesAdded == indexCount);
+
+    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
+    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(colors, vertCount, sizeof(colors[0])));
+    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
+    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
+    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
+
+    MemoryArenaUnfreeze(arena);
 }
 
 api_func Tile MakeTile(i32 atlasValue, SavColor bg, SavColor fg, u8 flags)

@@ -40,6 +40,7 @@ api_func Level MakeLevel(int w, int h,
 api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType);
 api_func void UpdateLevel(Level *level);
 api_func void DrawLevel(Level *level);
+api_func void DrawLevelOcclusion(Level *level, u8 *visibleTiles);
 
 api_func Tile MakeTile(i32 atlasValue, SavColor bg, SavColor fg, u8 flags);
 api_func void SetTile(Level *level, int i, Tile tile);
