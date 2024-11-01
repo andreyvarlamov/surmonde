@@ -42,7 +42,7 @@ void __debugbreak(); // usually in <intrin.h>
 
 #define Max(x, y) (((x) > (y)) ? (x) : (y))
 #define Min(x, y) (((x) < (y)) ? (x) : (y))
-#define Swap(x, y, type) do { type temp = x; x = y; y = temp; } while(0)
+#define SavSwap(x, y, type) do { type temp = x; x = y; y = temp; } while(0)
 
 #define global_var static
 #define local_persist static
@@ -1207,6 +1207,9 @@ sav_func v2 GetRandomVec(f32 length);
 #include <sdl2/SDL_image.h>
 #include <sdl2/SDL_ttf.h>
 #include <glad/glad.h>
+#include <imgui.h>
+#include <backends/imgui_impl_sdl2.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -1490,6 +1493,17 @@ sav_func void InitWindow(const char *title, int width, int height)
                 srand((unsigned) time(NULL));
 
                 initGlDefaults();
+
+                // Setup Dear ImGui context
+                IMGUI_CHECKVERSION();
+                ImGui::CreateContext();
+                ImGuiIO& io = ImGui::GetIO();
+                io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+                io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+                // Setup Platform/Renderer backends
+                ImGui_ImplSDL2_InitForOpenGL(_sdlState->window, glContext);
+                ImGui_ImplOpenGL3_Init();
             }
             else
             {
@@ -1515,6 +1529,10 @@ sav_func void InitWindow(const char *title, int width, int height)
 
 sav_func void Quit()
 {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+ 
     if (_sdlState->sleepIsGranular)
     {
         timeEndPeriod(_sdlState->desiredSchedulerMs);
@@ -1551,37 +1569,12 @@ sav_func void PollEvents()
     SDL_Event event;
     while(SDL_PollEvent(&event))
     {
+        ImGui_ImplSDL2_ProcessEvent(&event);
         switch (event.type)
         {
             case SDL_QUIT:
             {
                 _sdlState->shouldClose = true;
-            } break;
-
-            case SDL_KEYDOWN:
-            case SDL_KEYUP:
-            {
-                _inputState->currentKeyStates[event.key.keysym.scancode] = (event.type == SDL_KEYDOWN);
-                _inputState->repeatKeyStates[event.key.keysym.scancode] = event.key.repeat;
-            } break;
-
-            case SDL_MOUSEMOTION:
-            {
-                // NOTE: It seems it's better to update mouse position every frame
-            } break;
-            case SDL_MOUSEBUTTONDOWN:
-            case SDL_MOUSEBUTTONUP:
-            {
-                _inputState->currentMouseButtonStates[event.button.button] = (event.type == SDL_MOUSEBUTTONDOWN);
-                if (event.type == SDL_MOUSEBUTTONDOWN)
-                {
-                    _inputState->clickMouseButtonStates[event.button.button] = event.button.clicks;
-                }
-            } break;
-            case SDL_MOUSEWHEEL:
-            {
-                // TODO: Maybe deal with event.wheel.direction field on other platforms
-                _inputState->mouseWheel += event.wheel.y; // NOTE: Add y, because it's likely there were more than one event between frames
             } break;
 
             case SDL_WINDOWEVENT:
@@ -1592,7 +1585,48 @@ sav_func void PollEvents()
                     _sdlState->windowSizeChanged = true;
                 }
             } break;
+
             default: break;
+        }
+
+        if (!ImGui::GetIO().WantCaptureKeyboard)
+        {
+            switch (event.type)
+            {
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                {
+                    _inputState->currentKeyStates[event.key.keysym.scancode] = (event.type == SDL_KEYDOWN);
+                    _inputState->repeatKeyStates[event.key.keysym.scancode] = event.key.repeat;
+                } break;
+            }
+        }
+
+        if (!ImGui::GetIO().WantCaptureMouse)
+        {
+            switch (event.type)
+            {
+                case SDL_MOUSEMOTION:
+                {
+                    // NOTE: It seems it's better to update mouse position every frame
+                } break;
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                {
+                    _inputState->currentMouseButtonStates[event.button.button] = (event.type == SDL_MOUSEBUTTONDOWN);
+                    if (event.type == SDL_MOUSEBUTTONDOWN)
+                    {
+                        _inputState->clickMouseButtonStates[event.button.button] = event.button.clicks;
+                    }
+                } break;
+                case SDL_MOUSEWHEEL:
+                {
+                    // TODO: Maybe deal with event.wheel.direction field on other platforms
+                    _inputState->mouseWheel += event.wheel.y; // NOTE: Add y, because it's likely there were more than one event between frames
+                } break;
+
+                default: break;
+            }
         }
     }
 
@@ -1601,6 +1635,10 @@ sav_func void PollEvents()
     SDL_GetRelativeMouseState(&mouseRelX, &mouseRelY);
     _inputState->mousePos = V2((f32) mouseX, (f32) mouseY);
     _inputState->mouseRelPos = V2((f32) mouseRelX, (f32) mouseRelY);
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
 }
 
 // Timing
@@ -2782,6 +2820,9 @@ sav_func void EndDraw()
 
 sav_func void SavSwapBuffers()
 {
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
     SDL_GL_SwapWindow(_sdlState->window);
 }
 

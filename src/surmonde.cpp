@@ -8,6 +8,9 @@
 #include "helpers.h"
 #include "draw.h"
 #include "debug_draw.h"
+#include <imgui.h>
+#include <backends/imgui_impl_sdl2.h>
+#include <backends/imgui_impl_opengl3.h>
 
 int main(int argc, char **argv)
 {
@@ -17,7 +20,7 @@ int main(int argc, char **argv)
     GameMemory gameMemory = AllocGameMemory(Megabytes(4));
     GameState *gameState = (GameState *) gameMemory.data;
 
-    SetTargetFPS(164.0);
+    SetTargetFPS(60.0);
 
     gameState->worldAtlas = SavLoadTextureAtlas("res/textures/monde_atlas.png", 16, 16);
     SavSetTextureFilterMode(gameState->worldAtlas.texture, SAV_NEAREST);
@@ -72,6 +75,8 @@ int main(int argc, char **argv)
         if (MouseDown(SDL_BUTTON_MIDDLE)) CameraMoveTarget(&gameState->camera, CameraScreenToWorldRel(&gameState->camera, MouseRelPos()));
 
         SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
+
+        ImGui::ShowDemoWindow();
 
         switch (gameState->runState)
         {
