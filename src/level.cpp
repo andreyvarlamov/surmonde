@@ -209,20 +209,18 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     }
 
     // TODO: Maybe don't do this inside level gen
-    CharacterStats stats = {};
+    ActorStats stats = {};
     stats.viewRadius = 30;
     stats.attackReach = 1.0f;
     stats.combatRadius = 2.0f;
     stats.speed = 10.0f;
-    stats.initiative = 10.0f;
     Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, 0, V4(1,1,1,1));
-    ConfigureCharacterEntity(&playerEntity, stats);
+    ConfigureActorEntity(&playerEntity, stats);
     Entity *addedEntity = AddEntity(entityStore, playerEntity);
     entityStore->controlledEntity = addedEntity;
 
-    stats.initiative = 15.0f;
     Entity enemyEntity = MakeEntity(30.0f, 30.0f, level, 1, V4(1,1,1,1));
-    ConfigureCharacterEntity(&enemyEntity, stats);
+    ConfigureActorEntity(&enemyEntity, stats);
     AddEntity(entityStore, enemyEntity);
 }
 

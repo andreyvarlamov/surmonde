@@ -1197,6 +1197,7 @@ sav_func void Memset(void *ptr, int value, size_t num);
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
+sav_func b32 RandomChane(f32 chance);
 sav_func v2 GetRandomVec(f32 length);
 
 #ifdef SAV_IMPLEMENTATION
@@ -3377,6 +3378,12 @@ sav_func int GetRandomValue(int min, int max)
 sav_func f32 GetRandomFloat()
 {
     return (rand() / (f32) RAND_MAX);
+}
+
+sav_func b32 RandomChane(f32 chance)
+{
+    i32 threshold = (i32)(RAND_MAX * chance);
+    return rand() > threshold;
 }
 
 sav_func v2 GetRandomVec(f32 length)

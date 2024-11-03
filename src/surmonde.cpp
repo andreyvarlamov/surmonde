@@ -93,7 +93,10 @@ int main(int argc, char **argv)
                     target.x = target.x / gameState->entityStore.tilePxW;
                     target.y = target.y / gameState->entityStore.tilePxH;
                     TraceLog("Target: %.3f, %.3f", target.x, target.y);
-                    OrderEntityMovement(&gameState->entityStore, gameState->entityStore.controlledEntity, target);
+
+                    // TODO: How to handle completion of order (type needs to be set to NONE and isCompleted to false)
+                    gameState->entityStore.controlledEntity->currentOrder.type = ACTOR_ORDER_MOVE_TO_TARGET;
+                    gameState->entityStore.controlledEntity->currentOrder.movementTarget = target;
                 }
 
                 if (MousePressed(SDL_BUTTON_LEFT))
@@ -147,8 +150,6 @@ int main(int argc, char **argv)
                     EndCameraMode();
 
                     DrawFloaters((f32) GetDeltaFixed());
-                    
-                    DrawEntityUI(&gameState->entityStore, &gameState->uiFont, &gameState->worldArena);
                 EndDraw();
             } break;
         }

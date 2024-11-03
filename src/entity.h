@@ -8,45 +8,38 @@
 struct Level;
 struct Entity;
 
-enum CombatState
+enum ActorAiState
 {
-    COMBAT_STATE_NONE,
-    COMBAT_STATE_READY,
-    COMBAT_STATE_ATTACK_PRE,
-    COMBAT_STATE_ATTACK_MID,
-    COMBAT_STATE_ATTACK_POST,
-    COMBAT_STATE_DEFENCE_PRE,
-    COMBAT_STATE_DEFENCE_MID,
-    COMBAT_STATE_DEFENCE_POST
+    ACTOR_AI_INIT,
+    ACTOR_AI_IDLE,
+    ACTOR_AI_FOLLOW,
+    ACTOR_AI_COMBAT
 };
 
-struct EntityBrain
+enum ActorOrderType
 {
-    b32 isOrderedMovement;
-    v2 movementTarget;
+    ACTOR_ORDER_NONE,
+    ACTOR_ORDER_MOVE_TO_TARGET,
+    ACTOR_ORDER_FOLLOW_ENTITY,
+};
 
-    b32 isOrderedFollow;
+struct ActorOrder
+{
+    ActorOrderType type;
+
+    v2 movementTarget;
     Entity *followedEntity;
 
-    CombatState combatState;
-    Entity *opponent;
-    f32 combatTimer;
-    f32 combatStamina;
-    v2 tempTarget;
-    b32 isMovingInCombat;
-    IngameTimer sidestepTimer;
-
-    v2 pathNextTarget;
+    b32 isCompleted;
 };
 
-struct CharacterStats
+struct ActorStats
 {
     b32 isConfigured;
     
     i32 viewRadius;
     f32 attackReach;
     f32 speed;
-    f32 initiative;
     f32 combatRadius;
 };
 
@@ -60,9 +53,14 @@ struct Entity
     int atlasValue;
     v4 color;
 
-    CharacterStats stats;
+    ActorStats stats;
 
-    EntityBrain brain;
+    ActorAiState aiState;
+    
+    ActorOrder currentOrder; // TODO: Order queue
+
+    b32 steerTargetActive;
+    v2 steerTarget;
 
     b32 isUsed;
 };
@@ -91,13 +89,12 @@ inline b32 IsControlledEntity(EntityStore *s, Entity *e)
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, Level *level);
 api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color);
-api_func void ConfigureCharacterEntity(Entity *e, CharacterStats stats);
+api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
-api_func void OrderEntityMovement(EntityStore *s, Entity *e, v2 target);
 api_func void UpdateEntities(EntityStore *s, f32 delta);
 
 api_func void DrawEntities(EntityStore *s);
-api_func void DrawEntityUI(EntityStore *s, SavFont *font, MemoryArena *arena);
+
 #endif

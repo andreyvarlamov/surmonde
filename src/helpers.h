@@ -30,6 +30,11 @@ inline v2 GetFloatPFromTileP(v2i tileP)
     return floatP;
 }
 
+inline b32 IsInRange(v2 from, v2 to, f32 range)
+{
+    return VecLengthSq(to - from) <= Square(range);
+}
+
 inline b32 AdvanceTimer(f32 *timer, f32 delta)
 {
     *timer -= delta;

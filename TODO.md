@@ -2,13 +2,12 @@
 
 ## Changelog
 
-- Integrate IMGUI
-- Play around with IMGUI
+- Line of sight immediate check function
+- Enemy AI states: Idle, Follow, Attack (WIP)
+- Actor order system (WIP)
 
 ## Planned
 
-- Line of sight immediate check function
-- Enemy AI states: Idle, Follow, Attack
 - Simplify attack AI
 - Player attacks
 - Death -- player; other entity
