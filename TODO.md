@@ -2,9 +2,10 @@
 
 ## Changelog
 
-- Line of sight immediate check function
-- Enemy AI states: Idle, Follow, Attack (WIP)
-- Actor order system (WIP)
+- Actor Debug UI + prerequisites
+- Entity id, name, some string prerequisites
+- Viewed entities array
+- Strings for enums as global var arrays
 
 ## Planned
 

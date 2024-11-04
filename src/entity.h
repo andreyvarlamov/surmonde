@@ -4,6 +4,7 @@
 #include "sav.h"
 #include "helpers.h"
 #include "navigation.h"
+#include "defines.h"
 
 struct Level;
 struct Entity;
@@ -15,6 +16,7 @@ enum ActorAiState
     ACTOR_AI_FOLLOW,
     ACTOR_AI_COMBAT
 };
+global_var char *ActorAiStateString[] = {"Init", "Idle", "Follow", "Combat"};
 
 enum ActorOrderType
 {
@@ -22,6 +24,7 @@ enum ActorOrderType
     ACTOR_ORDER_MOVE_TO_TARGET,
     ACTOR_ORDER_FOLLOW_ENTITY,
 };
+global_var char *ActorOrderTypeString[] = {"None", "Move To Target", "Follow Entity"};
 
 struct ActorOrder
 {
@@ -45,6 +48,8 @@ struct ActorStats
 
 struct Entity
 {
+    i64 id;
+    
     v2 p;
     f32 yawDeg;
 
@@ -52,6 +57,8 @@ struct Entity
 
     int atlasValue;
     v4 color;
+
+    char name[ENTITY_NAME_CHARS];
 
     ActorStats stats;
 
@@ -88,9 +95,10 @@ inline b32 IsControlledEntity(EntityStore *s, Entity *e)
 }
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, Level *level);
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color);
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color, CountedString name);
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
+api_func Entity *GetEntityAt(EntityStore *s, v2 p);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
 api_func void UpdateEntities(EntityStore *s, f32 delta);

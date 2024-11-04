@@ -34,7 +34,6 @@ void __debugbreak(); // usually in <intrin.h>
 #define Breakpoint __debugbreak()
 
 #define ArrayCount(Array) (sizeof((Array)) / (sizeof((Array)[0])))
-
 #define Kilobytes(Value) (         (Value) * 1024LL)
 #define Megabytes(Value) (Kilobytes(Value) * 1024LL)
 #define Gigabytes(Value) (Megabytes(Value) * 1024LL)
@@ -551,6 +550,11 @@ inline FourV2 RectGetPoints(Rect r)
     return points;
 }
 
+inline b32 InBounds(v2 min, v2 max, v2 p)
+{
+    return (p.x >= min.x && p.x <= max.x && p.y >= min.y && p.y <= max.y);
+}
+
 inline v2 GetUnitVecFromAngle(f32 rads)
 {
     v2 result;
@@ -622,6 +626,46 @@ inline v2 MoveToward(v2 from, v2 to, f32 dP)
         return from + diff / dist * dP;
     }
 }
+
+// SECTION String
+struct CountedString
+{
+    size_t size;
+    char *string;
+};
+
+inline CountedString MakeCountedString(char *string, size_t size)
+{
+    CountedString result;
+    result.size = size;
+    result.string = string;
+    return result;
+}
+
+inline CountedString MakeCountedString(char *string)
+{
+    CountedString result;
+    result.size = strlen(string);
+    result.string = string;
+    return result;
+}
+
+struct StringBuffer
+{
+    size_t size;
+    char *string;
+};
+
+inline StringBuffer MakeStringBuffer(char *string, size_t size)
+{
+    StringBuffer result;
+    result.size = size;
+    result.string = string;
+    return result;
+}
+
+#define MakeStringBufferOnStack(BUFFER_NAME, SIZE) char BUFFER_NAME ## _localVar[SIZE]; \
+    StringBuffer BUFFER_NAME = MakeStringBuffer(BUFFER_NAME ## _localVar, SIZE);
 
 // SECTION Memory arena
 struct MemoryArena
@@ -1194,6 +1238,8 @@ sav_func void TraceLogPartialStart(const char *format, ...);
 sav_func void TraceLogPartial(const char *format, ...);
 sav_func void TraceError(const char *format, ...);
 sav_func void Memset(void *ptr, int value, size_t num);
+sav_func void Strcpy(char *dest, char *source);
+sav_func void StringFormat(char *format, StringBuffer outputBuffer, ...);
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
@@ -3363,6 +3409,19 @@ sav_func void TraceError(const char *format, ...)
 sav_func void Memset(void *ptr, int value, size_t num)
 {
     memset(ptr, value, num);
+}
+
+sav_func void Strcpy(char *dest, char *source)
+{
+    strcpy(dest, source);
+}
+
+sav_func void StringFormat(char *format, StringBuffer outputBuffer, ...)
+{
+    va_list varArgs;
+    va_start(varArgs, outputBuffer);
+    vsnprintf(outputBuffer.string, outputBuffer.size, format, varArgs);
+    va_end(varArgs);
 }
 
 // SECTION Random

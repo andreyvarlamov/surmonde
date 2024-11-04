@@ -21,6 +21,7 @@ struct GameState
     Level level;
     Camera2D camera;
     EntityStore entityStore;
+    Entity *viewedEntities[VIEWED_ENTITY_MAX];
 
     RunState runState;
 };

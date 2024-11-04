@@ -2,15 +2,16 @@
 #include <cstdio>
 #include <sdl2/SDL_scancode.h>
 #include <sdl2/SDL_mouse.h>
+#include <imgui.h>
+#include <backends/imgui_impl_sdl2.h>
+#include <backends/imgui_impl_opengl3.h>
 #include "sav.h"
 #include "level.h"
 #include "defines.h"
 #include "helpers.h"
 #include "draw.h"
 #include "debug_draw.h"
-#include <imgui.h>
-#include <backends/imgui_impl_sdl2.h>
-#include <backends/imgui_impl_opengl3.h>
+#include "ui_debug_actor.h"
 
 int main(int argc, char **argv)
 {
@@ -115,6 +116,33 @@ int main(int argc, char **argv)
                         SetTile(&gameState->level, tileP.x, tileP.y, wallTile);
                     }
                 }
+
+                if (MousePressed(SDL_BUTTON_MIDDLE))
+                {
+                    v2 p = CameraScreenToWorld(&gameState->camera, MousePos());
+                    p.x = p.x / gameState->entityStore.tilePxW;
+                    p.y = p.y / gameState->entityStore.tilePxH;
+                    Entity *clickedEntity = GetEntityAt(&gameState->entityStore, p);
+                    b32 disabled = false;
+                    Entity **addToThisSlot = NULL;
+                    for (int i = 0; i < VIEWED_ENTITY_MAX; i++)
+                    {
+                        Entity **viewedEntitySlot = gameState->viewedEntities + i;
+                        if (*viewedEntitySlot == clickedEntity)
+                        {
+                            *viewedEntitySlot = NULL;
+                            disabled = true;
+                        }
+                        else if (*viewedEntitySlot == NULL)
+                        {
+                            addToThisSlot = viewedEntitySlot;
+                        }
+                    }
+                    if (!disabled && addToThisSlot != NULL)
+                    {
+                        *addToThisSlot = clickedEntity;
+                    }
+                }
                 
                 if (KeyDown(SDL_SCANCODE_A))
                 {
@@ -151,6 +179,15 @@ int main(int argc, char **argv)
 
                     DrawFloaters((f32) GetDeltaFixed());
                 EndDraw();
+
+                for (int i = 0; i < VIEWED_ENTITY_MAX; i++)
+                {
+                    Entity *viewedEntity = gameState->viewedEntities[i];
+                    if (viewedEntity != NULL)
+                    {
+                        DrawDebugActorUI(&gameState->entityStore, viewedEntity);
+                    }
+                }
             } break;
         }
 
@@ -175,3 +212,4 @@ int main(int argc, char **argv)
 #include "navigation.cpp"
 #include "debug_draw.cpp"
 #include "vision.cpp"
+#include "ui_debug_actor.cpp"

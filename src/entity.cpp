@@ -22,9 +22,11 @@ api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextu
     return s;
 }
 
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color)
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color, CountedString name)
 {
     Entity e = {};
+    Assert(name.size < ENTITY_NAME_CHARS);
+    Strcpy(e.name, name.string);
     e.p = V2(x, y);
     e.level = level;
     e.atlasValue = atlasValue;
@@ -43,9 +45,26 @@ api_func Entity *AddEntity(EntityStore *s, Entity e)
 {
     // TODO: Slot reuse
     Assert(s->entityCount < s->entityMax);
+    e.id = s->entityCount;
     Entity *entityInStore = s->entities + s->entityCount++;
     *entityInStore = e;
     return entityInStore;
+}
+
+api_func Entity *GetEntityAt(EntityStore *s, v2 p)
+{
+    for (int i = 0; i < s->entityCount; i++)
+    {
+        Entity *e = s->entities + i;
+        v2 eMin = e->p - V2(0.5f, 0.5f);
+        v2 eMax = e->p + V2(0.5f, 0.5f);
+        if (InBounds(eMin, eMax, p))
+        {
+            return e;
+        }
+    }
+
+    return NULL;
 }
 
 internal_func void resetActorOrder(ActorOrder *order)
@@ -173,6 +192,7 @@ internal_func b32 navigateToTarget(Entity *e, v2 target, f32 dT, MemoryArena *ar
         else
         {
             // TODO: If path not found, communicate that somehow?
+            MemoryArenaUnfreeze(arena);
             return true;
         }
         MemoryArenaUnfreeze(arena);
@@ -199,6 +219,11 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
 
     switch(e->currentOrder.type)
     {
+        case ACTOR_ORDER_NONE:
+        {
+            // Do nothing
+        } break;
+        
         case ACTOR_ORDER_MOVE_TO_TARGET:
         {
             if (!e->currentOrder.isCompleted && navigateToTarget(e, e->currentOrder.movementTarget, dT, s->arena))
