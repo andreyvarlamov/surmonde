@@ -164,6 +164,12 @@ int main(int argc, char **argv)
                     debugEdgeTiles = !debugEdgeTiles;
                 }
 
+                if (gameState->entityStore.controlledEntity->currentOrder.isCompleted)
+                {
+                    gameState->entityStore.controlledEntity->currentOrder.type = ACTOR_ORDER_NONE;
+                    gameState->entityStore.controlledEntity->currentOrder.isCompleted = false;
+                }
+
                 UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
 
                 BeginDraw();

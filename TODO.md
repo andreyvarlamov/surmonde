@@ -2,14 +2,15 @@
 
 ## Changelog
 
-- Actor Debug UI + prerequisites
-- Entity id, name, some string prerequisites
-- Viewed entities array
-- Strings for enums as global var arrays
+- Entity Is Paused
+- Implement Actor AI Follow Order
+- Implement Actor AI Attack Order
+- Add data to go with AI state;  AI state determines if it needs to issue an order based on its intent
+- Implement Actor AI Attack State
+- Implement Actor AI Follow State
 
 ## Planned
 
-- Simplify attack AI
 - Player attacks
 - Death -- player; other entity
 - Controlling any character on the screen

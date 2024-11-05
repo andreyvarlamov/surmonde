@@ -9,22 +9,30 @@
 struct Level;
 struct Entity;
 
-enum ActorAiState
+enum ActorAiStateType
 {
     ACTOR_AI_INIT,
     ACTOR_AI_IDLE,
     ACTOR_AI_FOLLOW,
     ACTOR_AI_COMBAT
 };
-global_var char *ActorAiStateString[] = {"Init", "Idle", "Follow", "Combat"};
+global_var char *ActorAiStateTypeString[] = {"Init", "Idle", "Follow", "Combat"};
+
+struct ActorAiState
+{
+    ActorAiStateType type;
+
+    Entity *entityToFollow;
+};
 
 enum ActorOrderType
 {
     ACTOR_ORDER_NONE,
     ACTOR_ORDER_MOVE_TO_TARGET,
     ACTOR_ORDER_FOLLOW_ENTITY,
+    ACTOR_ORDER_ATTACK_ENTITY,
 };
-global_var char *ActorOrderTypeString[] = {"None", "Move To Target", "Follow Entity"};
+global_var char *ActorOrderTypeString[] = {"None", "Move To Target", "Follow Entity", "Attack Entity"};
 
 struct ActorOrder
 {
@@ -32,6 +40,8 @@ struct ActorOrder
 
     v2 movementTarget;
     Entity *followedEntity;
+    Entity *entityToAttack;
+    f32 attackTimer;
 
     b32 isCompleted;
 };
@@ -70,6 +80,7 @@ struct Entity
     v2 steerTarget;
 
     b32 isUsed;
+    b32 isPaused;
 };
 
 struct EntityStore

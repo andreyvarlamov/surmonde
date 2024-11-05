@@ -77,11 +77,11 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
 {
     Assert(e->stats.isConfigured);
 
-    switch (e->aiState)
+    switch (e->aiState.type)
     {
         case ACTOR_AI_INIT:
         {
-            e->aiState = ACTOR_AI_IDLE;
+            e->aiState.type = ACTOR_AI_IDLE;
         } break;
         
         case ACTOR_AI_IDLE:
@@ -107,36 +107,46 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
             {
                 resetActorOrder(&e->currentOrder);
 
-                // TODO: Not sure if the same state should both issue and handle order completion.
-                // I.e. the setting of e->currentOrder, doesn't happen until ACTOR_AI_FOLLOW state.
-                // For some reason I want it to do that, but I can't tell why.
-                // So I will ignore that intuition for now...
-                e->currentOrder.type = ACTOR_ORDER_FOLLOW_ENTITY;
-                e->currentOrder.followedEntity = s->controlledEntity;
-
-                e->aiState = ACTOR_AI_FOLLOW;
+                e->aiState.type = ACTOR_AI_FOLLOW;
+                e->aiState.entityToFollow = s->controlledEntity;
             }
         } break;
         
         case ACTOR_AI_FOLLOW:
         {
-            Assert(e->currentOrder.type == ACTOR_ORDER_FOLLOW_ENTITY);
-            if (IsInRange(e->p, e->currentOrder.followedEntity->p, e->stats.attackReach))
+            v2i entityPos = GetTilePFromFloatP(e->p);
+            v2i followedPos = GetTilePFromFloatP(e->aiState.entityToFollow->p);
+            if (!IsInLineOfSight(e->level, entityPos, followedPos, e->stats.viewRadius))
             {
                 resetActorOrder(&e->currentOrder);
-
-                // TODO: Issue combat order here, or in ACTOR_AI_COMBAT?
-                
-                e->aiState = ACTOR_AI_COMBAT;
+                e->aiState.type = ACTOR_AI_IDLE;
             }
+            else if (IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
+            {
+                Entity *followedEntity = e->currentOrder.followedEntity;
+                
+                resetActorOrder(&e->currentOrder);
 
-            // TODO: If lost target (let's say invisible), return to IDLE.
-            // But should still go to last know location.
+                e->currentOrder.type = ACTOR_ORDER_ATTACK_ENTITY;
+                e->currentOrder.entityToAttack = followedEntity;
+                e->currentOrder.attackTimer = 0.0f;
+                e->aiState.type = ACTOR_AI_COMBAT;
+            }
+            else if (e->currentOrder.type != ACTOR_ORDER_FOLLOW_ENTITY || e->currentOrder.isCompleted)
+            {
+                resetActorOrder(&e->currentOrder);
+                e->currentOrder.type = ACTOR_ORDER_FOLLOW_ENTITY;
+                e->currentOrder.followedEntity = e->aiState.entityToFollow;
+            }
         } break;
 
         case ACTOR_AI_COMBAT:
         {
-            // TODO: Implement
+            if (e->currentOrder.isCompleted)
+            {
+                resetActorOrder(&e->currentOrder);
+                e->aiState.type = ACTOR_AI_IDLE;
+            }
         } break;
         
         default: InvalidCodePath; // Unhandled Actor AI state
@@ -234,27 +244,30 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
         
         case ACTOR_ORDER_FOLLOW_ENTITY:
         {
-            // TODO: Implement
+            if (!e->currentOrder.isCompleted && navigateToTarget(e, e->currentOrder.followedEntity->p, dT, s->arena))
+            {
+                e->currentOrder.isCompleted = true;
+            }
+        } break;
+
+        case ACTOR_ORDER_ATTACK_ENTITY:
+        {
+            if (!e->currentOrder.isCompleted)
+            {
+                if (e->currentOrder.attackTimer <= 0.0f)
+                {
+                    TraceLog("Attacked");
+                }
+                e->currentOrder.attackTimer += dT;
+                if (e->currentOrder.attackTimer >= 5.0f)
+                {
+                    e->currentOrder.isCompleted = true;
+                }
+            }
         } break;
 
         default: InvalidCodePath; // Unhandled actor order type
     }
-
-    // else if (e->brain.isOrderedFollow)
-    // {
-    //     moveEntity(e, e->brain.followedEntity->p, delta);
-    //     if (IsInRange(e->p, e->brain.followedEntity->p, 2.25f))
-    //     {
-    //         // TODO: Is this right?
-    //         // "Follow" means keep following, if they move away.
-    //         // But that's handled by ai state reverting back to idle and then following again.
-    //         e->brain.isOrderedFollow = false;
-    //     }
-    // }
-    // else if (e->brain.isOrderedMovement)
-    // {
-    //     // TraceLog("Moving towards: %.3f, %.3f", e->brain.pathNextTarget.x, e->brain.pathNextTarget.y);
-    // }
 }
 
 api_func void UpdateEntities(EntityStore *s, f32 delta)
@@ -263,12 +276,15 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
     {
         Entity *e = s->entities + entityIndex;
 
-        if (!IsControlledEntity(s, e))
+        if (!e->isPaused)
         {
-            processActorAI(s, e, delta);
-        }
+            if (!IsControlledEntity(s, e))
+            {
+                processActorAI(s, e, delta);
+            }
 
-        processActorOrders(s, e, delta);
+            processActorOrders(s, e, delta);
+        }
     }
 
     Entity *controlled = s->controlledEntity;
