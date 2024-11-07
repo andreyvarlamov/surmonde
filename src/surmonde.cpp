@@ -88,16 +88,26 @@ int main(int argc, char **argv)
 
             case RS_GAME_RUNNING:
             {
-                if (MousePressed(SDL_BUTTON_RIGHT))
+                if (MouseDown(SDL_BUTTON_RIGHT))
                 {
                     v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
                     target.x = target.x / gameState->entityStore.tilePxW;
                     target.y = target.y / gameState->entityStore.tilePxH;
                     TraceLog("Target: %.3f, %.3f", target.x, target.y);
 
-                    // TODO: How to handle completion of order (type needs to be set to NONE and isCompleted to false)
-                    gameState->entityStore.controlledEntity->currentOrder.type = ACTOR_ORDER_MOVE_TO_TARGET;
-                    gameState->entityStore.controlledEntity->currentOrder.movementTarget = target;
+                    
+                    Entity *clickedEntity = GetEntityAt(&gameState->entityStore, target);
+
+                    if (clickedEntity)
+                    {
+                        // gameState->entityStore.controlledEntity->aiState.type =
+                        TraceLog("Clicked entity %s", clickedEntity->name);
+                    }
+                    else
+                    {
+                        gameState->entityStore.controlledEntity->aiState.type = ACTOR_AI_MOVE_TO_TARGET;
+                        gameState->entityStore.controlledEntity->aiState.movementTarget = target;
+                    }
                 }
 
                 if (MousePressed(SDL_BUTTON_LEFT))
@@ -162,12 +172,6 @@ int main(int argc, char **argv)
                 if (KeyPressed(SDL_SCANCODE_F1))
                 {
                     debugEdgeTiles = !debugEdgeTiles;
-                }
-
-                if (gameState->entityStore.controlledEntity->currentOrder.isCompleted)
-                {
-                    gameState->entityStore.controlledEntity->currentOrder.type = ACTOR_ORDER_NONE;
-                    gameState->entityStore.controlledEntity->currentOrder.isCompleted = false;
                 }
 
                 UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());

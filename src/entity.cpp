@@ -73,6 +73,25 @@ internal_func void resetActorOrder(ActorOrder *order)
     order->isCompleted = false;
 }
 
+api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget)
+{
+    if (e->currentOrder.type == ACTOR_ORDER_MOVE_TO_TARGET && VecEqualExact(e->currentOrder.movementTarget, movementTarget))
+    {
+        b32 isCompleted = e->currentOrder.isCompleted;
+        if (isCompleted)
+        {
+            resetActorOrder(&e->currentOrder);
+        }
+        return isCompleted;
+    }
+    else
+    {
+        e->currentOrder.type = ACTOR_ORDER_MOVE_TO_TARGET;
+        e->currentOrder.movementTarget = movementTarget;
+        return false;
+    }
+}
+
 internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
 {
     Assert(e->stats.isConfigured);
@@ -83,32 +102,41 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
         {
             e->aiState.type = ACTOR_AI_IDLE;
         } break;
-        
+
         case ACTOR_AI_IDLE:
         {
-            Assert(e->currentOrder.type == ACTOR_ORDER_NONE || e->currentOrder.type == ACTOR_ORDER_MOVE_TO_TARGET);
-            
-            if (e->currentOrder.type == ACTOR_ORDER_NONE)
+            if (!IsControlledEntity(s, e))
             {
-                if (RandomChance(0.5f))
+                if (!e->aiState.hasRandomTarget)
                 {
-                    e->currentOrder.type = ACTOR_ORDER_MOVE_TO_TARGET;
-                    e->currentOrder.movementTarget = e->p + GetRandomVec(5.0f);
+                    if (RandomChance(0.5f))
+                    {
+                        e->aiState.hasRandomTarget = true;
+                        e->aiState.movementTarget = e->p + GetRandomVec(5.0f);
+                    }
+                }
+                else if (OrderEntityMoveToTarget(e, e->aiState.movementTarget))
+                {
+                    e->aiState.hasRandomTarget = false;
+                }
+            
+                v2i entityPos = GetTilePFromFloatP(e->p);
+                v2i playerPos = GetTilePFromFloatP(s->controlledEntity->p);
+                if (IsInLineOfSight(e->level, entityPos, playerPos, e->stats.viewRadius))
+                {
+                    resetActorOrder(&e->currentOrder);
+
+                    e->aiState.type = ACTOR_AI_FOLLOW;
+                    e->aiState.entityToFollow = s->controlledEntity;
                 }
             }
-            else if (e->currentOrder.type == ACTOR_ORDER_MOVE_TO_TARGET && e->currentOrder.isCompleted)
-            {
-                resetActorOrder(&e->currentOrder);
-            }
-            
-            v2i entityPos = GetTilePFromFloatP(e->p);
-            v2i playerPos = GetTilePFromFloatP(s->controlledEntity->p);
-            if (IsInLineOfSight(e->level, entityPos, playerPos, e->stats.viewRadius))
-            {
-                resetActorOrder(&e->currentOrder);
+        } break;
 
-                e->aiState.type = ACTOR_AI_FOLLOW;
-                e->aiState.entityToFollow = s->controlledEntity;
+        case ACTOR_AI_MOVE_TO_TARGET:
+        {
+            if (OrderEntityMoveToTarget(e, e->aiState.movementTarget))
+            {
+                e->aiState.type = ACTOR_AI_IDLE;
             }
         } break;
         
@@ -278,7 +306,7 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
 
         if (!e->isPaused)
         {
-            if (!IsControlledEntity(s, e))
+            // if (!IsControlledEntity(s, e))
             {
                 processActorAI(s, e, delta);
             }

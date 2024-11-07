@@ -35,7 +35,7 @@ api_func void DrawDebugActorUI(EntityStore *s, Entity *e)
         } break;
 
         case ACTOR_ORDER_ATTACK_ENTITY:
-        {
+        { 
             ImGui::Text("Entity to Attack: %s (%lld)", e->currentOrder.entityToAttack->name, e->currentOrder.entityToAttack->id);
             ImGui::Text("Attack Timer: %.2f", e->currentOrder.attackTimer);
         } break;

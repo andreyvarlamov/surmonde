@@ -13,15 +13,18 @@ enum ActorAiStateType
 {
     ACTOR_AI_INIT,
     ACTOR_AI_IDLE,
+    ACTOR_AI_MOVE_TO_TARGET,
     ACTOR_AI_FOLLOW,
     ACTOR_AI_COMBAT
 };
-global_var char *ActorAiStateTypeString[] = {"Init", "Idle", "Follow", "Combat"};
+global_var char *ActorAiStateTypeString[] = {"Init", "Idle", "Move To Target", "Follow", "Combat"};
 
 struct ActorAiState
 {
     ActorAiStateType type;
 
+    b32 hasRandomTarget;
+    v2 movementTarget;
     Entity *entityToFollow;
 };
 
@@ -73,7 +76,6 @@ struct Entity
     ActorStats stats;
 
     ActorAiState aiState;
-    
     ActorOrder currentOrder; // TODO: Order queue
 
     b32 steerTargetActive;
@@ -110,6 +112,8 @@ api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color,
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 api_func Entity *GetEntityAt(EntityStore *s, v2 p);
+
+api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
 api_func void UpdateEntities(EntityStore *s, f32 delta);

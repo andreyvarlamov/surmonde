@@ -2,12 +2,8 @@
 
 ## Changelog
 
-- Entity Is Paused
-- Implement Actor AI Follow Order
-- Implement Actor AI Attack Order
-- Add data to go with AI state;  AI state determines if it needs to issue an order based on its intent
-- Implement Actor AI Attack State
-- Implement Actor AI Follow State
+- Player movement through AI
+- Some entity order functions
 
 ## Planned
 
