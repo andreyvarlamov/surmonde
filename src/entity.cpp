@@ -67,13 +67,33 @@ api_func Entity *GetEntityAt(EntityStore *s, v2 p)
     return NULL;
 }
 
+api_func void EntityDie(Entity *e)
+{
+    TraceLog("%s dies.", e->name);
+    e->isUsed = false;
+}
+
+api_func f32 EntitySetHealth(EntityStore *s, Entity *e, f32 health)
+{
+    f32 delta = health - e->stats.health;
+    if (!PLAYER_GOD_MODE || !IsControlledEntity(s, e) || delta > 0.0f)
+    {
+        e->stats.health = health;
+        if (e->stats.health < 0.0f)
+        {
+            EntityDie(e);
+        }
+    }
+    return delta;
+}
+
 internal_func void resetActorOrder(ActorOrder *order)
 {
     order->type = ACTOR_ORDER_NONE;
     order->isCompleted = false;
 }
 
-api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget)
+internal_func b32 orderMoveToTarget(Entity *e, v2 movementTarget)
 {
     if (e->currentOrder.type == ACTOR_ORDER_MOVE_TO_TARGET && VecEqualExact(e->currentOrder.movementTarget, movementTarget))
     {
@@ -88,6 +108,45 @@ api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget)
     {
         e->currentOrder.type = ACTOR_ORDER_MOVE_TO_TARGET;
         e->currentOrder.movementTarget = movementTarget;
+        return false;
+    }
+}
+
+internal_func b32 orderFollowEntity(Entity *e, Entity *entityToFollow)
+{
+    if (e->currentOrder.type == ACTOR_ORDER_FOLLOW_ENTITY && e->currentOrder.entityToFollow == entityToFollow)
+    {
+        b32 isCompleted = e->currentOrder.isCompleted;
+        if (isCompleted)
+        {
+            resetActorOrder(&e->currentOrder);
+        }
+        return isCompleted;
+    }
+    else
+    {
+        e->currentOrder.type = ACTOR_ORDER_FOLLOW_ENTITY;
+        e->currentOrder.entityToFollow = entityToFollow;
+        return false;
+    }
+}
+
+internal_func b32 orderAttackEntity(Entity *e, Entity *entityToAttack)
+{
+    if (e->currentOrder.type == ACTOR_ORDER_ATTACK_ENTITY && e->currentOrder.entityToAttack == entityToAttack)
+    {
+        b32 isCompleted = e->currentOrder.isCompleted;
+        if (isCompleted)
+        {
+            resetActorOrder(&e->currentOrder);
+        }
+        return isCompleted;
+    }
+    else
+    {
+        e->currentOrder.type = ACTOR_ORDER_ATTACK_ENTITY;
+        e->currentOrder.entityToAttack = entityToAttack;
+        e->currentOrder.attackTimer = 0.0f;
         return false;
     }
 }
@@ -115,7 +174,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                         e->aiState.movementTarget = e->p + GetRandomVec(5.0f);
                     }
                 }
-                else if (OrderEntityMoveToTarget(e, e->aiState.movementTarget))
+                else if (orderMoveToTarget(e, e->aiState.movementTarget))
                 {
                     e->aiState.hasRandomTarget = false;
                 }
@@ -126,7 +185,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                 {
                     resetActorOrder(&e->currentOrder);
 
-                    e->aiState.type = ACTOR_AI_FOLLOW;
+                    e->aiState.type = ACTOR_AI_FOLLOW_ENTITY;
                     e->aiState.entityToFollow = s->controlledEntity;
                 }
             }
@@ -134,46 +193,57 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
 
         case ACTOR_AI_MOVE_TO_TARGET:
         {
-            if (OrderEntityMoveToTarget(e, e->aiState.movementTarget))
+            if (orderMoveToTarget(e, e->aiState.movementTarget))
             {
                 e->aiState.type = ACTOR_AI_IDLE;
             }
         } break;
         
-        case ACTOR_AI_FOLLOW:
+        case ACTOR_AI_FOLLOW_ENTITY:
         {
-            v2i entityPos = GetTilePFromFloatP(e->p);
-            v2i followedPos = GetTilePFromFloatP(e->aiState.entityToFollow->p);
-            if (!IsInLineOfSight(e->level, entityPos, followedPos, e->stats.viewRadius))
+            if (orderFollowEntity(e, e->aiState.entityToFollow))
+            {
+                orderFollowEntity(e, e->aiState.entityToFollow);
+            }
+            
+            if (!IsInLineOfSight(e->level, e->p, e->aiState.entityToFollow->p, e->stats.viewRadius))
             {
                 resetActorOrder(&e->currentOrder);
+                
                 e->aiState.type = ACTOR_AI_IDLE;
             }
             else if (IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
             {
-                Entity *followedEntity = e->currentOrder.followedEntity;
-                
                 resetActorOrder(&e->currentOrder);
 
-                e->currentOrder.type = ACTOR_ORDER_ATTACK_ENTITY;
-                e->currentOrder.entityToAttack = followedEntity;
-                e->currentOrder.attackTimer = 0.0f;
                 e->aiState.type = ACTOR_AI_COMBAT;
-            }
-            else if (e->currentOrder.type != ACTOR_ORDER_FOLLOW_ENTITY || e->currentOrder.isCompleted)
-            {
-                resetActorOrder(&e->currentOrder);
-                e->currentOrder.type = ACTOR_ORDER_FOLLOW_ENTITY;
-                e->currentOrder.followedEntity = e->aiState.entityToFollow;
+                e->aiState.entityToAttack = e->aiState.entityToFollow;
             }
         } break;
 
         case ACTOR_AI_COMBAT:
         {
-            if (e->currentOrder.isCompleted)
+            if (orderAttackEntity(e, e->aiState.entityToAttack))
             {
-                resetActorOrder(&e->currentOrder);
-                e->aiState.type = ACTOR_AI_IDLE;
+                if (!IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
+                {
+                    resetActorOrder(&e->currentOrder);
+
+                    
+                    if (IsInLineOfSight(e->level, e->p, e->aiState.entityToAttack->p, e->stats.viewRadius))
+                    {
+                        e->aiState.type = ACTOR_AI_FOLLOW_ENTITY;
+                        e->aiState.entityToFollow = e->aiState.entityToAttack;
+                    }
+                    else
+                    {
+                        e->aiState.type = ACTOR_AI_IDLE;
+                    }
+                }
+                else
+                {
+                    orderAttackEntity(e, e->aiState.entityToAttack);
+                }
             }
         } break;
         
@@ -272,7 +342,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
         
         case ACTOR_ORDER_FOLLOW_ENTITY:
         {
-            if (!e->currentOrder.isCompleted && navigateToTarget(e, e->currentOrder.followedEntity->p, dT, s->arena))
+            if (!e->currentOrder.isCompleted && navigateToTarget(e, e->currentOrder.entityToFollow->p, dT, s->arena))
             {
                 e->currentOrder.isCompleted = true;
             }
@@ -284,10 +354,11 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
             {
                 if (e->currentOrder.attackTimer <= 0.0f)
                 {
-                    TraceLog("Attacked");
+                    f32 delta = EntitySetHealth(s, e->currentOrder.entityToAttack, e->currentOrder.entityToAttack->stats.health - 10.0f);
+                    TraceLog("%s attacks %s for %.0f damage", e->name, e->currentOrder.entityToAttack->name, -delta);
                 }
                 e->currentOrder.attackTimer += dT;
-                if (e->currentOrder.attackTimer >= 5.0f)
+                if (e->currentOrder.attackTimer >= 2.0f)
                 {
                     e->currentOrder.isCompleted = true;
                 }
@@ -304,7 +375,7 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
     {
         Entity *e = s->entities + entityIndex;
 
-        if (!e->isPaused)
+        if (e->isUsed && !e->isPaused)
         {
             // if (!IsControlledEntity(s, e))
             {
@@ -322,8 +393,18 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
 
 api_func void DrawEntities(EntityStore *s)
 {
-    int vertCount = s->entityCount * 4;
-    int indexCount = s->entityCount * 6;
+    int entitiesToDraw = 0;
+    for (int i = 0; i < s->entityCount; i++)
+    {
+        if (s->entities[i].isUsed) entitiesToDraw++;
+    }
+    if (entitiesToDraw == 0)
+    {
+        return;
+    }
+    
+    int vertCount = entitiesToDraw * 4;
+    int indexCount = entitiesToDraw * 6;
 
     MemoryArenaFreeze(s->arena);
 
@@ -340,6 +421,10 @@ api_func void DrawEntities(EntityStore *s)
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
         Entity *e = s->entities + entityIndex;
+        if (!e->isUsed)
+        {
+            continue;
+        }
 
         f32 pxX = e->p.x * s->tilePxW - halfTilePxW;
         f32 pxY = e->p.y * s->tilePxH - halfTilePxH;
@@ -384,6 +469,10 @@ api_func void DrawEntities(EntityStore *s)
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
         Entity *e = s->entities + entityIndex;
+        if (!e->isUsed)
+        {
+            continue;
+        }
 
         if (!IsControlledEntity(s, e))
         {

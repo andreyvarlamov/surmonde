@@ -214,6 +214,8 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.attackReach = 1.0f;
     stats.combatRadius = 2.0f;
     stats.speed = 10.0f;
+    stats.health = 100.0f;
+    stats.maxHealth = 100.0f;
     Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, 0, V4(1,1,1,1), MakeCountedString("Player"));
     ConfigureActorEntity(&playerEntity, stats);
     Entity *addedEntity = AddEntity(entityStore, playerEntity);

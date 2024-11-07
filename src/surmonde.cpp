@@ -100,8 +100,8 @@ int main(int argc, char **argv)
 
                     if (clickedEntity)
                     {
-                        // gameState->entityStore.controlledEntity->aiState.type =
-                        TraceLog("Clicked entity %s", clickedEntity->name);
+                        gameState->entityStore.controlledEntity->aiState.type = ACTOR_AI_FOLLOW_ENTITY;
+                        gameState->entityStore.controlledEntity->aiState.entityToFollow = clickedEntity;
                     }
                     else
                     {

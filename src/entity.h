@@ -14,10 +14,10 @@ enum ActorAiStateType
     ACTOR_AI_INIT,
     ACTOR_AI_IDLE,
     ACTOR_AI_MOVE_TO_TARGET,
-    ACTOR_AI_FOLLOW,
+    ACTOR_AI_FOLLOW_ENTITY,
     ACTOR_AI_COMBAT
 };
-global_var char *ActorAiStateTypeString[] = {"Init", "Idle", "Move To Target", "Follow", "Combat"};
+global_var char *ActorAiStateTypeString[] = {"Init", "Idle", "Move To Target", "Follow Entity", "Combat"};
 
 struct ActorAiState
 {
@@ -26,6 +26,7 @@ struct ActorAiState
     b32 hasRandomTarget;
     v2 movementTarget;
     Entity *entityToFollow;
+    Entity *entityToAttack;
 };
 
 enum ActorOrderType
@@ -42,7 +43,7 @@ struct ActorOrder
     ActorOrderType type;
 
     v2 movementTarget;
-    Entity *followedEntity;
+    Entity *entityToFollow;
     Entity *entityToAttack;
     f32 attackTimer;
 
@@ -57,6 +58,9 @@ struct ActorStats
     f32 attackReach;
     f32 speed;
     f32 combatRadius;
+
+    f32 health;
+    f32 maxHealth;
 };
 
 struct Entity

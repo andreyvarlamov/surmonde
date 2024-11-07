@@ -57,6 +57,13 @@ api_func b32 IsInLineOfSight(Level *level, v2i from, v2i target, i32 rangeLimit)
     return canTraceLine(level, from, target.x, target.y, Square(rangeLimit));
 }
 
+api_func b32 IsInLineOfSight(Level *level, v2 from, v2 target, i32 rangeLimit)
+{
+    v2i fromTile = GetTilePFromFloatP(from);
+    v2i targetTile = GetTilePFromFloatP(target);
+    return canTraceLine(level, fromTile, targetTile.x, targetTile.y, Square(rangeLimit));
+}
+
 api_func void CalculateVision(Level *level, v2i p, i32 rangeLimit, u8 *visibleTiles)
 {
     Memset(visibleTiles, 0, level->w * level->h);

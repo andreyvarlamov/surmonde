@@ -2,13 +2,14 @@
 
 ## Changelog
 
-- Player movement through AI
-- Some entity order functions
+- Player attacking
+- More order functions
+- Death -- player; other entity (WIP)
 
 ## Planned
 
-- Player attacks
-- Death -- player; other entity
+- Death -- make sure everyone is aware they're dead
+- When an actor gets attacked they should automatically go into combat
 - Controlling any character on the screen
 - Considering entities for collisions
 - Considering entities for line of sight
@@ -19,6 +20,7 @@
 
 ### Definitely for first pass
 
+- Game log
 - Some bug with pathfinding (goes in the wrong direction at first)
 - Inventory and items
 - Machines, processing, basic crafting

@@ -18,5 +18,6 @@
 #define LEVEL_MESH_MAX_EDGES 16384
 #define ENTITY_NAME_CHARS 128
 #define VIEWED_ENTITY_MAX 32
+#define PLAYER_GOD_MODE true
 
 #endif
