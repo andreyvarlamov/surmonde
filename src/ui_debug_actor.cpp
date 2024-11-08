@@ -11,8 +11,14 @@ api_func void DrawDebugActorUI(EntityStore *s, Entity *e)
 
     ImGui::Text("Entity %lld (%p)", e->id, e);
     ImGui::Checkbox("Is Paused", (bool *)&e->isPaused);
+    ImGui::Text("Position: %.2f, %.2f", e->p.x, e->p.y);
     ImGui::Text("Name: %s", e->name);
+    ImGui::Text("Is Used: %s", e->isUsed ? "true" : "false");
+    ImGui::Text("Is Blocking: %s", e->isBlocking ? "true" : "false");
+    ImGui::Text("Is Opaque: %s", e->isOpaque ? "true" : "false");
     ImGui::Text("Health: %.0f/%.0f", e->stats.health, e->stats.maxHealth);
+
+    
     ImGui::Text("Is Controlled: %s", IsControlledEntity(s, e) ? "true" : "false");
     ImGui::Text("AI State: %s", ActorAiStateTypeString[e->aiState.type]);
     ImGui::Text("Current Order: %s", ActorOrderTypeString[e->currentOrder.type]);

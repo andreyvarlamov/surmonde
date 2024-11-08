@@ -22,16 +22,22 @@ api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextu
     return s;
 }
 
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color, CountedString name)
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color, CountedString name, b32 isBlocking, b32 isOpaque)
 {
     Entity e = {};
+    
     Assert(name.size < ENTITY_NAME_CHARS);
     Strcpy(e.name, name.string);
+
     e.p = V2(x, y);
     e.level = level;
     e.atlasValue = atlasValue;
     e.color = color;
+    e.isBlocking = isBlocking;
+    e.isOpaque = isOpaque;
+
     e.isUsed = true;
+
     return e;
 }
 
@@ -53,36 +59,88 @@ api_func Entity *AddEntity(EntityStore *s, Entity e)
 
 api_func Entity *GetEntityAt(EntityStore *s, v2 p)
 {
+    Entity *result = NULL;
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        v2 eMin = e->p - V2(0.5f, 0.5f);
-        v2 eMax = e->p + V2(0.5f, 0.5f);
-        if (InBounds(eMin, eMax, p))
+        if (e->isUsed)
         {
-            return e;
+            v2 eMin = e->p - V2(0.5f, 0.5f);
+            v2 eMax = e->p + V2(0.5f, 0.5f);
+            if (InBounds(eMin, eMax, p))
+            {
+                result = e;
+                break;
+            }
         }
     }
-
-    return NULL;
+    return result;
 }
 
-api_func void EntityDie(Entity *e)
+api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile)
+{
+#if 1
+    b32 result = false;
+    for (int i = 0; i < s->entityCount; i++)
+    {
+        Entity *e = s->entities + i;
+        if (e->isUsed && e->isBlocking && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
+        {
+            result = true;
+            break;
+        }
+    }
+    return result;
+#else
+    return false;
+#endif
+}
+
+api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile)
+{
+#if 1
+    b32 result = false;
+    for (int i = 0; i < s->entityCount; i++)
+    {
+        Entity *e = s->entities + i;
+        if (e->isUsed && e->isOpaque && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
+        {
+            result = true;
+            break;
+        }
+    }
+    return result;
+#else
+    return false;
+#endif
+}
+
+api_func void ResetActorAI(Entity *e)
+{
+    e->aiState.type = ACTOR_AI_INIT;
+}
+
+internal_func void entityDie(Entity *e)
 {
     TraceLog("%s dies.", e->name);
     e->isUsed = false;
 }
 
-api_func f32 EntitySetHealth(EntityStore *s, Entity *e, f32 health)
+internal_func f32 entitySetHealth(EntityStore *s, Entity *e, f32 health)
 {
-    f32 delta = health - e->stats.health;
-    if (!PLAYER_GOD_MODE || !IsControlledEntity(s, e) || delta > 0.0f)
+    f32 delta = 0.0f;
+    b32 godMode = PLAYER_GOD_MODE;
+    if (!godMode || !IsControlledEntity(s, e) || delta > 0.0f)
     {
+        f32 oldHealth = e->stats.health;
         e->stats.health = health;
-        if (e->stats.health < 0.0f)
+        if (e->stats.health < 0.1f)
         {
-            EntityDie(e);
+            e->stats.health = 0.0f;
+            health = 0.0f;
+            entityDie(e);
         }
+        delta = health - oldHealth;
     }
     return delta;
 }
@@ -151,6 +209,15 @@ internal_func b32 orderAttackEntity(Entity *e, Entity *entityToAttack)
     }
 }
 
+internal_func b32 canEntitySeePosition(EntityStore *s, Entity *e, v2 p)
+{
+    b32 oldIsOpaque = e->isOpaque;
+    e->isOpaque = false;
+    b32 result = IsInLineOfSight(e->level, s, e->p, p, e->stats.viewRadius);
+    e->isOpaque = oldIsOpaque;
+    return result;
+}
+
 internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
 {
     Assert(e->stats.isConfigured);
@@ -159,6 +226,8 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
     {
         case ACTOR_AI_INIT:
         {
+            resetActorOrder(&e->currentOrder);
+            e->aiState = {};
             e->aiState.type = ACTOR_AI_IDLE;
         } break;
 
@@ -179,9 +248,9 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                     e->aiState.hasRandomTarget = false;
                 }
             
-                v2i entityPos = GetTilePFromFloatP(e->p);
-                v2i playerPos = GetTilePFromFloatP(s->controlledEntity->p);
-                if (IsInLineOfSight(e->level, entityPos, playerPos, e->stats.viewRadius))
+                if (s->controlledEntity != NULL &&
+                    s->controlledEntity->isUsed &&
+                    canEntitySeePosition(s, e, s->controlledEntity->p))
                 {
                     resetActorOrder(&e->currentOrder);
 
@@ -206,16 +275,14 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                 orderFollowEntity(e, e->aiState.entityToFollow);
             }
             
-            if (!IsInLineOfSight(e->level, e->p, e->aiState.entityToFollow->p, e->stats.viewRadius))
+            if (!e->aiState.entityToFollow->isUsed ||!canEntitySeePosition(s, e, s->controlledEntity->p))
             {
                 resetActorOrder(&e->currentOrder);
-                
                 e->aiState.type = ACTOR_AI_IDLE;
             }
             else if (IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
             {
                 resetActorOrder(&e->currentOrder);
-
                 e->aiState.type = ACTOR_AI_COMBAT;
                 e->aiState.entityToAttack = e->aiState.entityToFollow;
             }
@@ -225,12 +292,16 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
         {
             if (orderAttackEntity(e, e->aiState.entityToAttack))
             {
-                if (!IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
+                if (!e->aiState.entityToAttack->isUsed)
+                {
+                    resetActorOrder(&e->currentOrder);
+                    e->aiState.type = ACTOR_AI_IDLE;
+                }
+                else if (!IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
                 {
                     resetActorOrder(&e->currentOrder);
 
-                    
-                    if (IsInLineOfSight(e->level, e->p, e->aiState.entityToAttack->p, e->stats.viewRadius))
+                    if (canEntitySeePosition(s, e, s->controlledEntity->p))
                     {
                         e->aiState.type = ACTOR_AI_FOLLOW_ENTITY;
                         e->aiState.entityToFollow = e->aiState.entityToAttack;
@@ -286,12 +357,19 @@ internal_func b32 steerEntity(Entity *e, v2 target, f32 delta)
     return targetReached;
 }
 
-internal_func b32 navigateToTarget(Entity *e, v2 target, f32 dT, MemoryArena *arena)
+internal_func b32 navigateToTarget(EntityStore *s, Entity *e, v2 target, f32 dT, MemoryArena *arena)
 {
     if (!e->steerTargetActive)
     {
         MemoryArenaFreeze(arena);
-        NavPath path = NavPathToTarget(e->level, e->p, target, arena);
+        
+        b32 oldIsBlocking = e->isBlocking;
+        e->isBlocking = false;
+
+        NavPath path = NavPathToTarget(e->level, s, e->p, target, arena);
+
+        e->isBlocking = oldIsBlocking;
+        
         if (path.found && !path.alreadyAtTarget)
         {
             e->steerTarget = path.path[0];
@@ -321,6 +399,18 @@ internal_func b32 navigateToTarget(Entity *e, v2 target, f32 dT, MemoryArena *ar
     return false;
 }
 
+internal_func b32 navigateToEntity(EntityStore *s, Entity *e, Entity *targetEntity, f32 dT, MemoryArena *arena)
+{
+    b32 oldTargetIsBlocking = targetEntity->isBlocking;
+    targetEntity->isBlocking = false;
+            
+    b32 navigateDone = navigateToTarget(s, e, targetEntity->p, dT, s->arena);
+
+    targetEntity->isBlocking = oldTargetIsBlocking;
+
+    return navigateDone;
+}
+
 internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
 {
     Assert(e->stats.isConfigured);
@@ -334,7 +424,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
         
         case ACTOR_ORDER_MOVE_TO_TARGET:
         {
-            if (!e->currentOrder.isCompleted && navigateToTarget(e, e->currentOrder.movementTarget, dT, s->arena))
+            if (!e->currentOrder.isCompleted && navigateToTarget(s, e, e->currentOrder.movementTarget, dT, s->arena))
             {
                 e->currentOrder.isCompleted = true;
             }
@@ -342,7 +432,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
         
         case ACTOR_ORDER_FOLLOW_ENTITY:
         {
-            if (!e->currentOrder.isCompleted && navigateToTarget(e, e->currentOrder.entityToFollow->p, dT, s->arena))
+            if (!e->currentOrder.isCompleted && navigateToEntity(s, e, e->currentOrder.entityToFollow, dT, s->arena))
             {
                 e->currentOrder.isCompleted = true;
             }
@@ -352,10 +442,10 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
         {
             if (!e->currentOrder.isCompleted)
             {
-                if (e->currentOrder.attackTimer <= 0.0f)
+                if (e->currentOrder.attackTimer <= 0.0f && e->currentOrder.entityToAttack->isUsed)
                 {
-                    f32 delta = EntitySetHealth(s, e->currentOrder.entityToAttack, e->currentOrder.entityToAttack->stats.health - 10.0f);
-                    TraceLog("%s attacks %s for %.0f damage", e->name, e->currentOrder.entityToAttack->name, -delta);
+                    f32 delta = entitySetHealth(s, e->currentOrder.entityToAttack, e->currentOrder.entityToAttack->stats.health - 10.0f);
+                    TraceLog("%s attacks %s for %.0f damage", e->name, e->currentOrder.entityToAttack->name, delta != 0.0f ? -delta : 0.0f);
                 }
                 e->currentOrder.attackTimer += dT;
                 if (e->currentOrder.attackTimer >= 2.0f)
@@ -377,18 +467,23 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
 
         if (e->isUsed && !e->isPaused)
         {
-            // if (!IsControlledEntity(s, e))
-            {
-                processActorAI(s, e, delta);
-            }
-
+            processActorAI(s, e, delta);
             processActorOrders(s, e, delta);
         }
     }
 
-    Entity *controlled = s->controlledEntity;
-    v2i tileP = GetTilePFromFloatP(controlled->p);
-    CalculateVision(controlled->level, tileP, controlled->stats.viewRadius, s->controlledEntityVisibleTiles);
+    if (s->controlledEntity == NULL || !s->controlledEntity->isUsed)
+    {
+        s->controlledEntity = NULL;
+    }
+    else
+    {
+        b32 oldIsOpaque = s->controlledEntity->isOpaque;
+        s->controlledEntity->isOpaque = false;
+        v2i tileP = GetTilePFromFloatP(s->controlledEntity->p);
+        CalculateVision(s->controlledEntity->level, s, tileP, s->controlledEntity->stats.viewRadius, s->controlledEntityVisibleTiles);
+        s->controlledEntity->isOpaque = oldIsOpaque;
+    }
 }
 
 api_func void DrawEntities(EntityStore *s)
@@ -482,7 +577,7 @@ api_func void DrawEntities(EntityStore *s)
         }
 
         v2 pxP = V2(e->p.x * s->tilePxW, e->p.y * s->tilePxH);
-        DrawFilledCircleSegment(pxP, 64.0f, e->yawDeg - 10.0f, e->yawDeg + 10.0f, ColorAlpha(SAV_COLOR_YELLOW, 0.1f), s->arena);
+        // DrawFilledCircleSegment(pxP, 64.0f, e->yawDeg - 10.0f, e->yawDeg + 10.0f, ColorAlpha(SAV_COLOR_YELLOW, 0.1f), s->arena);
 
         if (e->currentOrder.type == ACTOR_ORDER_MOVE_TO_TARGET)
         {

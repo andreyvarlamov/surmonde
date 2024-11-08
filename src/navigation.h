@@ -4,6 +4,7 @@
 #include "sav.h"
 
 struct Level;
+struct EntityStore;
 
 struct NavPath
 {
@@ -14,6 +15,6 @@ struct NavPath
     int nodeCount;
 };
 
-api_func NavPath NavPathToTarget(Level *level, v2 from, v2 to, MemoryArena *arena);
+api_func NavPath NavPathToTarget(Level *level, EntityStore *entityStore, v2 startF, v2 endF, MemoryArena *arena);
 
 #endif

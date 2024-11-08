@@ -216,12 +216,12 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.speed = 10.0f;
     stats.health = 100.0f;
     stats.maxHealth = 100.0f;
-    Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, 0, V4(1,1,1,1), MakeCountedString("Player"));
+    Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, 0, V4(1,1,1,1), MakeCountedString("Player"), false, false);
     ConfigureActorEntity(&playerEntity, stats);
     Entity *addedEntity = AddEntity(entityStore, playerEntity);
     entityStore->controlledEntity = addedEntity;
 
-    Entity enemyEntity = MakeEntity(30.0f, 30.0f, level, 1, V4(1,1,1,1), MakeCountedString("Enemy"));
+    Entity enemyEntity = MakeEntity(30.0f, 30.0f, level, 1, V4(1,1,1,1), MakeCountedString("Enemy"), true, true);
     ConfigureActorEntity(&enemyEntity, stats);
     AddEntity(entityStore, enemyEntity);
 }

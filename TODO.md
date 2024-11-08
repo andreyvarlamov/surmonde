@@ -2,45 +2,50 @@
 
 ## Changelog
 
-- Player attacking
-- More order functions
-- Death -- player; other entity (WIP)
-
-## Planned
-
 - Death -- make sure everyone is aware they're dead
-- When an actor gets attacked they should automatically go into combat
+- Minor tweaks to EntitySetHealth and Entity death
+- Don't take inputs for dead player
 - Controlling any character on the screen
 - Considering entities for collisions
 - Considering entities for line of sight
+- Pausing game
+
+## Planned
+
 
 -----------------------
 
 ## Game Backlog
 
-### Definitely for first pass
+### First pass
 
-- Game log
-- Some bug with pathfinding (goes in the wrong direction at first)
 - Inventory and items
 - Machines, processing, basic crafting
 - UIs for inventory, for machines, for containers, etc.
-- Pausing game
+
+- Game log
+
 - Moving between levels and storing existing levels; relation between world, level and entity store
 
-### Consider for first pass
+- Saving/loading
 
-- Saving/loading (different now than it was in unity -- I could even just dump memory as first "save files")
+### Misc
 
-### Unsure
-
-- How can I smoothly transition between a map "thing" -- tile -- and an entity. E.g. breaking wall. Controlling a tree. Tree-growing logic. Etc. Do those just become entities when they need to be?
+- Controlled Entity Vision. Should be possible to disable fully, not just visuals; meaning all tiles are actually considered visible
+- If an entity (that is only controlled one for now) precalculates vision, and has visible tiles array, use that, instead of tracing line in IsInLineOfSight
+- Checking line of sight of controlled entity if clicking in the world. Should not be clickable
+- Some bug with pathfinding (goes in the wrong direction at first)
+- When an actor gets attacked they should automaticall y go into combat
+- Check path finding when setting move target before changing ai state
+- If clicking on a non-walkable tile, don't even attempt to navigate there
+- Symmterical A*
+- Entity flags
+- Hide entities that are out of line of sight
 
 ------------------------
 
 ## SAV Backlog
 
-- String manangement (pool/bucket array)
 - SAV managing its own memory for rendering (collect data in ram before subbing to gpu ram) + simplifying passing vertex data from user code
 - Better string drawing/extending into a GUI library
 - My own printf/format string extensions. E.g. for v2, etc.

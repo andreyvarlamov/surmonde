@@ -3,6 +3,7 @@
 #include "sav.h"
 #include "level.h"
 #include "helpers.h"
+#include "entity.h"
 
 struct NavSet
 {
@@ -81,16 +82,18 @@ internal_func void addNeighbor(Neighbors *result, Level *level, v2i node, i32 co
     result->count++;
 }
 
-internal_func b32 isUnblocked(Level *level, v2i node)
+internal_func b32 isUnblocked(Level *level, EntityStore *entityStore, v2i node)
 {
     i32 x = node.x;
     i32 y = node.y;
     return ((x >= 0 && x < level->w) &&
             (y >= 0 && y < level->h) &&
-            !IsTileBlocked(level, x, y));
+            // !IsTileBlocked(level, x, y));
+            !IsTileBlocked(level, x, y) &&
+            !AnyBlockingEntityAtTile(entityStore, node));
 }
 
-internal_func Neighbors getNeighbors(Level *level, int nodeI)
+internal_func Neighbors getNeighbors(Level *level, EntityStore *entityStore, int nodeI)
 {
     v2i node = IdxToXY(level->w, nodeI);
     
@@ -104,14 +107,14 @@ internal_func Neighbors getNeighbors(Level *level, int nodeI)
     v2i northEastNeighbor = node + V2I( 1, -1);
     v2i southWestNeighbor = node + V2I(-1,  1);
     v2i southEastNeighbor = node + V2I( 1,  1);
-    b32 isWestUnblocked      = isUnblocked(level, westNeighbor);
-    b32 isEastUnblocked      = isUnblocked(level, eastNeighbor);
-    b32 isNorthUnblocked     = isUnblocked(level, northNeighbor);
-    b32 isSouthUnblocked     = isUnblocked(level, southNeighbor);
-    b32 isNorthWestUnblocked = isUnblocked(level, northWestNeighbor) && isNorthUnblocked && isWestUnblocked;
-    b32 isNorthEastUnblocked = isUnblocked(level, northEastNeighbor) && isNorthUnblocked && isEastUnblocked;
-    b32 isSouthWestUnblocked = isUnblocked(level, southWestNeighbor) && isSouthUnblocked && isWestUnblocked;
-    b32 isSouthEastUnblocked = isUnblocked(level, southEastNeighbor) && isSouthUnblocked && isEastUnblocked;
+    b32 isWestUnblocked      = isUnblocked(level, entityStore, westNeighbor);
+    b32 isEastUnblocked      = isUnblocked(level, entityStore, eastNeighbor);
+    b32 isNorthUnblocked     = isUnblocked(level, entityStore, northNeighbor);
+    b32 isSouthUnblocked     = isUnblocked(level, entityStore, southNeighbor);
+    b32 isNorthWestUnblocked = isUnblocked(level, entityStore, northWestNeighbor) && isNorthUnblocked && isWestUnblocked;
+    b32 isNorthEastUnblocked = isUnblocked(level, entityStore, northEastNeighbor) && isNorthUnblocked && isEastUnblocked;
+    b32 isSouthWestUnblocked = isUnblocked(level, entityStore, southWestNeighbor) && isSouthUnblocked && isWestUnblocked;
+    b32 isSouthEastUnblocked = isUnblocked(level, entityStore, southEastNeighbor) && isSouthUnblocked && isEastUnblocked;
     if (isWestUnblocked)      addNeighbor(&result, level, westNeighbor,      10);
     if (isEastUnblocked)      addNeighbor(&result, level, eastNeighbor,      10);
     if (isNorthUnblocked)     addNeighbor(&result, level, northNeighbor,     10);
@@ -223,7 +226,7 @@ internal_func void updateNode(int nodeI, int neighborI, int endI, Level *level, 
     }
 }
 
-api_func NavPath NavPathToTarget(Level *level, v2 startF, v2 endF, MemoryArena *arena)
+api_func NavPath NavPathToTarget(Level *level, EntityStore *entityStore, v2 startF, v2 endF, MemoryArena *arena)
 {
     if (VecEqual(startF, endF, CMP_EPSILON))
     {
@@ -274,7 +277,7 @@ api_func NavPath NavPathToTarget(Level *level, v2 startF, v2 endF, MemoryArena *
         removeFromSet(&openSet, nodeI);
         visited[nodeI] = true;
 
-        Neighbors neighbors = getNeighbors(level, nodeI);
+        Neighbors neighbors = getNeighbors(level, entityStore, nodeI);
         for (int n = 0; n < neighbors.count; n++)
         {
             int neighborI = neighbors.nodes[n];

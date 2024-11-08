@@ -23,5 +23,7 @@ struct GameState
     EntityStore entityStore;
     Entity *viewedEntities[VIEWED_ENTITY_MAX];
 
+    b32 isPaused;
+
     RunState runState;
 };

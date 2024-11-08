@@ -1,8 +1,9 @@
 #include "sav.h"
 #include "vision.h"
 #include "level.h"
+#include "entity.h"
 
-internal_func void traceLine(Level *level, v2i from, i32 x1, i32 y1, i32 rangeLimitSq, u8 *visibleTiles)
+internal_func void traceLine(Level *level, EntityStore *entityStore, v2i from, i32 x1, i32 y1, i32 rangeLimitSq, u8 *visibleTiles)
 {
     i32 x0 = from.x; i32 y0 = from.y;
     
@@ -19,6 +20,7 @@ internal_func void traceLine(Level *level, v2i from, i32 x1, i32 y1, i32 rangeLi
     {
         visibleTiles[XYToIdx(level->w, x0, y0)] = true;
         
+        if (AnyOpaqueEntityAtTile(entityStore, V2I(x0, y0))) return;
         if (IsTileOpaque(level, x0, y0)) return;
         if (x0 == x1 && y0 == y1) return;
         if (Square(x0 - from.x) + Square(y0 - from.y) >= rangeLimitSq) return;
@@ -29,7 +31,7 @@ internal_func void traceLine(Level *level, v2i from, i32 x1, i32 y1, i32 rangeLi
     }
 }
 
-internal_func b32 canTraceLine(Level *level, v2i from, i32 x1, i32 y1, i32 rangeLimitSq)
+internal_func b32 canTraceLine(Level *level, EntityStore *entityStore, v2i from, i32 x1, i32 y1, i32 rangeLimitSq)
 {
     i32 x0 = from.x; i32 y0 = from.y;
     
@@ -42,6 +44,7 @@ internal_func b32 canTraceLine(Level *level, v2i from, i32 x1, i32 y1, i32 range
 
     while (true)
     {
+        if (AnyOpaqueEntityAtTile(entityStore, V2I(x0, y0))) return false;
         if (IsTileOpaque(level, x0, y0)) return false;
         if (x0 == x1 && y0 == y1) return true;
         if (Square(x0 - from.x) + Square(y0 - from.y) >= rangeLimitSq) return false;
@@ -52,19 +55,19 @@ internal_func b32 canTraceLine(Level *level, v2i from, i32 x1, i32 y1, i32 range
     }
 }
 
-api_func b32 IsInLineOfSight(Level *level, v2i from, v2i target, i32 rangeLimit)
+api_func b32 IsInLineOfSight(Level *level, EntityStore *entityStore, v2i from, v2i target, i32 rangeLimit)
 {
-    return canTraceLine(level, from, target.x, target.y, Square(rangeLimit));
+    return canTraceLine(level, entityStore, from, target.x, target.y, Square(rangeLimit));
 }
 
-api_func b32 IsInLineOfSight(Level *level, v2 from, v2 target, i32 rangeLimit)
+api_func b32 IsInLineOfSight(Level *level, EntityStore *entityStore, v2 from, v2 target, i32 rangeLimit)
 {
     v2i fromTile = GetTilePFromFloatP(from);
     v2i targetTile = GetTilePFromFloatP(target);
-    return canTraceLine(level, fromTile, targetTile.x, targetTile.y, Square(rangeLimit));
+    return canTraceLine(level, entityStore, fromTile, targetTile.x, targetTile.y, Square(rangeLimit));
 }
 
-api_func void CalculateVision(Level *level, v2i p, i32 rangeLimit, u8 *visibleTiles)
+api_func void CalculateVision(Level *level, EntityStore *entityStore, v2i p, i32 rangeLimit, u8 *visibleTiles)
 {
     Memset(visibleTiles, 0, level->w * level->h);
     
@@ -81,14 +84,14 @@ api_func void CalculateVision(Level *level, v2i p, i32 rangeLimit, u8 *visibleTi
         
         for (i32 x = visionRect.x; x < max.x; x++)
         {
-            traceLine(level, p, x, visionRect.y, rangeLimitSq, visibleTiles);
-            traceLine(level, p, x, max.y - 1,    rangeLimitSq, visibleTiles);
+            traceLine(level, entityStore, p, x, visionRect.y, rangeLimitSq, visibleTiles);
+            traceLine(level, entityStore, p, x, max.y - 1,    rangeLimitSq, visibleTiles);
         }
 
         for (i32 y = visionRect.y; y < max.y; y++)
         {
-            traceLine(level, p, visionRect.x, y, rangeLimitSq, visibleTiles);
-            traceLine(level, p, max.x - 1,    y, rangeLimitSq, visibleTiles);
+            traceLine(level, entityStore, p, visionRect.x, y, rangeLimitSq, visibleTiles);
+            traceLine(level, entityStore, p, max.x - 1,    y, rangeLimitSq, visibleTiles);
         }
     }
 }

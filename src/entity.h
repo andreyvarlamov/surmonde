@@ -87,6 +87,8 @@ struct Entity
 
     b32 isUsed;
     b32 isPaused;
+    b32 isBlocking;
+    b32 isOpaque;
 };
 
 struct EntityStore
@@ -112,10 +114,13 @@ inline b32 IsControlledEntity(EntityStore *s, Entity *e)
 }
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, Level *level);
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color, CountedString name);
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color, CountedString name, b32 isBlocking, b32 isOpaque);
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 api_func Entity *GetEntityAt(EntityStore *s, v2 p);
+api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile);
+api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile);
+api_func void ResetActorAI(Entity *e);
 
 api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget);
 

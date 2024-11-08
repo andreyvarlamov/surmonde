@@ -45,8 +45,8 @@ int main(int argc, char **argv)
                                    6.0f,
                                    7);
     
-    // CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
-    // CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, 0.0f, 0.0f, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
+    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
+    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, 0.0f, 0.0f, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
 
     gameState->uiFont = SavLoadFont("res/fonts/VT323-Regular.ttf", 30);
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
         if (MouseWheel() != 0) CameraIncreaseLogZoomSteps(&gameState->camera, MouseWheel());
         if (MouseDown(SDL_BUTTON_MIDDLE)) CameraMoveTarget(&gameState->camera, CameraScreenToWorldRel(&gameState->camera, MouseRelPos()));
 
-        SetWindowTitle(TextFormat("%s [%.2f fps]", windowName, GetFPSAvg()));
+        SetWindowTitle(TextFormat("%s %s[%.2f fps]", windowName, gameState->isPaused ? "[PAUSED] " : "", GetFPSAvg()));
 
         ImGui::ShowDemoWindow();
 
@@ -88,46 +88,42 @@ int main(int argc, char **argv)
 
             case RS_GAME_RUNNING:
             {
-                if (MouseDown(SDL_BUTTON_RIGHT))
+                if (!gameState->isPaused)
                 {
-                    v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
-                    target.x = target.x / gameState->entityStore.tilePxW;
-                    target.y = target.y / gameState->entityStore.tilePxH;
-                    TraceLog("Target: %.3f, %.3f", target.x, target.y);
-
+                    if (MousePressed(SDL_BUTTON_LEFT) && KeyDown(SDL_SCANCODE_LCTRL))
+                    {
+                        v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
+                        target.x = target.x / gameState->entityStore.tilePxW;
+                        target.y = target.y / gameState->entityStore.tilePxH;
+                        Entity *clickedEntity = GetEntityAt(&gameState->entityStore, target);
+                        if (clickedEntity != NULL && !IsControlledEntity(&gameState->entityStore, clickedEntity))
+                        {
+                            gameState->entityStore.controlledEntity = clickedEntity;
+                            ResetActorAI(clickedEntity);
+                        }
+                    }
+                    else if (gameState->entityStore.controlledEntity != NULL && MouseDown(SDL_BUTTON_LEFT))
+                    {
+                        v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
+                        target.x = target.x / gameState->entityStore.tilePxW;
+                        target.y = target.y / gameState->entityStore.tilePxH;
                     
-                    Entity *clickedEntity = GetEntityAt(&gameState->entityStore, target);
+                        Entity *clickedEntity = GetEntityAt(&gameState->entityStore, target);
 
-                    if (clickedEntity)
-                    {
-                        gameState->entityStore.controlledEntity->aiState.type = ACTOR_AI_FOLLOW_ENTITY;
-                        gameState->entityStore.controlledEntity->aiState.entityToFollow = clickedEntity;
-                    }
-                    else
-                    {
-                        gameState->entityStore.controlledEntity->aiState.type = ACTOR_AI_MOVE_TO_TARGET;
-                        gameState->entityStore.controlledEntity->aiState.movementTarget = target;
-                    }
-                }
-
-                if (MousePressed(SDL_BUTTON_LEFT))
-                {
-                    v2 p = CameraScreenToWorld(&gameState->camera, MousePos());
-                    p.x = p.x / gameState->entityStore.tilePxW;
-                    p.y = p.y / gameState->entityStore.tilePxH;
-                    v2i tileP = V2I((i32)p.x, (i32)p.y);
-
-                    if (IsTileOpaque(&gameState->level, tileP.x, tileP.y))
-                    {
-                        SetTile(&gameState->level, tileP.x, tileP.y, floorTile);
-                    }
-                    else
-                    {
-                        SetTile(&gameState->level, tileP.x, tileP.y, wallTile);
+                        if (clickedEntity != NULL && !IsControlledEntity(&gameState->entityStore, clickedEntity))
+                        {
+                            gameState->entityStore.controlledEntity->aiState.type = ACTOR_AI_FOLLOW_ENTITY;
+                            gameState->entityStore.controlledEntity->aiState.entityToFollow = clickedEntity;
+                        }
+                        else
+                        {
+                            gameState->entityStore.controlledEntity->aiState.type = ACTOR_AI_MOVE_TO_TARGET;
+                            gameState->entityStore.controlledEntity->aiState.movementTarget = target;
+                        }
                     }
                 }
 
-                if (MousePressed(SDL_BUTTON_MIDDLE))
+                if (MousePressed(SDL_BUTTON_RIGHT))
                 {
                     v2 p = CameraScreenToWorld(&gameState->camera, MousePos());
                     p.x = p.x / gameState->entityStore.tilePxW;
@@ -153,35 +149,23 @@ int main(int argc, char **argv)
                         *addToThisSlot = clickedEntity;
                     }
                 }
-                
-                if (KeyDown(SDL_SCANCODE_A))
-                {
-                    gameState->entityStore.controlledEntity->yawDeg += 90.0f * (f32) GetDeltaFixed();
-                }
-
-                if (KeyDown(SDL_SCANCODE_D))
-                {
-                    gameState->entityStore.controlledEntity->yawDeg -= 90.0f * (f32) GetDeltaFixed();
-                }
 
                 if (KeyPressed(SDL_SCANCODE_SPACE))
                 {
-                    debugEdge++;
+                    gameState->isPaused = !gameState->isPaused;
                 }
 
-                if (KeyPressed(SDL_SCANCODE_F1))
+                if (!gameState->isPaused)
                 {
-                    debugEdgeTiles = !debugEdgeTiles;
+                    UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
                 }
-
-                UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
 
                 BeginDraw();
                     ClearBackground(SAV_COLOR_LIGHTBLUE);
 
                     BeginCameraMode(&gameState->camera);
                         DrawLevel(&gameState->level);
-                        // DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntityVisibleTiles);
+                        DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntityVisibleTiles);
                         DrawEntities(&gameState->entityStore);
 
                         DDraw();
