@@ -5,6 +5,7 @@
 #include "helpers.h"
 #include "navigation.h"
 #include "defines.h"
+#include "inventory.h"
 
 struct Level;
 struct Entity;
@@ -85,6 +86,8 @@ struct Entity
     b32 steerTargetActive;
     v2 steerTarget;
 
+    InventoryBlock *inventory;
+
     b32 isUsed;
     b32 isPaused;
     b32 isBlocking;
@@ -118,6 +121,7 @@ api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color,
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 api_func Entity *GetEntityAt(EntityStore *s, v2 p);
+
 api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile);
 api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile);
 api_func void ResetActorAI(Entity *e);

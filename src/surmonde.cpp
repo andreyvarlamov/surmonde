@@ -11,7 +11,9 @@
 #include "helpers.h"
 #include "draw.h"
 #include "debug_draw.h"
+#include "inventory.h"
 #include "ui_debug_actor.h"
+#include "ui_debug_inventory_store.h"
 
 int main(int argc, char **argv)
 {
@@ -30,12 +32,13 @@ int main(int argc, char **argv)
     gameState->itemAtlas = SavLoadTextureAtlas("res/textures/monde_atlas_items.png", 16, 16);
     SavSetTextureFilterMode(gameState->itemAtlas.texture, SAV_NEAREST);
 
-    gameState->worldArena = AllocArena(Megabytes(4));
+    gameState->worldArena = AllocArena(Megabytes(8));
 
     f32 tilePxW = gameState->worldAtlas.cellW * LEVEL_ATLAS_SCALE;
     f32 tilePxH = gameState->worldAtlas.cellH * LEVEL_ATLAS_SCALE;
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->worldAtlas, tilePxW, tilePxH, &gameState->worldArena);
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->charAtlas, &gameState->level);
+    gameState->inventoryStore = MakeInventoryStore(INVENTORY_BLOCK_COUNT, &gameState->worldArena);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
     
     gameState->camera = MakeCamera(0.0f,
@@ -179,9 +182,11 @@ int main(int argc, char **argv)
                     Entity *viewedEntity = gameState->viewedEntities[i];
                     if (viewedEntity != NULL)
                     {
-                        DrawDebugActorUI(&gameState->entityStore, viewedEntity);
+                        DrawDebugActorUI(&gameState->entityStore, &gameState->inventoryStore, viewedEntity);
                     }
                 }
+
+                DrawDebugInventoryStoreUI(&gameState->inventoryStore);
             } break;
         }
 
@@ -206,4 +211,6 @@ int main(int argc, char **argv)
 #include "navigation.cpp"
 #include "debug_draw.cpp"
 #include "vision.cpp"
+#include "inventory.cpp"
 #include "ui_debug_actor.cpp"
+#include "ui_debug_inventory_store.cpp"

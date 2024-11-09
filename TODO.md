@@ -2,16 +2,15 @@
 
 ## Changelog
 
-- Death -- make sure everyone is aware they're dead
-- Minor tweaks to EntitySetHealth and Entity death
-- Don't take inputs for dead player
-- Controlling any character on the screen
-- Considering entities for collisions
-- Considering entities for line of sight
-- Pausing game
+- Items, inventory, storing per entity (WIP)
 
 ## Planned
 
+- Item templates
+- Item pickup entities; picking up and dropping items
+- Inventory UI; drop functionality
+- Container entities
+- Inventory UI drag and drop between different inventories
 
 -----------------------
 
@@ -19,14 +18,9 @@
 
 ### First pass
 
-- Inventory and items
 - Machines, processing, basic crafting
-- UIs for inventory, for machines, for containers, etc.
-
 - Game log
-
 - Moving between levels and storing existing levels; relation between world, level and entity store
-
 - Saving/loading
 
 ### Misc

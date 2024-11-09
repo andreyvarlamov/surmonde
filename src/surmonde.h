@@ -1,6 +1,7 @@
 #include "sav.h"
 #include "level.h"
 #include "entity.h"
+#include "inventory.h"
 
 enum RunState
 {
@@ -23,6 +24,8 @@ struct GameState
     EntityStore entityStore;
     Entity *viewedEntities[VIEWED_ENTITY_MAX];
 
+    InventoryStore inventoryStore;
+    
     b32 isPaused;
 
     RunState runState;
