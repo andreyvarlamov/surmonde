@@ -2,11 +2,10 @@
 
 ## Changelog
 
-- Add/remove items based on available specs - debug gui
+- Drawing entities should switch atlas textures correctly
 
 ## Planned
 
-- Drawing entities should switch atlas textures correctly
 - Item pickup entities; picking up and dropping items
 - Inventory UI; drop functionality
 - Container entities

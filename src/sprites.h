@@ -27,6 +27,7 @@ struct Sprite
 
 api_func void InitializeSprites(SpriteAtlasStore *placeForStore, MemoryArena *arena);
 api_func SavTextureAtlas GetAtlasForSprite(Sprite sprite);
+api_func SavTextureAtlas GetAtlasByType(SpriteAtlasType type);
 
 api_func Sprite MakeSprite(SpriteAtlasType atlasType, int atlasValue);
 

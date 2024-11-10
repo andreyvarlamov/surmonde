@@ -23,6 +23,13 @@ api_func SavTextureAtlas GetAtlasForSprite(Sprite sprite)
     return atlas;
 }
 
+api_func SavTextureAtlas GetAtlasByType(SpriteAtlasType type)
+{
+    Assert(type > SPRITE_ATLAS_NONE && type < SPRITE_ATLAS_COUNT);
+    SavTextureAtlas atlas = _spriteAtlasStore->atlases[type];
+    return atlas;
+}
+
 api_func Sprite MakeSprite(SpriteAtlasType atlasType, int atlasValue)
 {
     Sprite sprite;

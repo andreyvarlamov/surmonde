@@ -487,83 +487,91 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
 
 api_func void DrawEntities(EntityStore *s)
 {
-    int entitiesToDraw = 0;
-    for (int i = 0; i < s->entityCount; i++)
+    for (int currentAtlasI = SPRITE_ATLAS_NONE + 1; currentAtlasI < SPRITE_ATLAS_COUNT; currentAtlasI++)
     {
-        if (s->entities[i].isUsed) entitiesToDraw++;
-    }
-    if (entitiesToDraw == 0)
-    {
-        return;
-    }
+        SpriteAtlasType currentAtlasType = (SpriteAtlasType)currentAtlasI;
+        SavTextureAtlas currentAtlas = GetAtlasByType(currentAtlasType);
+
+        int entitiesToDraw = 0;
+        for (int i = 0; i < s->entityCount; i++)
+        {
+            if (s->entities[i].isUsed && s->entities[i].sprite.atlasType == currentAtlasType)
+            {
+                entitiesToDraw++;
+            }
+        }
+        
+        if (entitiesToDraw == 0)
+        {
+            break;
+        }
     
-    int vertCount = entitiesToDraw * 4;
-    int indexCount = entitiesToDraw * 6;
+        int vertCount = entitiesToDraw * 4;
+        int indexCount = entitiesToDraw * 6;
 
-    MemoryArenaFreeze(s->arena);
+        MemoryArenaFreeze(s->arena);
 
-    v3 *positions = MemoryArenaPushArrayAndZero(s->arena, vertCount, v3);
-    v4 *texCoords = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
-    v4 *vertColors = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
-    u32 *indices = MemoryArenaPushArrayAndZero(s->arena, indexCount, u32);
+        v3 *positions = MemoryArenaPushArrayAndZero(s->arena, vertCount, v3);
+        v4 *texCoords = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
+        v4 *vertColors = MemoryArenaPushArrayAndZero(s->arena, vertCount, v4);
+        u32 *indices = MemoryArenaPushArrayAndZero(s->arena, indexCount, u32);
 
-    int vertsAdded = 0;
-    int indicesAdded = 0;
+        int vertsAdded = 0;
+        int indicesAdded = 0;
 
-    f32 halfTilePxW = s->tilePxW * 0.5f;
-    f32 halfTilePxH = s->tilePxH * 0.5f;
-    for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
-    {
-        Entity *e = s->entities + entityIndex;
-        if (!e->isUsed)
+        f32 halfTilePxW = s->tilePxW * 0.5f;
+        f32 halfTilePxH = s->tilePxH * 0.5f;
+        for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
         {
-            continue;
+            Entity *e = s->entities + entityIndex;
+            if (!e->isUsed || e->sprite.atlasType != currentAtlasType)
+            {
+                continue;
+            }
+
+            f32 pxX = e->p.x * s->tilePxW - halfTilePxW;
+            f32 pxY = e->p.y * s->tilePxH - halfTilePxH;
+            Rect destRect = MakeRect(pxX, pxY, s->tilePxW, s->tilePxH);
+            FourV3 points = ConvertFourV2V3(RectGetPoints(destRect));
+
+            Rect atlasRect = GetAtlasSourceRect(currentAtlas, e->sprite.atlasValue);
+            FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(currentAtlas.texture, atlasRect));
+
+            u32 indexBase = vertsAdded;
+            for (int i = 0; i < 4; i++)
+            {
+                positions[vertsAdded] = points.e[i];
+                texCoords[vertsAdded] = texCoordPoints.e[i];
+                vertColors[vertsAdded] = e->color;
+                vertsAdded++;
+            }
+
+            u32 localIndices[] = {0, 1, 2, 2, 3, 0};
+            for (int i = 0; i < ArrayCount(localIndices); i++)
+            {
+                indices[indicesAdded++] = indexBase + localIndices[i];
+            }
         }
 
-        f32 pxX = e->p.x * s->tilePxW - halfTilePxW;
-        f32 pxY = e->p.y * s->tilePxH - halfTilePxH;
-        Rect destRect = MakeRect(pxX, pxY, s->tilePxW, s->tilePxH);
-        FourV3 points = ConvertFourV2V3(RectGetPoints(destRect));
+        Assert(vertsAdded == vertCount);
+        Assert(indicesAdded == indexCount);
 
-        SavTextureAtlas atlas = GetAtlasForSprite(e->sprite);
-        Rect atlasRect = GetAtlasSourceRect(atlas, e->sprite.atlasValue);
-        FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(atlas.texture, atlasRect));
+        VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
+        VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
+        VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
+        VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(vertColors, vertCount, sizeof(vertColors[0])));
+        VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
+        VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
 
-        u32 indexBase = vertsAdded;
-        for (int i = 0; i < 4; i++)
-        {
-            positions[vertsAdded] = points.e[i];
-            texCoords[vertsAdded] = texCoordPoints.e[i];
-            vertColors[vertsAdded] = e->color;
-            vertsAdded++;
-        }
+        // TODO: This needs to be reworked to be able to draw entities with sprites from different atlases
+        //       For now only char atlas is supported
 
-        u32 localIndices[] = {0, 1, 2, 2, 3, 0};
-        for (int i = 0; i < ArrayCount(localIndices); i++)
-        {
-            indices[indicesAdded++] = indexBase + localIndices[i];
-        }
+        BindTextureSlot(0, currentAtlas.texture);
+        DrawVertexBatch(DEFAULT_VERTEX_BATCH);
+        UnbindTextureSlot(0);
+
+        MemoryArenaUnfreeze(s->arena);
     }
-
-    Assert(vertsAdded == vertCount);
-    Assert(indicesAdded == indexCount);
-
-    VertexBatchBeginSub(DEFAULT_VERTEX_BATCH, vertCount, indexCount);
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_POSITIONS, MakeVertexCountedData(positions, vertCount, sizeof(positions[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_TEXCOORDS, MakeVertexCountedData(texCoords, vertCount, sizeof(texCoords[0])));
-    VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(vertColors, vertCount, sizeof(vertColors[0])));
-    VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
-    VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
-
-    // TODO: This needs to be reworked to be able to draw entities with sprites from different atlases
-    //       For now only char atlas is supported
-
-    SavTextureAtlas atlas = GetAtlasForSprite(s->entities->sprite);
-    BindTextureSlot(0, atlas.texture);
-    DrawVertexBatch(DEFAULT_VERTEX_BATCH);
-    UnbindTextureSlot(0);
-
-    MemoryArenaUnfreeze(s->arena);
 
 #if (DRAW_ENTITY_DEBUG == 1)
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
