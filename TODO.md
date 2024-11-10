@@ -2,11 +2,11 @@
 
 ## Changelog
 
-- Drawing entities should switch atlas textures correctly
+- Entity types; actors and item pickups
 
 ## Planned
 
-- Item pickup entities; picking up and dropping items
+- Item pickup entity logic; picking up and dropping items
 - Inventory UI; drop functionality
 - Container entities
 - Inventory UI drag and drop between different inventories
@@ -36,6 +36,7 @@
 - Hide entities that are out of line of sight
 - Item stacks
 - Transition tilemap drawing system to use central sprite and sprite atlas system
+- Entity slot reuse
 
 ------------------------
 

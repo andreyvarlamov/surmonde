@@ -35,7 +35,7 @@ api_func Entity MakeEntity(f32 x, f32 y, Level *level, Sprite sprite, v4 color, 
     e.isBlocking = isBlocking;
     e.isOpaque = isOpaque;
 
-    e.isUsed = true;
+    e.type = ENTITY_TYPE_ACTOR;
 
     return e;
 }
@@ -48,7 +48,6 @@ api_func void ConfigureActorEntity(Entity *e, ActorStats stats)
 
 api_func Entity *AddEntity(EntityStore *s, Entity e)
 {
-    // TODO: Slot reuse
     Assert(s->entityCount < s->entityMax);
     e.id = s->entityCount;
     Entity *entityInStore = s->entities + s->entityCount++;
@@ -62,7 +61,7 @@ api_func Entity *GetEntityAt(EntityStore *s, v2 p)
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        if (e->isUsed)
+        if (e->type != ENTITY_TYPE_NONE)
         {
             v2 eMin = e->p - V2(0.5f, 0.5f);
             v2 eMax = e->p + V2(0.5f, 0.5f);
@@ -76,6 +75,49 @@ api_func Entity *GetEntityAt(EntityStore *s, v2 p)
     return result;
 }
 
+api_func Entity *AddActorEntity(EntityStore *s, f32 x, f32 y, Level *level, Sprite sprite, CountedString name)
+{
+    Assert(s->entityCount < s->entityMax);
+    int id = s->entityCount;
+    Entity *e = s->entities + s->entityCount++;
+
+    *e = {};
+
+    e->id = id;
+    e->type = ENTITY_TYPE_ACTOR;
+
+    Assert(name.size < ENTITY_NAME_CHARS);
+    Strcpy(e->name, name.string);
+
+    e->p = V2(x, y);
+    e->level = level;
+    e->sprite = sprite;
+    e->color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+    e->isBlocking = true;
+    e->isOpaque = false;
+
+    return e;
+}
+
+api_func Entity *AddItemPickupEntity(EntityStore *s, f32 x, f32 y, Level *level)
+{
+    Assert(s->entityCount < s->entityMax);
+    int id = s->entityCount;
+    Entity *e = s->entities + s->entityCount++;
+
+    *e = {};
+
+    e->id = id;
+    e->type = ENTITY_TYPE_ITEM_PICKUP;
+
+    Strcpy(e->name, "Item pickup");
+
+    e->p = V2(x, y);
+    e->level = level;
+
+    return e;
+}
+
 api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile)
 {
 #if 1
@@ -83,7 +125,7 @@ api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile)
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        if (e->isUsed && e->isBlocking && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
+        if (e->type != ENTITY_TYPE_NONE && e->isBlocking && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
         {
             result = true;
             break;
@@ -102,7 +144,7 @@ api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile)
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        if (e->isUsed && e->isOpaque && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
+        if (e->type != ENTITY_TYPE_NONE && e->isOpaque && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
         {
             result = true;
             break;
@@ -122,7 +164,7 @@ api_func void ResetActorAI(Entity *e)
 internal_func void entityDie(Entity *e)
 {
     TraceLog("%s dies.", e->name);
-    e->isUsed = false;
+    e->type = ENTITY_TYPE_NONE;
 }
 
 internal_func f32 entitySetHealth(EntityStore *s, Entity *e, f32 health)
@@ -248,7 +290,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                 }
             
                 if (s->controlledEntity != NULL &&
-                    s->controlledEntity->isUsed &&
+                    s->controlledEntity->type == ENTITY_TYPE_ACTOR &&
                     canEntitySeePosition(s, e, s->controlledEntity->p))
                 {
                     resetActorOrder(&e->currentOrder);
@@ -274,7 +316,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                 orderFollowEntity(e, e->aiState.entityToFollow);
             }
             
-            if (!e->aiState.entityToFollow->isUsed ||!canEntitySeePosition(s, e, s->controlledEntity->p))
+            if (e->aiState.entityToFollow->type == ENTITY_TYPE_NONE ||!canEntitySeePosition(s, e, s->controlledEntity->p))
             {
                 resetActorOrder(&e->currentOrder);
                 e->aiState.type = ACTOR_AI_IDLE;
@@ -291,7 +333,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
         {
             if (orderAttackEntity(e, e->aiState.entityToAttack))
             {
-                if (!e->aiState.entityToAttack->isUsed)
+                if (e->aiState.entityToAttack->type == ENTITY_TYPE_NONE)
                 {
                     resetActorOrder(&e->currentOrder);
                     e->aiState.type = ACTOR_AI_IDLE;
@@ -441,7 +483,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
         {
             if (!e->currentOrder.isCompleted)
             {
-                if (e->currentOrder.attackTimer <= 0.0f && e->currentOrder.entityToAttack->isUsed)
+                if (e->currentOrder.attackTimer <= 0.0f && e->currentOrder.entityToAttack->type != ENTITY_TYPE_NONE)
                 {
                     f32 delta = entitySetHealth(s, e->currentOrder.entityToAttack, e->currentOrder.entityToAttack->stats.health - 10.0f);
                     TraceLog("%s attacks %s for %.0f damage", e->name, e->currentOrder.entityToAttack->name, delta != 0.0f ? -delta : 0.0f);
@@ -464,14 +506,14 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
     {
         Entity *e = s->entities + entityIndex;
 
-        if (e->isUsed && !e->isPaused)
+        if (e->type == ENTITY_TYPE_ACTOR && !e->isPaused)
         {
             processActorAI(s, e, delta);
             processActorOrders(s, e, delta);
         }
     }
 
-    if (s->controlledEntity == NULL || !s->controlledEntity->isUsed)
+    if (s->controlledEntity == NULL || s->controlledEntity->type == ENTITY_TYPE_NONE)
     {
         s->controlledEntity = NULL;
     }
@@ -495,7 +537,7 @@ api_func void DrawEntities(EntityStore *s)
         int entitiesToDraw = 0;
         for (int i = 0; i < s->entityCount; i++)
         {
-            if (s->entities[i].isUsed && s->entities[i].sprite.atlasType == currentAtlasType)
+            if (s->entities[i].type == ENTITY_TYPE_ACTOR && s->entities[i].sprite.atlasType == currentAtlasType)
             {
                 entitiesToDraw++;
             }
@@ -524,7 +566,7 @@ api_func void DrawEntities(EntityStore *s)
         for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
         {
             Entity *e = s->entities + entityIndex;
-            if (!e->isUsed || e->sprite.atlasType != currentAtlasType)
+            if (e->type == ENTITY_TYPE_NONE || e->sprite.atlasType != currentAtlasType)
             {
                 continue;
             }
@@ -577,7 +619,7 @@ api_func void DrawEntities(EntityStore *s)
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
         Entity *e = s->entities + entityIndex;
-        if (!e->isUsed)
+        if (e->type == ENTITY_TYPE_NONE)
         {
             continue;
         }

@@ -64,9 +64,19 @@ struct ActorStats
     f32 maxHealth;
 };
 
+enum EntityType
+{
+    ENTITY_TYPE_NONE,
+    ENTITY_TYPE_ACTOR,
+    ENTITY_TYPE_ITEM_PICKUP
+};
+global_var char *EntityTypeString[] = {"None", "Actor", "Item Pickup"};
+
 struct Entity
 {
     i64 id;
+
+    EntityType type;
     
     v2 p;
     f32 yawDeg;
@@ -88,7 +98,6 @@ struct Entity
 
     InventoryBlock *inventory;
 
-    b32 isUsed;
     b32 isPaused;
     b32 isBlocking;
     b32 isOpaque;
@@ -120,6 +129,9 @@ api_func Entity MakeEntity(f32 x, f32 y, Level *level, Sprite sprite, v4 color, 
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 api_func Entity *GetEntityAt(EntityStore *s, v2 p);
+
+api_func Entity *AddActorEntity(EntityStore *s, f32 x, f32 y, Level *level, Sprite sprite, CountedString name);
+api_func Entity *AddItemPickupEntity(EntityStore *s, f32 x, f32 y, Level *level);
 
 api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile);
 api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile);

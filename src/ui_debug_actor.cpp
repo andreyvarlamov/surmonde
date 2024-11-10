@@ -14,7 +14,7 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
     ImGui::Text("Name: %s", e->name);
     ImGui::Text("");
     ImGui::Checkbox("Is Paused", (bool *)&e->isPaused);
-    ImGui::Text("Is Used: %s", e->isUsed ? "true" : "false");
+    ImGui::Text("Type: %s", EntityTypeString[e->type]);
     ImGui::Text("Is Blocking: %s", e->isBlocking ? "true" : "false");
     ImGui::Text("Is Opaque: %s", e->isOpaque ? "true" : "false");
     ImGui::Text("");
