@@ -59,10 +59,28 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
     {
         ImGui::Text("Has Inventory Block: %s", e->inventory != NULL ? "true" : "false");
 
-        static int itemIndex = 0;
-        ImGui::InputInt("Item Index", &itemIndex);
+        static InventoryItemSpecType selectedItem = (InventoryItemSpecType)(ITEM_TYPE_NONE + 1);
+        if (ImGui::BeginCombo("###ITEM_SELECTOR", GetInventoryItemSpecByType(selectedItem)->name))
+        {
+            for (int i = ITEM_TYPE_NONE + 1; i < ITEM_TYPE_COUNT; i++)
+            {
+                bool isSelected = (selectedItem == (InventoryItemSpecType)i);
+                if (ImGui::Selectable(GetInventoryItemSpecByType((InventoryItemSpecType)i)->name, isSelected))
+                {
+                    selectedItem = (InventoryItemSpecType)i;
+                }
+
+                if (isSelected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
         if (ImGui::Button("Add Item"))
         {
+            AddItemToInventory(inventoryStore, &e->inventory, InstantiateInventoryItemFromSpec(selectedItem));
         }
         
         MakeStringBufferOnStack(removeButtonName, 128);
@@ -71,11 +89,13 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
              item != NULL;
              item = NextInventoryItem(&iterator))
         {
+            ImGui::Text(item->spec->name);
             StringFormat("Remove###REMOVE%d", removeButtonName, iterator.globalIndex);
             ImGui::SameLine();
             if (ImGui::Button(removeButtonName.string))
             {
                 RemoveItemFromInventory(inventoryStore, &e->inventory, item);
+                break;
             }
         }
     }

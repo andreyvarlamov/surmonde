@@ -218,7 +218,9 @@ int main(int argc, char **argv)
 #include "vision.cpp"
 #include "inventory.cpp"
 #include "sprites.cpp"
+#include "inventory_item.cpp"
 #include "inventory_item_spec.cpp"
+
 
 #include "ui_debug_actor.cpp"
 #include "ui_debug_inventory_store.cpp"

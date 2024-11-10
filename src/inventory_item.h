@@ -11,12 +11,6 @@ struct InventoryItem
     f32 condition;
 };
 
-api_func InventoryItem InstantiateInventoryItemFromSpec(InventoryItemSpecType type)
-{
-    InventoryItem result;
-    result.spec = GetInventoryItemSpecByType(type);
-    result.condition = 1.0f;
-    return result;
-}
+api_func InventoryItem InstantiateInventoryItemFromSpec(InventoryItemSpecType type);
 
 #endif

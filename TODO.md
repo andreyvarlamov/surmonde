@@ -2,13 +2,10 @@
 
 ## Changelog
 
-- Central sprite and sprite atlas system
-- Item specs system; can define item specs in a file simply (just sprite and name for now)
-- Entity drawing using sprite atlas system
+- Add/remove items based on available specs - debug gui
 
 ## Planned
 
-- Add/remove items based on available specs - debug gui
 - Drawing entities should switch atlas textures correctly
 - Item pickup entities; picking up and dropping items
 - Inventory UI; drop functionality
