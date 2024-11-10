@@ -2,12 +2,21 @@
 #define INVENTORY_ITEM_H
 
 #include "sav.h"
-#include "sprite.h"
+#include "sprites.h"
+#include "inventory_item_spec.h"
 
 struct InventoryItem
 {
-    Sprite sprite;
-    char name[ENTITY_NAME_CHARS];
+    InventoryItemSpec *spec;
+    f32 condition;
 };
+
+api_func InventoryItem InstantiateInventoryItemFromSpec(InventoryItemSpecType type)
+{
+    InventoryItem result;
+    result.spec = GetInventoryItemSpecByType(type);
+    result.condition = 1.0f;
+    return result;
+}
 
 #endif

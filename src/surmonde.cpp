@@ -1,17 +1,22 @@
 #include "surmonde.h"
+
 #include <cstdio>
 #include <sdl2/SDL_scancode.h>
 #include <sdl2/SDL_mouse.h>
 #include <imgui.h>
 #include <backends/imgui_impl_sdl2.h>
 #include <backends/imgui_impl_opengl3.h>
+
 #include "sav.h"
+
 #include "level.h"
 #include "defines.h"
 #include "helpers.h"
 #include "draw.h"
 #include "debug_draw.h"
 #include "inventory.h"
+#include "sprites.h"
+
 #include "ui_debug_actor.h"
 #include "ui_debug_inventory_store.h"
 
@@ -27,17 +32,17 @@ int main(int argc, char **argv)
 
     gameState->worldAtlas = SavLoadTextureAtlas("res/textures/monde_atlas.png", 16, 16);
     SavSetTextureFilterMode(gameState->worldAtlas.texture, SAV_NEAREST);
-    gameState->charAtlas = SavLoadTextureAtlas("res/textures/monde_atlas_chars.png", 16, 16);
-    SavSetTextureFilterMode(gameState->charAtlas.texture, SAV_NEAREST);
-    gameState->itemAtlas = SavLoadTextureAtlas("res/textures/monde_atlas_items.png", 16, 16);
-    SavSetTextureFilterMode(gameState->itemAtlas.texture, SAV_NEAREST);
 
     gameState->worldArena = AllocArena(Megabytes(8));
-
+    
+    InitializeSprites(&gameState->spriteAtlasStore, &gameState->worldArena);
+    InitializeInventoryItemSpecStore(&gameState->inventoryItemSpecStore, &gameState->worldArena);
+    
     f32 tilePxW = gameState->worldAtlas.cellW * LEVEL_ATLAS_SCALE;
     f32 tilePxH = gameState->worldAtlas.cellH * LEVEL_ATLAS_SCALE;
     gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->worldAtlas, tilePxW, tilePxH, &gameState->worldArena);
-    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->charAtlas, &gameState->level);
+
+    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->level);
     gameState->inventoryStore = MakeInventoryStore(INVENTORY_BLOCK_COUNT, &gameState->worldArena);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
     
@@ -212,5 +217,8 @@ int main(int argc, char **argv)
 #include "debug_draw.cpp"
 #include "vision.cpp"
 #include "inventory.cpp"
+#include "sprites.cpp"
+#include "inventory_item_spec.cpp"
+
 #include "ui_debug_actor.cpp"
 #include "ui_debug_inventory_store.cpp"

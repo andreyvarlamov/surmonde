@@ -63,12 +63,6 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
         ImGui::InputInt("Item Index", &itemIndex);
         if (ImGui::Button("Add Item"))
         {
-            MakeStringBufferOnStack(itemName, 128);
-            StringFormat("Item %d", itemName, itemIndex);
-            InventoryItem item;
-            Strcpy(item.name, itemName.string);
-            AddItemToInventory(inventoryStore, &e->inventory, item);
-            itemIndex++;
         }
         
         MakeStringBufferOnStack(removeButtonName, 128);
@@ -77,7 +71,6 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
              item != NULL;
              item = NextInventoryItem(&iterator))
         {
-            ImGui::Text("%s", item->name);
             StringFormat("Remove###REMOVE%d", removeButtonName, iterator.globalIndex);
             ImGui::SameLine();
             if (ImGui::Button(removeButtonName.string))

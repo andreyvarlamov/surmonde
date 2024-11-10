@@ -2,6 +2,8 @@
 #include "level.h"
 #include "entity.h"
 #include "inventory.h"
+#include "sprites.h"
+#include "inventory_item_spec.h"
 
 enum RunState
 {
@@ -15,9 +17,10 @@ struct GameState
     MemoryArena debugRenderArena;
     
     SavTextureAtlas worldAtlas;
-    SavTextureAtlas charAtlas;
-    SavTextureAtlas itemAtlas;
     SavFont uiFont;
+
+    SpriteAtlasStore spriteAtlasStore;
+    InventoryItemSpecStore inventoryItemSpecStore;
     
     Level level;
     Camera2D camera;

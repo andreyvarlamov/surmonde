@@ -6,7 +6,7 @@
 #include "navigation.h"
 #include "vision.h"
 
-api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextureAtlas *atlas, Level *level)
+api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, Level *level)
 {
     EntityStore s = {};
     s.entityMax = entityMax;
@@ -15,14 +15,13 @@ api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, SavTextu
     s.controlledEntityVisibleTiles = MemoryArenaPushArray(arena, level->w * level->h, u8);
 
     s.arena = arena;
-    s.atlas = atlas;
     s.tilePxW = level->levelTilemap.tilePxW;
     s.tilePxH = level->levelTilemap.tilePxH;
 
     return s;
 }
 
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color, CountedString name, b32 isBlocking, b32 isOpaque)
+api_func Entity MakeEntity(f32 x, f32 y, Level *level, Sprite sprite, v4 color, CountedString name, b32 isBlocking, b32 isOpaque)
 {
     Entity e = {};
     
@@ -31,7 +30,7 @@ api_func Entity MakeEntity(f32 x, f32 y, Level *level, int atlasValue, v4 color,
 
     e.p = V2(x, y);
     e.level = level;
-    e.atlasValue = atlasValue;
+    e.sprite = sprite;
     e.color = color;
     e.isBlocking = isBlocking;
     e.isOpaque = isOpaque;
@@ -526,8 +525,9 @@ api_func void DrawEntities(EntityStore *s)
         Rect destRect = MakeRect(pxX, pxY, s->tilePxW, s->tilePxH);
         FourV3 points = ConvertFourV2V3(RectGetPoints(destRect));
 
-        Rect atlasRect = GetAtlasSourceRect(*s->atlas, e->atlasValue);
-        FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(s->atlas->texture, atlasRect));
+        SavTextureAtlas atlas = GetAtlasForSprite(e->sprite);
+        Rect atlasRect = GetAtlasSourceRect(atlas, e->sprite.atlasValue);
+        FourV4 texCoordPoints = ConvertFourV2V4(GetTextureRectTexCoords(atlas.texture, atlasRect));
 
         u32 indexBase = vertsAdded;
         for (int i = 0; i < 4; i++)
@@ -554,7 +554,12 @@ api_func void DrawEntities(EntityStore *s)
     VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(vertColors, vertCount, sizeof(vertColors[0])));
     VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
     VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
-    BindTextureSlot(0, s->atlas->texture);
+
+    // TODO: This needs to be reworked to be able to draw entities with sprites from different atlases
+    //       For now only char atlas is supported
+
+    SavTextureAtlas atlas = GetAtlasForSprite(s->entities->sprite);
+    BindTextureSlot(0, atlas.texture);
     DrawVertexBatch(DEFAULT_VERTEX_BATCH);
     UnbindTextureSlot(0);
 

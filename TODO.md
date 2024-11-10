@@ -2,11 +2,14 @@
 
 ## Changelog
 
-- Items, inventory, storing per entity (WIP)
+- Central sprite and sprite atlas system
+- Item specs system; can define item specs in a file simply (just sprite and name for now)
+- Entity drawing using sprite atlas system
 
 ## Planned
 
-- Item templates
+- Add/remove items based on available specs - debug gui
+- Drawing entities should switch atlas textures correctly
 - Item pickup entities; picking up and dropping items
 - Inventory UI; drop functionality
 - Container entities
@@ -35,6 +38,8 @@
 - Symmterical A*
 - Entity flags
 - Hide entities that are out of line of sight
+- Item stacks
+- Transition tilemap drawing system to use central sprite and sprite atlas system
 
 ------------------------
 

@@ -19,7 +19,7 @@ api_func void DrawDebugInventoryStoreUI(InventoryStore *s)
         {
             for (int itemI = 0; itemI < b->itemCount; itemI++)
             {
-                ImGui::Text("%s", b->items[itemI].name);
+                // ImGui::Text("%s", b->items[itemI].name);
             }
         }
     }
