@@ -27,11 +27,11 @@ struct InventoryBlock
 };
 
 api_func InventoryStore MakeInventoryStore(int blockCount, MemoryArena *arena);
-api_func InventoryBlock *GetFreeInventoryBlock(InventoryStore *s);
+api_func InventoryBlock *GetFreeInventoryBlock(InventoryStore *s, Entity *entityReference);
 /* api_func void FreeInventoryBlock(InventoryStore *s, InventoryBlock *chainStart, InventoryBlock *block); */
 api_func void FreeInventoryBlockChain(InventoryStore *s, InventoryBlock *chainStart);
 
-api_func void AddItemToInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem item);
+api_func void AddItemToInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem item, Entity *entityReference);
 api_func void RemoveItemFromInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem *item);
 
 struct InventoryItemIterator

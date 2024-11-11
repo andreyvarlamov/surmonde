@@ -110,6 +110,11 @@ int main(int argc, char **argv)
                             ResetActorAI(clickedEntity);
                         }
                     }
+                    else if (MousePressed(SDL_BUTTON_LEFT) && KeyDown(SDL_SCANCODE_LALT))
+                    {
+                        Entity *itemPickup = AddItemPickupEntity(&gameState->entityStore, gameState->entityStore.controlledEntity->p.x, gameState->entityStore.controlledEntity->p.y, gameState->entityStore.controlledEntity->level);
+                        TraceLog("Adding item pickup %lld", itemPickup->id);
+                    }
                     else if (gameState->entityStore.controlledEntity != NULL && MouseDown(SDL_BUTTON_LEFT))
                     {
                         v2 target = CameraScreenToWorld(&gameState->camera, MousePos());

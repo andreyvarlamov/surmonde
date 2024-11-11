@@ -98,6 +98,8 @@ struct Entity
 
     InventoryBlock *inventory;
 
+    b32 itemPickupNeedsUpdate;
+
     b32 isPaused;
     b32 isBlocking;
     b32 isOpaque;
@@ -136,6 +138,9 @@ api_func Entity *AddItemPickupEntity(EntityStore *s, f32 x, f32 y, Level *level)
 api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile);
 api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile);
 api_func void ResetActorAI(Entity *e);
+
+api_func void AddItemToEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem item);
+api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem *item);
 
 api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget);
 

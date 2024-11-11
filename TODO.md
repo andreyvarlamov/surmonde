@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Entity types; actors and item pickups
+- Item pickup entity (WIP)
 
 ## Planned
 

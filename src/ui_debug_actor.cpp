@@ -80,7 +80,7 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
         ImGui::SameLine();
         if (ImGui::Button("Add Item"))
         {
-            AddItemToInventory(inventoryStore, &e->inventory, InstantiateInventoryItemFromSpec(selectedItem));
+            AddItemToEntityInventory(e, inventoryStore, InstantiateInventoryItemFromSpec(selectedItem));
         }
         
         MakeStringBufferOnStack(removeButtonName, 128);
@@ -94,7 +94,7 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
             ImGui::SameLine();
             if (ImGui::Button(removeButtonName.string))
             {
-                RemoveItemFromInventory(inventoryStore, &e->inventory, item);
+                RemoveItemFromEntityInventory(e, inventoryStore, item);
                 break;
             }
         }

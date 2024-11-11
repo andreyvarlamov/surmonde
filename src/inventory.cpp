@@ -16,12 +16,14 @@ api_func InventoryStore MakeInventoryStore(int blockCount, MemoryArena *arena)
     return s;
 }
 
-api_func InventoryBlock *GetFreeInventoryBlock(InventoryStore *s)
+struct Entity;
+api_func InventoryBlock *GetFreeInventoryBlock(InventoryStore *s, Entity *entityReference)
 {
     Assert(s->free);
     InventoryBlock *free = s->free;
     s->free = free->next;
     free->next = NULL;
+    free->entity = entityReference;
     return free;
 }
 
@@ -37,7 +39,7 @@ api_func void FreeInventoryBlockChain(InventoryStore *s, InventoryBlock *headBlo
     s->free = last;
 }
 
-api_func void AddItemToInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem item)
+api_func void AddItemToInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem item, Entity *entityReference)
 {
     InventoryBlock *last = NULL;
     InventoryItem *itemSlot = NULL;
@@ -54,13 +56,13 @@ api_func void AddItemToInventory(InventoryStore *s, InventoryBlock **headBlock, 
     {
         if (last == NULL)
         {
-            *headBlock = GetFreeInventoryBlock(s);
+            *headBlock = GetFreeInventoryBlock(s, entityReference);
             itemSlot = (*headBlock)->items;
             (*headBlock)->itemCount++;
         }
         else
         {
-            last->next = GetFreeInventoryBlock(s);
+            last->next = GetFreeInventoryBlock(s, entityReference);
             itemSlot = last->next->items;
             last->next->itemCount++;
         }
@@ -118,7 +120,8 @@ api_func void RemoveItemFromInventory(InventoryStore *s, InventoryBlock **headBl
         {
             *headBlock = NULL;
         }
-        
+
+        last->entity = NULL;
         last->next = s->free;
         s->free = last;
     }

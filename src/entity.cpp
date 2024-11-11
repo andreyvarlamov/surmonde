@@ -156,6 +156,38 @@ api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile)
 #endif
 }
 
+internal_func void refreshItemPickup(Entity *e, InventoryStore *inventoryStore)
+{
+    InventoryItemIterator it = GetInventoryItemIterator(inventoryStore, e->inventory);
+    InventoryItem *firstItem = NextInventoryItem(&it);
+    if (firstItem)
+    {
+        e->sprite = firstItem->spec->sprite;
+    }
+    else
+    {
+        e->type = ENTITY_TYPE_NONE;
+    }
+}
+
+api_func void AddItemToEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem item)
+{
+    AddItemToInventory(inventoryStore, &e->inventory, item, e);
+    if (e->type == ENTITY_TYPE_ITEM_PICKUP)
+    {
+        refreshItemPickup(e, inventoryStore);
+    }
+}
+
+api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem *item)
+{
+    RemoveItemFromInventory(inventoryStore, &e->inventory, item);
+    if (e->type == ENTITY_TYPE_ITEM_PICKUP)
+    {
+        refreshItemPickup(e, inventoryStore);
+    }
+}
+
 api_func void ResetActorAI(Entity *e)
 {
     e->aiState.type = ACTOR_AI_INIT;
@@ -506,10 +538,26 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
     {
         Entity *e = s->entities + entityIndex;
 
-        if (e->type == ENTITY_TYPE_ACTOR && !e->isPaused)
+        switch (e->type)
         {
-            processActorAI(s, e, delta);
-            processActorOrders(s, e, delta);
+            case ENTITY_TYPE_NONE:
+            {
+            } break;
+
+            case ENTITY_TYPE_ACTOR:
+            {
+                if (!e->isPaused)
+                {
+                    processActorAI(s, e, delta);
+                    processActorOrders(s, e, delta);
+                }
+            } break;
+
+            case ENTITY_TYPE_ITEM_PICKUP:
+            {
+            } break;
+
+            default: InvalidCodePath; // Unhandled ENTITY_TYPE
         }
     }
 
@@ -537,7 +585,7 @@ api_func void DrawEntities(EntityStore *s)
         int entitiesToDraw = 0;
         for (int i = 0; i < s->entityCount; i++)
         {
-            if (s->entities[i].type == ENTITY_TYPE_ACTOR && s->entities[i].sprite.atlasType == currentAtlasType)
+            if (s->entities[i].type != ENTITY_TYPE_NONE && s->entities[i].sprite.atlasType == currentAtlasType)
             {
                 entitiesToDraw++;
             }

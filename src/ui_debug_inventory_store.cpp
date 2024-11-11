@@ -14,12 +14,15 @@ api_func void DrawDebugInventoryStoreUI(InventoryStore *s)
     for (int i = 0; i < s->blockCount; i++)
     {
         InventoryBlock *b = s->blocks + i;
-        StringFormat("Block %d -- Entity %d###BLOCK%d", headerTitle, i, b->entity != NULL ? b->entity->id : -1, i);
-        if (ImGui::CollapsingHeader(headerTitle.string))
+        if (b->entity != NULL)
         {
-            for (int itemI = 0; itemI < b->itemCount; itemI++)
+            StringFormat("Block %d -- %s (%lld)###BLOCK%d", headerTitle, i, b->entity->name, b->entity->id, i);
+            if (ImGui::CollapsingHeader(headerTitle.string))
             {
-                ImGui::Text("%s", b->items[itemI].spec->name);
+                for (int itemI = 0; itemI < b->itemCount; itemI++)
+                {
+                    ImGui::Text(b->items[itemI].spec->name);
+                }
             }
         }
     }
