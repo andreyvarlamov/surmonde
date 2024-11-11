@@ -209,6 +209,12 @@ api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventory
     }
 }
 
+api_func void PickUpItemFromItemPickup(EntityStore *s, Entity *itemPickup, Entity *entityPickingUp, InventoryStore *inventoryStore, InventoryItem *item)
+{
+    AddItemToEntityInventory(entityPickingUp, inventoryStore, *item);
+    RemoveItemFromEntityInventory(itemPickup, inventoryStore, item);
+}
+
 api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inventoryStore, InventoryItem *item)
 {
     Entity *itemPickup = GetEntityOfTypeAt(s, ENTITY_TYPE_ITEM_PICKUP, e->p).entities[0];

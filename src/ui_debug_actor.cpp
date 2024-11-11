@@ -83,26 +83,39 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
             AddItemToEntityInventory(e, inventoryStore, InstantiateInventoryItemFromSpec(selectedItem));
         }
         
-        MakeStringBufferOnStack(removeButtonName, 128);
+        MakeStringBufferOnStack(buttonName, 128);
         InventoryItemIterator iterator = GetInventoryItemIterator(inventoryStore, e->inventory);
         for (InventoryItem *item = NextInventoryItem(&iterator);
              item != NULL;
              item = NextInventoryItem(&iterator))
         {
             ImGui::Text(item->spec->name);
-            StringFormat("Remove###REMOVE%d", removeButtonName, iterator.globalIndex);
+            StringFormat("Remove###REMOVE%d", buttonName, iterator.globalIndex);
             ImGui::SameLine();
-            if (ImGui::Button(removeButtonName.string))
+            if (ImGui::Button(buttonName.string))
             {
                 RemoveItemFromEntityInventory(e, inventoryStore, item);
                 break;
             }
-            ImGui::SameLine();
-            StringFormat("Drop###DROP%d", removeButtonName, iterator.globalIndex);
-            if (ImGui::Button(removeButtonName.string))
+            if (e->type == ENTITY_TYPE_ITEM_PICKUP && IsInRange(e->p, s->controlledEntity->p, s->controlledEntity->stats.attackReach))
             {
-                DropItemFromEntity(s, e, inventoryStore, item);
-                break;
+                ImGui::SameLine();
+                StringFormat("Pick up###PICKUP%d", buttonName, iterator.globalIndex);
+                if (ImGui::Button(buttonName.string))
+                {
+                    PickUpItemFromItemPickup(s, e, s->controlledEntity, inventoryStore, item);
+                    break;
+                }
+            }
+            if (e->type == ENTITY_TYPE_ACTOR)
+            {
+                ImGui::SameLine();
+                StringFormat("Drop###DROP%d", buttonName, iterator.globalIndex);
+                if (ImGui::Button(buttonName.string))
+                {
+                    DropItemFromEntity(s, e, inventoryStore, item);
+                    break;
+                }
             }
         }
     }

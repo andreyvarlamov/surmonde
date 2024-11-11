@@ -148,6 +148,7 @@ api_func void ResetActorAI(Entity *e);
 
 api_func void AddItemToEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem item);
 api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem *item);
+api_func void PickUpItemFromItemPickup(EntityStore *s, Entity *itemPickup, Entity *entityPickingUp, InventoryStore *inventoryStore, InventoryItem *item);
 api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inventoryStore, InventoryItem *item);
     
 api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget);

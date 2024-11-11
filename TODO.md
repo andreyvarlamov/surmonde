@@ -2,12 +2,10 @@
 
 ## Changelog
 
-- Item pickup entity fix rendering
-- Item pickup - dropping items logic
+- Item pickup - picking items up logic
 
 ## Planned
 
-- Item pickup - picking items up logic
 - Inventory UI
 - Container entities
 - Inventory UI drag and drop between different inventories
