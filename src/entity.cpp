@@ -55,9 +55,9 @@ api_func Entity *AddEntity(EntityStore *s, Entity e)
     return entityInStore;
 }
 
-api_func Entity *GetEntityAt(EntityStore *s, v2 p)
+api_func EntitySearchResult GetEntityAt(EntityStore *s, v2 p)
 {
-    Entity *result = NULL;
+    EntitySearchResult result = {};
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
@@ -67,8 +67,28 @@ api_func Entity *GetEntityAt(EntityStore *s, v2 p)
             v2 eMax = e->p + V2(0.5f, 0.5f);
             if (InBounds(eMin, eMax, p))
             {
-                result = e;
-                break;
+                Assert(result.entityCount < ENTITY_SEARCH_RESULT_MAX);
+                result.entities[result.entityCount++] = e;
+            }
+        }
+    }
+    return result;
+}
+
+api_func EntitySearchResult GetEntityOfTypeAt(EntityStore *s, EntityType type, v2 p)
+{
+    EntitySearchResult result = {};
+    for (int i = 0; i < s->entityCount; i++)
+    {
+        Entity *e = s->entities + i;
+        if ((type == ENTITY_TYPE_NONE && e->type != ENTITY_TYPE_NONE) || e->type == type)
+        {
+            v2 eMin = e->p - V2(0.5f, 0.5f);
+            v2 eMax = e->p + V2(0.5f, 0.5f);
+            if (InBounds(eMin, eMax, p))
+            {
+                Assert(result.entityCount < ENTITY_SEARCH_RESULT_MAX);
+                result.entities[result.entityCount++] = e;
             }
         }
     }
@@ -114,7 +134,8 @@ api_func Entity *AddItemPickupEntity(EntityStore *s, f32 x, f32 y, Level *level)
 
     e->p = V2(x, y);
     e->level = level;
-
+    e->color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+    
     return e;
 }
 
@@ -186,6 +207,17 @@ api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventory
     {
         refreshItemPickup(e, inventoryStore);
     }
+}
+
+api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inventoryStore, InventoryItem *item)
+{
+    Entity *itemPickup = GetEntityOfTypeAt(s, ENTITY_TYPE_ITEM_PICKUP, e->p).entities[0];
+    if (itemPickup == NULL)
+    {
+        itemPickup = AddItemPickupEntity(s, e->p.x, e->p.y, e->level);
+    }
+    AddItemToEntityInventory(itemPickup, inventoryStore, *item);
+    RemoveItemFromEntityInventory(e, inventoryStore, item);
 }
 
 api_func void ResetActorAI(Entity *e)
@@ -593,7 +625,7 @@ api_func void DrawEntities(EntityStore *s)
         
         if (entitiesToDraw == 0)
         {
-            break;
+            continue;
         }
     
         int vertCount = entitiesToDraw * 4;
@@ -652,9 +684,6 @@ api_func void DrawEntities(EntityStore *s)
         VertexBatchSubVertexData(DEFAULT_VERTEX_BATCH, DEFAULT_VERT_COLORS, MakeVertexCountedData(vertColors, vertCount, sizeof(vertColors[0])));
         VertexBatchSubIndexData(DEFAULT_VERTEX_BATCH, MakeVertexCountedData(indices, indexCount, sizeof(indices[0])));
         VertexBatchEndSub(DEFAULT_VERTEX_BATCH);
-
-        // TODO: This needs to be reworked to be able to draw entities with sprites from different atlases
-        //       For now only char atlas is supported
 
         BindTextureSlot(0, currentAtlas.texture);
         DrawVertexBatch(DEFAULT_VERTEX_BATCH);

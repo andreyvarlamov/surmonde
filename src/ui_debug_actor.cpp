@@ -21,7 +21,7 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
     ImGui::Text("Health: %.0f/%.0f", e->stats.health, e->stats.maxHealth);
     ImGui::Text("Position: %.2f, %.2f", e->p.x, e->p.y);
 
-    if (ImGui::CollapsingHeader("AI"))
+    if (e->type == ENTITY_TYPE_ACTOR && ImGui::CollapsingHeader("AI"))
     {
         ImGui::Text("Is Controlled: %s", IsControlledEntity(s, e) ? "true" : "false");
         ImGui::Text("AI State: %s", ActorAiStateTypeString[e->aiState.type]);
@@ -55,7 +55,7 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
         }
     }
 
-    if (ImGui::CollapsingHeader("Inventory"))
+    if ((e->type == ENTITY_TYPE_ACTOR || e->type == ENTITY_TYPE_ITEM_PICKUP) && ImGui::CollapsingHeader("Inventory"))
     {
         ImGui::Text("Has Inventory Block: %s", e->inventory != NULL ? "true" : "false");
 
@@ -95,6 +95,13 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
             if (ImGui::Button(removeButtonName.string))
             {
                 RemoveItemFromEntityInventory(e, inventoryStore, item);
+                break;
+            }
+            ImGui::SameLine();
+            StringFormat("Drop###DROP%d", removeButtonName, iterator.globalIndex);
+            if (ImGui::Button(removeButtonName.string))
+            {
+                DropItemFromEntity(s, e, inventoryStore, item);
                 break;
             }
         }

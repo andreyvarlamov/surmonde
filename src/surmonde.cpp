@@ -103,17 +103,12 @@ int main(int argc, char **argv)
                         v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
                         target.x = target.x / gameState->entityStore.tilePxW;
                         target.y = target.y / gameState->entityStore.tilePxH;
-                        Entity *clickedEntity = GetEntityAt(&gameState->entityStore, target);
+                        Entity *clickedEntity = GetEntityOfTypeAt(&gameState->entityStore, ENTITY_TYPE_ACTOR, target).entities[0];
                         if (clickedEntity != NULL && !IsControlledEntity(&gameState->entityStore, clickedEntity))
                         {
                             gameState->entityStore.controlledEntity = clickedEntity;
                             ResetActorAI(clickedEntity);
                         }
-                    }
-                    else if (MousePressed(SDL_BUTTON_LEFT) && KeyDown(SDL_SCANCODE_LALT))
-                    {
-                        Entity *itemPickup = AddItemPickupEntity(&gameState->entityStore, gameState->entityStore.controlledEntity->p.x, gameState->entityStore.controlledEntity->p.y, gameState->entityStore.controlledEntity->level);
-                        TraceLog("Adding item pickup %lld", itemPickup->id);
                     }
                     else if (gameState->entityStore.controlledEntity != NULL && MouseDown(SDL_BUTTON_LEFT))
                     {
@@ -121,7 +116,7 @@ int main(int argc, char **argv)
                         target.x = target.x / gameState->entityStore.tilePxW;
                         target.y = target.y / gameState->entityStore.tilePxH;
                     
-                        Entity *clickedEntity = GetEntityAt(&gameState->entityStore, target);
+                        Entity *clickedEntity = GetEntityOfTypeAt(&gameState->entityStore, ENTITY_TYPE_ACTOR, target).entities[0];
 
                         if (clickedEntity != NULL && !IsControlledEntity(&gameState->entityStore, clickedEntity))
                         {
@@ -141,7 +136,7 @@ int main(int argc, char **argv)
                     v2 p = CameraScreenToWorld(&gameState->camera, MousePos());
                     p.x = p.x / gameState->entityStore.tilePxW;
                     p.y = p.y / gameState->entityStore.tilePxH;
-                    Entity *clickedEntity = GetEntityAt(&gameState->entityStore, p);
+                    Entity *clickedEntity = GetEntityAt(&gameState->entityStore, p).entities[0];
                     b32 disabled = false;
                     Entity **addToThisSlot = NULL;
                     for (int i = 0; i < VIEWED_ENTITY_MAX; i++)

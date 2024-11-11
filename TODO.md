@@ -2,12 +2,13 @@
 
 ## Changelog
 
-- Item pickup entity (WIP)
+- Item pickup entity fix rendering
+- Item pickup - dropping items logic
 
 ## Planned
 
-- Item pickup entity logic; picking up and dropping items
-- Inventory UI; drop functionality
+- Item pickup - picking items up logic
+- Inventory UI
 - Container entities
 - Inventory UI drag and drop between different inventories
 
@@ -37,6 +38,7 @@
 - Item stacks
 - Transition tilemap drawing system to use central sprite and sprite atlas system
 - Entity slot reuse
+- Different sprites for different states of entities ("animation")
 
 ------------------------
 

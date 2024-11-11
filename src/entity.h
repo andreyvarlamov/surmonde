@@ -130,7 +130,14 @@ api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, Level *l
 api_func Entity MakeEntity(f32 x, f32 y, Level *level, Sprite sprite, v4 color, CountedString name, b32 isBlocking, b32 isOpaque);
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
-api_func Entity *GetEntityAt(EntityStore *s, v2 p);
+
+struct EntitySearchResult
+{
+    Entity *entities[ENTITY_SEARCH_RESULT_MAX];
+    int entityCount;
+};
+api_func EntitySearchResult GetEntityAt(EntityStore *s, v2 p);
+api_func EntitySearchResult GetEntityOfTypeAt(EntityStore *s, EntityType type, v2 p);
 
 api_func Entity *AddActorEntity(EntityStore *s, f32 x, f32 y, Level *level, Sprite sprite, CountedString name);
 api_func Entity *AddItemPickupEntity(EntityStore *s, f32 x, f32 y, Level *level);
@@ -141,7 +148,8 @@ api_func void ResetActorAI(Entity *e);
 
 api_func void AddItemToEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem item);
 api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem *item);
-
+api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inventoryStore, InventoryItem *item);
+    
 api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
