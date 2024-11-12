@@ -28,6 +28,8 @@ struct GameState
     Entity *viewedEntities[VIEWED_ENTITY_MAX];
 
     InventoryStore inventoryStore;
+
+    b32 inventoryOpen;
     
     b32 isPaused;
 

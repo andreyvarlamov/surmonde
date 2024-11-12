@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Item pickup - picking items up logic
+- Playing around with imgui to display custom textures; using imgui push and pop id
 
 ## Planned
 

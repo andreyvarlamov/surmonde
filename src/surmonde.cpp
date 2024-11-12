@@ -19,6 +19,7 @@
 
 #include "ui_debug_actor.h"
 #include "ui_debug_inventory_store.h"
+#include "ui_inventory.h"
 
 int main(int argc, char **argv)
 {
@@ -163,6 +164,11 @@ int main(int argc, char **argv)
                     gameState->isPaused = !gameState->isPaused;
                 }
 
+                if (KeyPressed(SDL_SCANCODE_I))
+                {
+                    gameState->inventoryOpen = !gameState->inventoryOpen;
+                }
+
                 if (!gameState->isPaused)
                 {
                     UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
@@ -192,6 +198,11 @@ int main(int argc, char **argv)
                 }
 
                 DrawDebugInventoryStoreUI(&gameState->inventoryStore);
+
+                if (gameState->inventoryOpen)
+                {
+                    DrawInventoryUI(&gameState->inventoryStore, gameState->entityStore.controlledEntity);
+                }
             } break;
         }
 
@@ -224,3 +235,4 @@ int main(int argc, char **argv)
 
 #include "ui_debug_actor.cpp"
 #include "ui_debug_inventory_store.cpp"
+#include "ui_inventory.cpp"

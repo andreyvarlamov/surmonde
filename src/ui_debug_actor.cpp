@@ -83,40 +83,44 @@ api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, E
             AddItemToEntityInventory(e, inventoryStore, InstantiateInventoryItemFromSpec(selectedItem));
         }
         
-        MakeStringBufferOnStack(buttonName, 128);
         InventoryItemIterator iterator = GetInventoryItemIterator(inventoryStore, e->inventory);
         for (InventoryItem *item = NextInventoryItem(&iterator);
              item != NULL;
              item = NextInventoryItem(&iterator))
         {
             ImGui::Text(item->spec->name);
-            StringFormat("Remove###REMOVE%d", buttonName, iterator.globalIndex);
             ImGui::SameLine();
-            if (ImGui::Button(buttonName.string))
+            ImGui::PushID(item);
+            if (ImGui::Button("Remove"))
             {
                 RemoveItemFromEntityInventory(e, inventoryStore, item);
-                break;
+                goto stop_iterating;
             }
             if (e->type == ENTITY_TYPE_ITEM_PICKUP && IsInRange(e->p, s->controlledEntity->p, s->controlledEntity->stats.attackReach))
             {
                 ImGui::SameLine();
-                StringFormat("Pick up###PICKUP%d", buttonName, iterator.globalIndex);
-                if (ImGui::Button(buttonName.string))
+                if (ImGui::Button("Pick up"))
                 {
                     PickUpItemFromItemPickup(s, e, s->controlledEntity, inventoryStore, item);
-                    break;
+                    goto stop_iterating;
                 }
             }
             if (e->type == ENTITY_TYPE_ACTOR)
             {
                 ImGui::SameLine();
-                StringFormat("Drop###DROP%d", buttonName, iterator.globalIndex);
-                if (ImGui::Button(buttonName.string))
+                if (ImGui::Button("Drop"))
                 {
                     DropItemFromEntity(s, e, inventoryStore, item);
-                    break;
+                    goto stop_iterating;
                 }
             }
+
+            ImGui::PopID();
+            continue;
+
+        stop_iterating:
+            ImGui::PopID();
+            break;
         }
     }
     
