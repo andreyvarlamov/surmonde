@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Playing around with imgui to display custom textures; using imgui push and pop id
+- Playing around with imgui drag and drop
 
 ## Planned
 
@@ -37,6 +37,7 @@
 - Transition tilemap drawing system to use central sprite and sprite atlas system
 - Entity slot reuse
 - Different sprites for different states of entities ("animation")
+- ImGui input filtering - if a window is focused, it lets mouse events outside the window through, but it stops keyboard events until the window is unfocused. I only want to stop keyboard events if there's a keyboard shortcut that's possible in that window.
 
 ------------------------
 
