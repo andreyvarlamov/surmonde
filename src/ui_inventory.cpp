@@ -20,16 +20,32 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
     ImGuiStyle& imguiStyle = ImGui::GetStyle();
 
     ImVec2 size = ImVec2(64.0f, 64.0f);
-    
-    int itemsPerLine = (int)((ImGui::GetContentRegionAvail().x - 2*imguiStyle.ItemSpacing.x) / (size.x + imguiStyle.ItemSpacing.x));
 
-    #if 0
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    ImVec4 colF = ImVec4(1.0f, 1.0f, 0.4f, 1.0f);
-    ImU32 col = ImColor(colF);
-    ImVec2 rect0 = ImGui::GetCursorScreenPos();
-    ImVec2 rect1 = ImVec2(rect0.x + ImGui::GetContentRegionAvail().x, rect0.y + ImGui::GetContentRegionAvail().y);
-    drawList->AddRect(rect0, rect1, col, 0.0f, ImDrawFlags_None, 1.0f);
+    f32 dropAreaHeight = size.y + 2 * imguiStyle.FramePadding.y + 2 * imguiStyle.ItemSpacing.y;
+
+    local_persist f32 ratio = 0.0f;
+    
+    ImGui::SliderFloat("Ratio", &ratio, 0.0f, 1.0f, "ratio = %.3f");
+
+    ImGui::BeginChild("InventoryChild",
+                      ImVec2(0.0f, ImGui::GetContentRegionAvail().y - dropAreaHeight),
+                      ImGuiChildFlags_None,
+                      ImGuiWindowFlags_HorizontalScrollbar);
+    
+    int itemsPerLine = (int)((ImGui::GetContentRegionAvail().x +  + imguiStyle.ItemSpacing.x) /
+                             (size.x + imguiStyle.ItemSpacing.x + 2 * imguiStyle.FramePadding.x));
+
+
+    #if 1
+    {
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImVec4 colF = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+        ImU32 col = ImColor(colF);
+        ImVec2 rect0 = ImGui::GetCursorScreenPos();
+        ImVec2 rect1 = ImVec2(rect0.x + ImGui::GetContentRegionAvail().x, rect0.y + ImGui::GetContentRegionAvail().y);
+        // ImVec2 rect1 = ImVec2(rect0.x + size.x, rect0.y + size.y);
+        drawList->AddRect(rect0, rect1, col, 0.0f, ImDrawFlags_None, 1.0f);
+    }
     #endif
 
     int itemsInLine = 0;
@@ -38,6 +54,7 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
          item != NULL;
          item = NextInventoryItem(&it))
     {
+        ImGui::PushID(item);
         Sprite itemSprite = item->spec->sprite;
         SavTextureAtlas atlas = GetAtlasForSprite(itemSprite);
         Rect sourceRect = GetAtlasSourceRect(atlas, itemSprite.atlasValue);
@@ -51,13 +68,7 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
         {
             // Set payload to carry the index of our item (could be anything)
-            // ImGui::SetDragDropPayload("DND_DEMO_CELL", &n, sizeof(int));
-
-            // Display preview (could be anything, e.g. when dragging an image we could decide to display
-            // the filename and a small preview of the image, etc.)
-            // if (mode == Mode_Copy) { ImGui::Text("Copy %s", names[n]); }
-            // if (mode == Mode_Move) { ImGui::Text("Move %s", names[n]); }
-            // if (mode == Mode_Swap) { ImGui::Text("Swap %s", names[n]); }
+            ImGui::SetDragDropPayload("DND_DEMO_CELL", &it.globalIndex, sizeof(int));
             ImGui::EndDragDropSource();
         }
 
@@ -69,15 +80,45 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
         {
             itemsInLine = 0;
         }
+        ImGui::PopID();
     }
     
+    ImGui::EndChild();
+
+    ImGui::BeginChild("DropAreaChild",
+                      ImVec2(0.0f, 0.0f),
+                      ImGuiChildFlags_None,
+                      ImGuiWindowFlags_None);
+
+    #if 1
+    {
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImVec4 colF = ImVec4(1.0f, 1.0f, 0.4f, 1.0f);
+        ImU32 col = ImColor(colF);
+        ImVec2 rect0 = ImGui::GetCursorScreenPos();
+        ImVec2 rect1 = ImVec2(rect0.x + ImGui::GetContentRegionAvail().x, rect0.y + ImGui::GetContentRegionAvail().y);
+        // ImVec2 rect1 = ImVec2(rect0.x + size.x, rect0.y + size.y);
+        drawList->AddRect(rect0, rect1, col, 0.0f, ImDrawFlags_None, 1.0f);
+    }
+    #endif
+
+    ImGui::EndChild();
+    
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("DND_DEMO_CELL"))
+        {
+            TraceLog("Dropped %d", *(int *)payload->Data);
+        }
+        ImGui::EndDragDropTarget();
+    }       
     ImGui::End();
 
     // ImRect rect(ImVec2(0.0f, 0.0f), ImVec2(500.0f, 500.0f));
-    ImRect rect(ImGui::GetWindowPos(), ImGui::GetWindowSize());
-    if (ImGui::BeginDragDropTargetCustom(rect, ImGui::GetID("panel")))
-    {
-        TraceLog("Dropped");
-        ImGui::EndDragDropTarget();
-    }
+    // ImRect rect(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+    // if (ImGui::BeginDragDropTargetCustom(rect, ImGui::GetID("panel")))
+    // {
+    //     TraceLog("Dropped");
+    //     ImGui::EndDragDropTarget();
+    // }
 }

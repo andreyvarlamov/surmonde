@@ -68,8 +68,11 @@ int main(int argc, char **argv)
     Tile wallTile = MakeTile(3, V4(1,1,1,1), TILE_BLOCKED | TILE_OPAQUE);
 
     int debugEdge = 0;
-    b32 debugEdgeTiles = false; 
-    
+    b32 debugEdgeTiles = false;
+
+    gameState->inventoryOpen = true;
+    gameState->viewedEntities[0] = gameState->entityStore.controlledEntity;
+        
     while (!WindowShouldClose())
     {
         BeginFrameTiming();

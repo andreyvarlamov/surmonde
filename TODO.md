@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Playing around with imgui layout
+- Playing around with imgui layout and drag and drop
 
 ## Planned
 
