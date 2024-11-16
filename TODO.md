@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Playing around with imgui layout and drag and drop
+- Imgui inventory actually drop items and inventories for multiple entities open
 
 ## Planned
 

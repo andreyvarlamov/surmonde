@@ -5,6 +5,6 @@
 #include "entity.h"
 #include "inventory.h"
 
-api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e);
+api_func void DrawInventoryUI(EntityStore *entityStore, InventoryStore *inventoryStore, Entity *e);
 
 #endif

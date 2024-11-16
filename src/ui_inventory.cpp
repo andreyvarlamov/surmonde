@@ -11,9 +11,12 @@
 
 #include <imgui_internal.h>
 
-api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
+api_func void DrawInventoryUI(EntityStore *entityStore, InventoryStore *inventoryStore, Entity *e)
 {
-    ImGui::Begin("Inventory");
+    // ImGui::PushID(e);
+    MakeStringBufferOnStack(windowTitle, 128);
+    StringFormat("Inventory -- %s (%lld)###INVENTORY_%p", windowTitle, e->name, e->id, e);
+    ImGui::Begin(windowTitle.string);
 
     ImGui::Text("Hello, inventory!");
 
@@ -22,10 +25,6 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
     ImVec2 size = ImVec2(64.0f, 64.0f);
 
     f32 dropAreaHeight = size.y + 2 * imguiStyle.FramePadding.y + 2 * imguiStyle.ItemSpacing.y;
-
-    local_persist f32 ratio = 0.0f;
-    
-    ImGui::SliderFloat("Ratio", &ratio, 0.0f, 1.0f, "ratio = %.3f");
 
     ImGui::BeginChild("InventoryChild",
                       ImVec2(0.0f, ImGui::GetContentRegionAvail().y - dropAreaHeight),
@@ -36,17 +35,6 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
                              (size.x + imguiStyle.ItemSpacing.x + 2 * imguiStyle.FramePadding.x));
 
 
-    #if 1
-    {
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImVec4 colF = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
-        ImU32 col = ImColor(colF);
-        ImVec2 rect0 = ImGui::GetCursorScreenPos();
-        ImVec2 rect1 = ImVec2(rect0.x + ImGui::GetContentRegionAvail().x, rect0.y + ImGui::GetContentRegionAvail().y);
-        // ImVec2 rect1 = ImVec2(rect0.x + size.x, rect0.y + size.y);
-        drawList->AddRect(rect0, rect1, col, 0.0f, ImDrawFlags_None, 1.0f);
-    }
-    #endif
 
     int itemsInLine = 0;
     InventoryItemIterator it = GetInventoryItemIterator(inventoryStore, e->inventory);
@@ -68,7 +56,7 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
         {
             // Set payload to carry the index of our item (could be anything)
-            ImGui::SetDragDropPayload("DND_DEMO_CELL", &it.globalIndex, sizeof(int));
+            ImGui::SetDragDropPayload("INV_DRAG_ITEM", &item, sizeof(InventoryItem *));
             ImGui::EndDragDropSource();
         }
 
@@ -84,16 +72,46 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
     }
     
     ImGui::EndChild();
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("INV_DRAG_ITEM"))
+        {
+            InventoryItem *item = *(InventoryItem **)payload->Data;
+            TraceLog("Inv %s", item->spec->name);
+        }
+        ImGui::EndDragDropTarget();
+    }
 
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
     ImGui::BeginChild("DropAreaChild",
                       ImVec2(0.0f, 0.0f),
                       ImGuiChildFlags_None,
                       ImGuiWindowFlags_None);
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("INV_DRAG_ITEM"))
+        {
+            InventoryItem *item = *(InventoryItem **)payload->Data;
+            DropItemFromEntity(entityStore, e, inventoryStore, item);
+        }
+        ImGui::EndDragDropTarget();
+    }
+    
+    ImGui::End();
+    // ImGui::PopID();
+}
+
+/*
+    local_persist f32 ratio = 0.0f;
+    
+    ImGui::SliderFloat("Ratio", &ratio, 0.0f, 1.0f, "ratio = %.3f");
 
     #if 1
     {
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImVec4 colF = ImVec4(1.0f, 1.0f, 0.4f, 1.0f);
+        ImVec4 colF = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
         ImU32 col = ImColor(colF);
         ImVec2 rect0 = ImGui::GetCursorScreenPos();
         ImVec2 rect1 = ImVec2(rect0.x + ImGui::GetContentRegionAvail().x, rect0.y + ImGui::GetContentRegionAvail().y);
@@ -101,24 +119,4 @@ api_func void DrawInventoryUI(InventoryStore *inventoryStore, Entity *e)
         drawList->AddRect(rect0, rect1, col, 0.0f, ImDrawFlags_None, 1.0f);
     }
     #endif
-
-    ImGui::EndChild();
-    
-    if (ImGui::BeginDragDropTarget())
-    {
-        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("DND_DEMO_CELL"))
-        {
-            TraceLog("Dropped %d", *(int *)payload->Data);
-        }
-        ImGui::EndDragDropTarget();
-    }       
-    ImGui::End();
-
-    // ImRect rect(ImVec2(0.0f, 0.0f), ImVec2(500.0f, 500.0f));
-    // ImRect rect(ImGui::GetWindowPos(), ImGui::GetWindowSize());
-    // if (ImGui::BeginDragDropTargetCustom(rect, ImGui::GetID("panel")))
-    // {
-    //     TraceLog("Dropped");
-    //     ImGui::EndDragDropTarget();
-    // }
-}
+ */

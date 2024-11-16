@@ -7,7 +7,7 @@
 api_func void DrawDebugActorUI(EntityStore *s, InventoryStore *inventoryStore, Entity *e)
 {
     MakeStringBufferOnStack(windowTitle, 128);
-    StringFormat("Entity -- %s -- %lld", windowTitle, e->name, e->id);
+    StringFormat("Entity -- %s -- (%lld)###DEBUG_ACTOR_%p", windowTitle, e->name, e->id, e);
     ImGui::Begin(windowTitle.string);
 
     ImGui::Text("Entity %lld (%p)", e->id, e);

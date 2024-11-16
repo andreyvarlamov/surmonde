@@ -70,9 +70,9 @@ int main(int argc, char **argv)
     int debugEdge = 0;
     b32 debugEdgeTiles = false;
 
-    gameState->inventoryOpen = true;
-    gameState->viewedEntities[0] = gameState->entityStore.controlledEntity;
-        
+    AddEntityToSlot(gameState->entityStore.controlledEntity, gameState->viewedEntities, VIEWED_ENTITY_MAX);
+    AddEntityToSlot(gameState->entityStore.controlledEntity, gameState->entitiesWithOpenInventories, VIEWED_ENTITY_MAX);
+ 
     while (!WindowShouldClose())
     {
         BeginFrameTiming();
@@ -141,24 +141,14 @@ int main(int argc, char **argv)
                     p.x = p.x / gameState->entityStore.tilePxW;
                     p.y = p.y / gameState->entityStore.tilePxH;
                     Entity *clickedEntity = GetEntityAt(&gameState->entityStore, p).entities[0];
-                    b32 disabled = false;
-                    Entity **addToThisSlot = NULL;
-                    for (int i = 0; i < VIEWED_ENTITY_MAX; i++)
+
+                    if (KeyDown(SDL_SCANCODE_LSHIFT))
                     {
-                        Entity **viewedEntitySlot = gameState->viewedEntities + i;
-                        if (*viewedEntitySlot == clickedEntity)
-                        {
-                            *viewedEntitySlot = NULL;
-                            disabled = true;
-                        }
-                        else if (*viewedEntitySlot == NULL)
-                        {
-                            addToThisSlot = viewedEntitySlot;
-                        }
+                        AddEntityToSlot(clickedEntity, gameState->viewedEntities, VIEWED_ENTITY_MAX);
                     }
-                    if (!disabled && addToThisSlot != NULL)
+                    else
                     {
-                        *addToThisSlot = clickedEntity;
+                        AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenInventories, VIEWED_ENTITY_MAX);
                     }
                 }
 
@@ -169,7 +159,7 @@ int main(int argc, char **argv)
 
                 if (KeyPressed(SDL_SCANCODE_I))
                 {
-                    gameState->inventoryOpen = !gameState->inventoryOpen;
+                    AddEntityToSlot(gameState->entityStore.controlledEntity, gameState->entitiesWithOpenInventories, VIEWED_ENTITY_MAX);
                 }
 
                 if (!gameState->isPaused)
@@ -202,9 +192,13 @@ int main(int argc, char **argv)
 
                 DrawDebugInventoryStoreUI(&gameState->inventoryStore);
 
-                if (gameState->inventoryOpen)
+                for (int i = 0; i < VIEWED_ENTITY_MAX; i++)
                 {
-                    DrawInventoryUI(&gameState->inventoryStore, gameState->entityStore.controlledEntity);
+                    Entity *entityWithOpenInventory = gameState->entitiesWithOpenInventories[i];
+                    if (entityWithOpenInventory)
+                    {
+                        DrawInventoryUI(&gameState->entityStore, &gameState->inventoryStore, entityWithOpenInventory);
+                    }
                 }
             } break;
         }
@@ -221,6 +215,29 @@ int main(int argc, char **argv)
     Quit();
 
     return 0;
+}
+
+void AddEntityToSlot(Entity *e, Entity **slots, int slotCount)
+{
+    b32 disabled = false;
+    Entity **addToThisSlot = NULL;
+    for (int i = 0; i < slotCount; i++)
+    {
+        Entity **slot = slots + i;
+        if (*slot == e)
+        {
+            *slot = NULL;
+            disabled = true;
+        }
+        else if (*slot == NULL)
+        {
+            addToThisSlot = slot;
+        }
+    }
+    if (!disabled && addToThisSlot != NULL)
+    {
+        *addToThisSlot = e;
+    }
 }
 
 #include "level.cpp"

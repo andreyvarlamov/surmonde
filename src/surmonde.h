@@ -29,9 +29,11 @@ struct GameState
 
     InventoryStore inventoryStore;
 
-    b32 inventoryOpen;
+    Entity *entitiesWithOpenInventories[VIEWED_ENTITY_MAX];
     
     b32 isPaused;
 
     RunState runState;
 };
+
+void AddEntityToSlot(Entity *e, Entity **slots, int slotCount);
