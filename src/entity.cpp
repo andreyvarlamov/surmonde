@@ -61,7 +61,7 @@ api_func EntitySearchResult GetEntityAt(EntityStore *s, v2 p)
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        if (e->type != ENTITY_TYPE_NONE)
+        if (e->type != EntityType_None)
         {
             v2 eMin = e->p - V2(0.5f, 0.5f);
             v2 eMax = e->p + V2(0.5f, 0.5f);
@@ -81,7 +81,7 @@ api_func EntitySearchResult GetEntityOfTypeAt(EntityStore *s, EntityType type, v
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        if ((type == ENTITY_TYPE_NONE && e->type != ENTITY_TYPE_NONE) || e->type == type)
+        if ((type == EntityType_None && e->type != EntityType_None) || e->type == type)
         {
             v2 eMin = e->p - V2(0.5f, 0.5f);
             v2 eMax = e->p + V2(0.5f, 0.5f);
@@ -105,7 +105,7 @@ api_func Entity *AddActorEntity(EntityStore *s, f32 x, f32 y, Level *level, Spri
     *e = {};
 
     e->id = id;
-    e->type = ENTITY_TYPE_ACTOR;
+    e->type = EntityType_Actor;
 
     Assert(name.size < ENTITY_NAME_CHARS);
     Strcpy(e->name, name.string);
@@ -129,7 +129,7 @@ api_func Entity *AddItemPickupEntity(EntityStore *s, f32 x, f32 y, Level *level)
     *e = {};
 
     e->id = id;
-    e->type = ENTITY_TYPE_ITEM_PICKUP;
+    e->type = EntityType_ItemPickup;
 
     Strcpy(e->name, "Item pickup");
 
@@ -147,7 +147,7 @@ api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile)
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        if (e->type != ENTITY_TYPE_NONE && e->isBlocking && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
+        if (e->type != EntityType_None && e->isBlocking && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
         {
             result = true;
             break;
@@ -166,7 +166,7 @@ api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile)
     for (int i = 0; i < s->entityCount; i++)
     {
         Entity *e = s->entities + i;
-        if (e->type != ENTITY_TYPE_NONE && e->isOpaque && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
+        if (e->type != EntityType_None && e->isOpaque && (i32)e->p.x == tile.x && (i32)e->p.y == tile.y)
         {
             result = true;
             break;
@@ -188,14 +188,14 @@ internal_func void refreshItemPickup(Entity *e, InventoryStore *inventoryStore)
     }
     else
     {
-        e->type = ENTITY_TYPE_NONE;
+        e->type = EntityType_None;
     }
 }
 
 api_func void AddItemToEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem item)
 {
     AddItemToInventory(inventoryStore, &e->inventory, item, e);
-    if (e->type == ENTITY_TYPE_ITEM_PICKUP)
+    if (e->type == EntityType_ItemPickup)
     {
         refreshItemPickup(e, inventoryStore);
     }
@@ -204,7 +204,7 @@ api_func void AddItemToEntityInventory(Entity *e, InventoryStore *inventoryStore
 api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventoryStore, InventoryItem *item)
 {
     RemoveItemFromInventory(inventoryStore, &e->inventory, item);
-    if (e->type == ENTITY_TYPE_ITEM_PICKUP)
+    if (e->type == EntityType_ItemPickup)
     {
         refreshItemPickup(e, inventoryStore);
     }
@@ -218,7 +218,7 @@ api_func void MoveItemFromEntityToEntity(Entity *sourceEntity, Entity *destEntit
 
 api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inventoryStore, InventoryItem *item)
 {
-    Entity *itemPickup = GetEntityOfTypeAt(s, ENTITY_TYPE_ITEM_PICKUP, e->p).entities[0];
+    Entity *itemPickup = GetEntityOfTypeAt(s, EntityType_ItemPickup, e->p).entities[0];
     if (itemPickup == NULL)
     {
         itemPickup = AddItemPickupEntity(s, e->p.x, e->p.y, e->level);
@@ -235,7 +235,7 @@ api_func void ResetActorAI(Entity *e)
 internal_func void entityDie(Entity *e)
 {
     TraceLog("%s dies.", e->name);
-    e->type = ENTITY_TYPE_NONE;
+    e->type = EntityType_None;
 }
 
 internal_func f32 entitySetHealth(EntityStore *s, Entity *e, f32 health)
@@ -389,7 +389,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                 orderFollowEntity(e, e->aiState.entityToFollow);
             }
             
-            if (e->aiState.entityToFollow->type == ENTITY_TYPE_NONE ||!canEntitySeePosition(s, e, s->controlledEntity->p))
+            if (e->aiState.entityToFollow->type == EntityType_None ||!canEntitySeePosition(s, e, s->controlledEntity->p))
             {
                 resetActorOrder(&e->currentOrder);
                 e->aiState.type = ACTOR_AI_IDLE;
@@ -406,7 +406,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
         {
             if (orderAttackEntity(e, e->aiState.entityToAttack))
             {
-                if (e->aiState.entityToAttack->type == ENTITY_TYPE_NONE)
+                if (e->aiState.entityToAttack->type == EntityType_None)
                 {
                     resetActorOrder(&e->currentOrder);
                     e->aiState.type = ACTOR_AI_IDLE;
@@ -556,7 +556,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
         {
             if (!e->currentOrder.isCompleted)
             {
-                if (e->currentOrder.attackTimer <= 0.0f && e->currentOrder.entityToAttack->type != ENTITY_TYPE_NONE)
+                if (e->currentOrder.attackTimer <= 0.0f && e->currentOrder.entityToAttack->type != EntityType_None)
                 {
                     f32 delta = entitySetHealth(s, e->currentOrder.entityToAttack, e->currentOrder.entityToAttack->stats.health - 10.0f);
                     TraceLog("%s attacks %s for %.0f damage", e->name, e->currentOrder.entityToAttack->name, delta != 0.0f ? -delta : 0.0f);
@@ -573,7 +573,9 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
     }
 }
 
-api_func void UpdateEntities(EntityStore *s, f32 delta)
+#include "entity_machine.h"
+
+api_func void UpdateEntities(EntityStore *s, f32 dT)
 {
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
@@ -581,32 +583,37 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
 
         switch (e->type)
         {
-            case ENTITY_TYPE_NONE:
+            case EntityType_None:
             {
             } break;
 
-            case ENTITY_TYPE_ACTOR:
+            case EntityType_Actor:
             {
                 if (!e->isPaused)
                 {
-                    processActorAI(s, e, delta);
-                    processActorOrders(s, e, delta);
+                    processActorAI(s, e, dT);
+                    processActorOrders(s, e, dT);
                 }
             } break;
 
-            case ENTITY_TYPE_ITEM_PICKUP:
+            case EntityType_ItemPickup:
             {
             } break;
 
-            case ENTITY_TYPE_CONTAINER:
+            case EntityType_Container:
             {
+            } break;
+
+            case EntityType_Machine:
+            {
+                UpdateMachineEntity(e, dT);
             } break;
 
             default: InvalidCodePath; // Unhandled ENTITY_TYPE
         }
     }
 
-    if (s->controlledEntity == NULL || s->controlledEntity->type == ENTITY_TYPE_NONE)
+    if (s->controlledEntity == NULL || s->controlledEntity->type == EntityType_None)
     {
         s->controlledEntity = NULL;
     }
@@ -630,7 +637,7 @@ api_func void DrawEntities(EntityStore *s)
         int entitiesToDraw = 0;
         for (int i = 0; i < s->entityCount; i++)
         {
-            if (s->entities[i].type != ENTITY_TYPE_NONE && s->entities[i].sprite.atlasType == currentAtlasType)
+            if (s->entities[i].type != EntityType_None && s->entities[i].sprite.atlasType == currentAtlasType)
             {
                 entitiesToDraw++;
             }
@@ -659,7 +666,7 @@ api_func void DrawEntities(EntityStore *s)
         for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
         {
             Entity *e = s->entities + entityIndex;
-            if (e->type == ENTITY_TYPE_NONE || e->sprite.atlasType != currentAtlasType)
+            if (e->type == EntityType_None || e->sprite.atlasType != currentAtlasType)
             {
                 continue;
             }
@@ -709,7 +716,7 @@ api_func void DrawEntities(EntityStore *s)
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
         Entity *e = s->entities + entityIndex;
-        if (e->type == ENTITY_TYPE_NONE)
+        if (e->type == EntityType_None)
         {
             continue;
         }

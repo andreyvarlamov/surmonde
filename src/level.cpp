@@ -68,7 +68,7 @@ internal_func b32 doRoomsIntersect(Room a, Room b)
     return result;
 }
 
-internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlayer, v2 *whereToPlaceChest)
+internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlayer, v2 *whereToPlaceChest, v2 *whereToPlaceCampfire)
 {
     Tile grassTile = MakeTile(0, V4(1,1,1,1), 0);
     Tile dirtTile = MakeTile(1, V4(1,1,1,1), 0);
@@ -183,13 +183,15 @@ internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlaye
     }
 
     *whereToPlacePlayer = V2((f32)rooms[0].x + (f32)rooms[0].w * 0.5f, (f32)rooms[0].y + (f32)rooms[0].h * 0.5f);
-    *whereToPlaceChest = V2((f32)rooms[0].x + 1.5f, (f32)rooms[0].y + 1.5f);
+    *whereToPlaceChest = V2(rooms[0].x + 1.5f, rooms[0].y + 1.5f);
+    *whereToPlaceCampfire = V2(rooms[0].x + rooms[0].w - 1.5f, rooms[0].y + 1.5f);
 }
 
 api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType)
 {
     v2 playerPos = {};
     v2 chestPos = {};
+    v2 campfirePos = {};
     switch (genType)
     {
         case LEVEL_EMPTY:
@@ -204,7 +206,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
 
         case LEVEL_CLASSIC_ROOMS:
         {
-            generateLevelClassicRooms(level, &playerPos, &chestPos);
+            generateLevelClassicRooms(level, &playerPos, &chestPos, &campfirePos);
         } break;
 
         default: InvalidCodePath;
@@ -231,12 +233,20 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
                                    MakeCountedString("Enemy"));
     ConfigureActorEntity(enemy, stats);
 
-    Entity chestBlueprint = MakeEntity(ENTITY_TYPE_CONTAINER,
+    Entity chestBlueprint = MakeEntity(EntityType_Container,
                                        chestPos.x, chestPos.y, level,
                                        MakeSprite(SPRITE_ATLAS_WORLD, 16), V4(1,1,1,1),
                                        MakeCountedString("Chest"),
                                        true, false);
     AddEntity(entityStore, chestBlueprint);
+
+    Entity campfireBlueprint = MakeEntity(EntityType_Machine,
+                                          campfirePos.x, campfirePos.y, level,
+                                          MakeSprite(SPRITE_ATLAS_WORLD, 17), V4(1,1,1,1),
+                                          MakeCountedString("Campfire"),
+                                          false, false);
+    campfireBlueprint.machineData.machineType = MachineType_Campfire;
+    AddEntity(entityStore, campfireBlueprint);
 }
 
 api_func void DrawLevel(Level *level)

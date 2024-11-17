@@ -2,12 +2,11 @@
 
 ## Changelog
 
-- Container entity
+- Machine entity type
+- Campfire machine
 
 ## Planned
 
-- Machine entity type
-- Campfire machine
 - Campfire processing items in its inventory, and replacing with cooked versions when done
 
 -----------------------

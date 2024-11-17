@@ -66,12 +66,15 @@ struct ActorStats
 
 enum EntityType
 {
-    ENTITY_TYPE_NONE,
-    ENTITY_TYPE_ACTOR,
-    ENTITY_TYPE_CONTAINER,
-    ENTITY_TYPE_ITEM_PICKUP
+    EntityType_None,
+    EntityType_Actor,
+    EntityType_Container,
+    EntityType_ItemPickup,
+    EntityType_Machine
 };
-global_var char *EntityTypeString[] = {"None", "Actor", "Container", "Item Pickup"};
+global_var char *EntityTypeString[] = {"None", "Actor", "Container", "Item Pickup", "Machine"};
+
+#include "entity_machine.h"
 
 struct Entity
 {
@@ -100,6 +103,8 @@ struct Entity
     InventoryBlock *inventory;
 
     b32 itemPickupNeedsUpdate;
+
+    EntityDataMachine machineData;
 
     b32 isPaused;
     b32 isBlocking;
@@ -155,7 +160,7 @@ api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inve
 api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
-api_func void UpdateEntities(EntityStore *s, f32 delta);
+api_func void UpdateEntities(EntityStore *s, f32 dT);
 
 api_func void DrawEntities(EntityStore *s);
 

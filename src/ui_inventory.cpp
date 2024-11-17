@@ -19,7 +19,7 @@ struct ItemDragAndDropPayload
 
 api_func void DrawInventoryUI(EntityStore *entityStore, InventoryStore *inventoryStore, Entity *e)
 {
-    if (e->type == ENTITY_TYPE_NONE)
+    if (e->type == EntityType_None)
     {
         return;
     }

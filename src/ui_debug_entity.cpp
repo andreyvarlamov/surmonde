@@ -21,7 +21,7 @@ api_func void DrawDebugEntityUI(EntityStore *s, InventoryStore *inventoryStore, 
     ImGui::Text("Health: %.0f/%.0f", e->stats.health, e->stats.maxHealth);
     ImGui::Text("Position: %.2f, %.2f", e->p.x, e->p.y);
 
-    if (e->type == ENTITY_TYPE_ACTOR && ImGui::CollapsingHeader("AI"))
+    if (e->type == EntityType_Actor && ImGui::CollapsingHeader("AI"))
     {
         ImGui::Text("Is Controlled: %s", IsControlledEntity(s, e) ? "true" : "false");
         ImGui::Text("AI State: %s", ActorAiStateTypeString[e->aiState.type]);
@@ -55,7 +55,7 @@ api_func void DrawDebugEntityUI(EntityStore *s, InventoryStore *inventoryStore, 
         }
     }
 
-    if ((e->type == ENTITY_TYPE_ACTOR || e->type == ENTITY_TYPE_ITEM_PICKUP) && ImGui::CollapsingHeader("Inventory"))
+    if ((e->type == EntityType_Actor || e->type == EntityType_ItemPickup) && ImGui::CollapsingHeader("Inventory"))
     {
         ImGui::Text("Has Inventory Block: %s", e->inventory != NULL ? "true" : "false");
 
@@ -96,7 +96,7 @@ api_func void DrawDebugEntityUI(EntityStore *s, InventoryStore *inventoryStore, 
                 RemoveItemFromEntityInventory(e, inventoryStore, item);
                 goto stop_iterating;
             }
-            if (e->type == ENTITY_TYPE_ITEM_PICKUP && IsInRange(e->p, s->controlledEntity->p, s->controlledEntity->stats.attackReach))
+            if (e->type == EntityType_ItemPickup && IsInRange(e->p, s->controlledEntity->p, s->controlledEntity->stats.attackReach))
             {
                 ImGui::SameLine();
                 if (ImGui::Button("Pick up"))
@@ -105,7 +105,7 @@ api_func void DrawDebugEntityUI(EntityStore *s, InventoryStore *inventoryStore, 
                     goto stop_iterating;
                 }
             }
-            if (e->type == ENTITY_TYPE_ACTOR)
+            if (e->type == EntityType_Actor)
             {
                 ImGui::SameLine();
                 if (ImGui::Button("Drop"))

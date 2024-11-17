@@ -107,7 +107,7 @@ int main(int argc, char **argv)
                         v2 target = CameraScreenToWorld(&gameState->camera, MousePos());
                         target.x = target.x / gameState->entityStore.tilePxW;
                         target.y = target.y / gameState->entityStore.tilePxH;
-                        Entity *clickedEntity = GetEntityOfTypeAt(&gameState->entityStore, ENTITY_TYPE_ACTOR, target).entities[0];
+                        Entity *clickedEntity = GetEntityOfTypeAt(&gameState->entityStore, EntityType_Actor, target).entities[0];
                         if (clickedEntity != NULL && !IsControlledEntity(&gameState->entityStore, clickedEntity))
                         {
                             gameState->entityStore.controlledEntity = clickedEntity;
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
                         target.x = target.x / gameState->entityStore.tilePxW;
                         target.y = target.y / gameState->entityStore.tilePxH;
                     
-                        Entity *clickedEntity = GetEntityOfTypeAt(&gameState->entityStore, ENTITY_TYPE_ACTOR, target).entities[0];
+                        Entity *clickedEntity = GetEntityOfTypeAt(&gameState->entityStore, EntityType_Actor, target).entities[0];
 
                         if (clickedEntity != NULL && !IsControlledEntity(&gameState->entityStore, clickedEntity))
                         {
@@ -251,7 +251,7 @@ void AddEntityToSlot(Entity *e, Entity **slots, int slotCount)
 #include "sprites.cpp"
 #include "inventory_item.cpp"
 #include "inventory_item_spec.cpp"
-
+#include "entity_machine.cpp"
 
 #include "ui_debug_entity.cpp"
 #include "ui_debug_inventory_store.cpp"
