@@ -1241,6 +1241,7 @@ sav_func void TraceError(const char *format, ...);
 sav_func void Memset(void *ptr, int value, size_t num);
 sav_func void Strcpy(char *dest, char *source);
 sav_func void StringFormat(char *format, StringBuffer outputBuffer, ...);
+sav_func void StringFormat(char *format, StringBuffer outputBuffer, va_list varArgs);
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
@@ -3423,6 +3424,11 @@ sav_func void StringFormat(char *format, StringBuffer outputBuffer, ...)
     va_start(varArgs, outputBuffer);
     vsnprintf(outputBuffer.string, outputBuffer.size, format, varArgs);
     va_end(varArgs);
+}
+
+sav_func void StringFormat(char *format, StringBuffer outputBuffer, va_list varArgs)
+{
+   vsnprintf(outputBuffer.string, outputBuffer.size, format, varArgs);
 }
 
 // SECTION Random

@@ -4,6 +4,7 @@
 #include "inventory.h"
 #include "sprites.h"
 #include "inventory_item_spec.h"
+#include "ui_game_log.h"
 
 enum RunState
 {
@@ -28,6 +29,8 @@ struct GameState
     Entity *viewedEntities[VIEWED_ENTITY_MAX];
 
     InventoryStore inventoryStore;
+
+    GameLogState gameLogState;
 
     Entity *entitiesWithOpenInventories[VIEWED_ENTITY_MAX];
     Entity *entitiesWithOpenMachineUi[VIEWED_ENTITY_MAX];

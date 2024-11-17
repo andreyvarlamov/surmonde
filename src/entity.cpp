@@ -5,6 +5,7 @@
 #include "draw.h"
 #include "navigation.h"
 #include "vision.h"
+#include "ui_game_log.h"
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, Level *level)
 {
@@ -234,7 +235,7 @@ api_func void ResetActorAI(Entity *e)
 
 internal_func void entityDie(Entity *e)
 {
-    TraceLog("%s dies.", e->name);
+    AddGameLogEntry("%s dies.", e->name);
     e->type = EntityType_None;
 }
 
@@ -559,7 +560,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
                 if (e->currentOrder.attackTimer <= 0.0f && e->currentOrder.entityToAttack->type != EntityType_None)
                 {
                     f32 delta = entitySetHealth(s, e->currentOrder.entityToAttack, e->currentOrder.entityToAttack->stats.health - 10.0f);
-                    TraceLog("%s attacks %s for %.0f damage", e->name, e->currentOrder.entityToAttack->name, delta != 0.0f ? -delta : 0.0f);
+                    AddGameLogEntry("%s attacks %s for %.0f damage", e->name, e->currentOrder.entityToAttack->name, delta != 0.0f ? -delta : 0.0f);
                 }
                 e->currentOrder.attackTimer += dT;
                 if (e->currentOrder.attackTimer >= 2.0f)

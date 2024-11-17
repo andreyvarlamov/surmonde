@@ -21,6 +21,7 @@
 #include "ui_debug_inventory_store.h"
 #include "ui_inventory.h"
 #include "ui_machine.h"
+#include "ui_game_log.h"
 
 int main(int argc, char **argv)
 {
@@ -39,6 +40,10 @@ int main(int argc, char **argv)
     
     InitializeSprites(&gameState->spriteAtlasStore, &gameState->worldArena);
     InitializeInventoryItemSpecStore(&gameState->inventoryItemSpecStore, &gameState->worldArena);
+    InitializeGameLogState(&gameState->gameLogState);
+
+    AddGameLogEntry("Welcome to Surmonde!");
+    AddGameLogEntry("Haha indeed welcome. Today is %s", "Monday");
     
     f32 tilePxW = gameState->worldAtlas.cellW * LEVEL_ATLAS_SCALE;
     f32 tilePxH = gameState->worldAtlas.cellH * LEVEL_ATLAS_SCALE;
@@ -47,7 +52,7 @@ int main(int argc, char **argv)
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->level);
     gameState->inventoryStore = MakeInventoryStore(INVENTORY_BLOCK_COUNT, &gameState->worldArena);
     GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
-    
+
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
                                    V2(tilePxW * gameState->entityStore.controlledEntity->p.x, tilePxH * gameState->entityStore.controlledEntity->p.y),
@@ -175,6 +180,11 @@ int main(int argc, char **argv)
                     UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed(), &gameState->inventoryStore);
                 }
 
+                if (KeyPressed(SDL_SCANCODE_B))
+                {
+                    Breakpoint;
+                }
+
                 BeginDraw();
                     ClearBackground(SAV_COLOR_LIGHTBLUE);
 
@@ -217,6 +227,8 @@ int main(int argc, char **argv)
                         DrawMachineUI(&gameState->entityStore, &gameState->inventoryStore, entityWithOpenMachineUi);
                     }
                 }
+
+                DrawGameLog();
             } break;
         }
 
@@ -274,3 +286,4 @@ void AddEntityToSlot(Entity *e, Entity **slots, int slotCount)
 #include "ui_debug_inventory_store.cpp"
 #include "ui_inventory.cpp"
 #include "ui_machine.cpp"
+#include "ui_game_log.cpp"

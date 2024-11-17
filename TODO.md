@@ -2,19 +2,18 @@
 
 ## Changelog
 
-- Campfire processing items in its inventory, and replacing with cooked versions when done
-- Campfire UI
-
+- Game log UI (mallocs haha)
+- Add game logs when attacking
+- Add game logs when machine done processing item
+    
 ## Planned
 
-    
 -----------------------
 
 ## Game Backlog
 
 ### First pass
 
-- Game log
 - Moving between levels and storing existing levels; relation between world, level and entity store
 - Saving/loading
 

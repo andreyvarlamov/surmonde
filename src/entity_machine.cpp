@@ -3,6 +3,7 @@
 #include "sav.h"
 #include "entity.h"
 #include "inventory.h"
+#include "ui_game_log.h"
 
 internal_func void updateCampfireEntity(Entity *e, f32 dT, InventoryStore *inventoryStore)
 {
@@ -16,9 +17,11 @@ internal_func void updateCampfireEntity(Entity *e, f32 dT, InventoryStore *inven
             InventoryItem *item = FindItemInInventoryById(e->inventory, itemId);
             if (item != NULL)
             {
+                f32 oldTimer = m->processedItemTimers[i];
                 m->processedItemTimers[i] += dT;
-                if (m->processedItemTimers[i] > COOKING_DONE_TIME)
+                if (m->processedItemTimers[i] >= COOKING_DONE_TIME && oldTimer < COOKING_DONE_TIME)
                 {
+                    char *oldName = item->spec->name;
                     if (item->spec->type == ItemType_RawSteak)
                     {
                         item->spec = GetInventoryItemSpecByType(ItemType_CookedSteak);
@@ -27,6 +30,7 @@ internal_func void updateCampfireEntity(Entity *e, f32 dT, InventoryStore *inven
                     {
                         item->spec = GetInventoryItemSpecByType(ItemType_Toast);
                     }
+                    AddGameLogEntry("%s done processing item: %s -> %s", e->name, oldName, item->spec->name);
                 }
             }
             else
