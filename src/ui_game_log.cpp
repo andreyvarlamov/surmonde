@@ -11,6 +11,8 @@ api_func void InitializeGameLogState(GameLogState *gameLogState)
 
 api_func void AddGameLogEntry(char *entry, ...)
 {
+    Assert(_gameLogState->entryCount + 1 < GAME_LOG_MAX_ENTRIES); // TODO: Need logic for cycling game log entries
+    
     va_list varArgs;
     va_start(varArgs, entry);
     StringFormat(entry, MakeStringBuffer(_gameLogState->entries[_gameLogState->entryCount++].string, GAME_LOG_ENTRY_MAX_CHARS), varArgs);

@@ -23,7 +23,9 @@ struct GameState
     SpriteAtlasStore spriteAtlasStore;
     InventoryItemSpecStore inventoryItemSpecStore;
     
-    Level level;
+    Level *currentLevel;
+    LevelStore levelStore;
+    
     Camera2D camera;
     EntityStore entityStore;
     Entity *viewedEntities[VIEWED_ENTITY_MAX];

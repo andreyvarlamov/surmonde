@@ -2,11 +2,11 @@
 
 ## Changelog
 
-- Game log UI (mallocs haha)
-- Add game logs when attacking
-- Add game logs when machine done processing item
-    
+
+
 ## Planned
+
+- Moving between levels and storing existing levels; relation between world, level and entity store
 
 -----------------------
 
@@ -14,7 +14,6 @@
 
 ### First pass
 
-- Moving between levels and storing existing levels; relation between world, level and entity store
 - Saving/loading
 
 ### Second pass
@@ -45,6 +44,7 @@
 - Entity slot reuse
 - Different sprites for different states of entities ("animation")
 - ImGui input filtering - if a window is focused, it lets mouse events outside the window through, but it stops keyboard events until the window is unfocused. I only want to stop keyboard events if there's a keyboard shortcut that's possible in that window.
+- Logic for cycling game log entries, if going over the count limit
 
 ------------------------
 

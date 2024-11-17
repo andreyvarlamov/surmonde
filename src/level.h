@@ -19,6 +19,8 @@ struct Tile
 
 struct Level
 {
+    v2i worldPos;
+    
     int w, h;
     Tilemap levelTilemap;
     u8 *tileFlags;
@@ -33,7 +35,18 @@ enum LevelGenType
     LEVEL_CLASSIC_ROOMS
 };
 
-api_func Level MakeLevel(int w, int h,
+struct LevelStore
+{
+    int levelCount;
+    v2i levelWorldPositions[LEVEL_STORE_MAX_LEVELS];
+    Level levels[LEVEL_STORE_MAX_LEVELS];
+};
+
+api_func void InitializeLevelSystem(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *worldArena);
+api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i worldPos);
+
+api_func Level MakeLevel(v2i worldPos,
+                         int w, int h,
 			 SavTextureAtlas *atlas,
 			 f32 tilePxW, f32 tilePxH,
 			 MemoryArena *arena);

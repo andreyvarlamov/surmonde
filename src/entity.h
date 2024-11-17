@@ -132,7 +132,7 @@ inline b32 IsControlledEntity(EntityStore *s, Entity *e)
     return e == s->controlledEntity;
 }
 
-api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, Level *level);
+api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, f32 tilePxW, f32 tilePxH, int levelTileCount);
 api_func Entity MakeEntity(EntityType type, f32 x, f32 y, Level *level, Sprite sprite, v4 color, CountedString name, b32 isBlocking, b32 isOpaque);
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);

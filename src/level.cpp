@@ -6,19 +6,60 @@
 #include "tilemap.h"
 #include "entity.h"
 
-api_func Level MakeLevel(
-    int w, int h,
-    SavTextureAtlas *atlas,
-    f32 tilePxW, f32 tilePxH,
-    MemoryArena *arena)
+api_func Level MakeLevel(v2i worldPos,
+                         int w, int h,
+                         SavTextureAtlas *atlas,
+                         f32 tilePxW, f32 tilePxH,
+                         MemoryArena *arena)
 {
     Level level = {};
+    level.worldPos = worldPos;
     level.w = w;
     level.h = h;
     level.levelTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
     level.tileFlags = MemoryArenaPushArrayAndZero(arena, w * h, u8);
     level.arena = arena;
     return level;
+}
+
+global_var SavTextureAtlas _worldAtlas;
+global_var f32 _tilePxW;
+global_var f32 _tilePxH;
+global_var MemoryArena *_worldArena;
+
+api_func void InitializeLevelSystem(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *worldArena)
+{
+    _worldAtlas = atlas;
+    _tilePxW = tilePxW;
+    _tilePxH = tilePxH;
+    _worldArena = worldArena;
+}
+
+api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i worldPos)
+{
+    b32 foundLevel = false;
+    int foundFree = -1;
+    for (int i = 0; i < s->levelCount; i++)
+    {
+        if (s->levelWorldPositions[i] == worldPos)
+        {
+            return s->levels + i;
+        }
+    }
+
+    if (!foundLevel)
+    {
+        Level *level = s->levels + s->levelCount++;
+
+        *level = MakeLevel(worldPos, LEVEL_WIDTH, LEVEL_HEIGHT, &_worldAtlas, _tilePxW, _tilePxH, _worldArena);
+        GenerateLevel(level, entityStore, LEVEL_CLASSIC_ROOMS);
+        
+        return level;
+    }
+
+    InvalidCodePath; // Could not find level at world pos, or could not allocate space for a new one.
+
+    return NULL;
 }
 
 internal_func void generateLevelEmpty(Level *level, v2 *whereToPlacePlayer)

@@ -41,17 +41,20 @@ int main(int argc, char **argv)
     InitializeSprites(&gameState->spriteAtlasStore, &gameState->worldArena);
     InitializeInventoryItemSpecStore(&gameState->inventoryItemSpecStore, &gameState->worldArena);
     InitializeGameLogState(&gameState->gameLogState);
-
     AddGameLogEntry("Welcome to Surmonde!");
     AddGameLogEntry("Haha indeed welcome. Today is %s", "Monday");
+
     
     f32 tilePxW = gameState->worldAtlas.cellW * LEVEL_ATLAS_SCALE;
     f32 tilePxH = gameState->worldAtlas.cellH * LEVEL_ATLAS_SCALE;
-    gameState->level = MakeLevel(LEVEL_WIDTH, LEVEL_HEIGHT, &gameState->worldAtlas, tilePxW, tilePxH, &gameState->worldArena);
 
-    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, &gameState->level);
+    InitializeLevelSystem(gameState->worldAtlas, tilePxW, tilePxH, &gameState->worldArena);
+    
+    gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, tilePxW, tilePxH, LEVEL_WIDTH * LEVEL_HEIGHT);
+    
     gameState->inventoryStore = MakeInventoryStore(INVENTORY_BLOCK_COUNT, &gameState->worldArena);
-    GenerateLevel(&gameState->level, &gameState->entityStore, LEVEL_CLASSIC_ROOMS);
+
+    gameState->currentLevel = GetLevelAtWorldPos(&gameState->levelStore, &gameState->entityStore, V2I(0, 0));
 
     gameState->camera = MakeCamera(0.0f,
                                    GetWindowSize() / 2.0f,
@@ -60,8 +63,8 @@ int main(int argc, char **argv)
                                    6.0f,
                                    7);
     
-    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
-    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, 0.0f, 0.0f, gameState->level.w * tilePxW, gameState->level.h * tilePxH);
+    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, -0.5f * tilePxW, -0.5f * tilePxH, gameState->currentLevel->w * tilePxW, gameState->currentLevel->h * tilePxH);
+    CameraSetBounds(&gameState->camera, GetWindowSize().x, GetWindowSize().y, 0.0f, 0.0f, gameState->currentLevel->w * tilePxW, gameState->currentLevel->h * tilePxH);
 
     gameState->uiFont = SavLoadFont("res/fonts/VT323-Regular.ttf", 30);
 
@@ -148,19 +151,22 @@ int main(int argc, char **argv)
                     p.y = p.y / gameState->entityStore.tilePxH;
                     Entity *clickedEntity = GetEntityAt(&gameState->entityStore, p).entities[0];
 
-                    if (KeyDown(SDL_SCANCODE_LSHIFT))
+                    if (clickedEntity != NULL)
                     {
-                        AddEntityToSlot(clickedEntity, gameState->viewedEntities, VIEWED_ENTITY_MAX);
-                    }
-                    else
-                    {
-                        if (clickedEntity->type == EntityType_Machine)
+                        if (KeyDown(SDL_SCANCODE_LSHIFT))
                         {
-                            AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenMachineUi, VIEWED_ENTITY_MAX);
+                            AddEntityToSlot(clickedEntity, gameState->viewedEntities, VIEWED_ENTITY_MAX);
                         }
                         else
                         {
-                            AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenInventories, VIEWED_ENTITY_MAX);
+                            if (clickedEntity->type == EntityType_Machine)
+                            {
+                                AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenMachineUi, VIEWED_ENTITY_MAX);
+                            }
+                            else
+                            {
+                                AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenInventories, VIEWED_ENTITY_MAX);
+                            }
                         }
                     }
                 }
@@ -189,8 +195,8 @@ int main(int argc, char **argv)
                     ClearBackground(SAV_COLOR_LIGHTBLUE);
 
                     BeginCameraMode(&gameState->camera);
-                        DrawLevel(&gameState->level);
-                        DrawLevelOcclusion(&gameState->level, gameState->entityStore.controlledEntityVisibleTiles);
+                        DrawLevel(gameState->currentLevel);
+                        DrawLevelOcclusion(gameState->currentLevel, gameState->entityStore.controlledEntityVisibleTiles);
                         DrawEntities(&gameState->entityStore);
 
                         DDraw();

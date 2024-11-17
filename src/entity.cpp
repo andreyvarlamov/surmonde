@@ -7,17 +7,17 @@
 #include "vision.h"
 #include "ui_game_log.h"
 
-api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, Level *level)
+api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, f32 tilePxW, f32 tilePxH, int levelTileCount)
 {
     EntityStore s = {};
     s.entityMax = entityMax;
     s.entities = MemoryArenaPushArrayAndZero(arena, entityMax, Entity);
 
-    s.controlledEntityVisibleTiles = MemoryArenaPushArray(arena, level->w * level->h, u8);
+    s.controlledEntityVisibleTiles = MemoryArenaPushArray(arena, levelTileCount, u8);
 
     s.arena = arena;
-    s.tilePxW = level->levelTilemap.tilePxW;
-    s.tilePxH = level->levelTilemap.tilePxH;
+    s.tilePxW = tilePxW;
+    s.tilePxH = tilePxH;
 
     return s;
 }
