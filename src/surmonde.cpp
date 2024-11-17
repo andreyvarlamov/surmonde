@@ -20,6 +20,7 @@
 #include "ui_debug_entity.h"
 #include "ui_debug_inventory_store.h"
 #include "ui_inventory.h"
+#include "ui_machine.h"
 
 int main(int argc, char **argv)
 {
@@ -148,7 +149,14 @@ int main(int argc, char **argv)
                     }
                     else
                     {
-                        AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenInventories, VIEWED_ENTITY_MAX);
+                        if (clickedEntity->type == EntityType_Machine)
+                        {
+                            AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenMachineUi, VIEWED_ENTITY_MAX);
+                        }
+                        else
+                        {
+                            AddEntityToSlot(clickedEntity, gameState->entitiesWithOpenInventories, VIEWED_ENTITY_MAX);
+                        }
                     }
                 }
 
@@ -164,7 +172,7 @@ int main(int argc, char **argv)
 
                 if (!gameState->isPaused)
                 {
-                    UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed());
+                    UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed(), &gameState->inventoryStore);
                 }
 
                 BeginDraw();
@@ -195,9 +203,18 @@ int main(int argc, char **argv)
                 for (int i = 0; i < VIEWED_ENTITY_MAX; i++)
                 {
                     Entity *entityWithOpenInventory = gameState->entitiesWithOpenInventories[i];
-                    if (entityWithOpenInventory)
+                    if (entityWithOpenInventory != NULL)
                     {
                         DrawInventoryUI(&gameState->entityStore, &gameState->inventoryStore, entityWithOpenInventory);
+                    }
+                }
+
+                for (int i = 0; i < VIEWED_ENTITY_MAX; i++)
+                {
+                    Entity *entityWithOpenMachineUi = gameState->entitiesWithOpenMachineUi[i];
+                    if (entityWithOpenMachineUi != NULL)
+                    {
+                        DrawMachineUI(&gameState->entityStore, &gameState->inventoryStore, entityWithOpenMachineUi);
                     }
                 }
             } break;
@@ -256,3 +273,4 @@ void AddEntityToSlot(Entity *e, Entity **slots, int slotCount)
 #include "ui_debug_entity.cpp"
 #include "ui_debug_inventory_store.cpp"
 #include "ui_inventory.cpp"
+#include "ui_machine.cpp"

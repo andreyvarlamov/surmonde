@@ -2,13 +2,12 @@
 
 ## Changelog
 
-- Machine entity type
-- Campfire machine
+- Campfire processing items in its inventory, and replacing with cooked versions when done
+- Campfire UI
 
 ## Planned
 
-- Campfire processing items in its inventory, and replacing with cooked versions when done
-
+    
 -----------------------
 
 ## Game Backlog
@@ -18,6 +17,17 @@
 - Game log
 - Moving between levels and storing existing levels; relation between world, level and entity store
 - Saving/loading
+
+### Second pass
+
+- Systematize crafting
+- Lighting
+- Piping
+- Power
+- Digital signal
+- Universal chem synth idea
+- Computer (shell ui controlling digital signal outputs)
+- Computer player-created GUI
 
 ### Misc
 

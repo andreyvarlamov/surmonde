@@ -5,6 +5,12 @@
 #include "entity.h"
 #include "inventory.h"
 
+struct ItemDragAndDropPayload
+{
+    Entity *sourceEntity;
+    InventoryItem *item;
+};
+
 api_func void DrawInventoryUI(EntityStore *entityStore, InventoryStore *inventoryStore, Entity *e);
 
 #endif

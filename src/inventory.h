@@ -8,6 +8,7 @@ struct InventoryBlock;
 
 struct InventoryStore
 {
+    int itemIdSeed;
     int blockCount;
     int itemsPerBlock;
     InventoryBlock *blocks;
@@ -31,6 +32,7 @@ api_func InventoryBlock *GetFreeInventoryBlock(InventoryStore *s, Entity *entity
 /* api_func void FreeInventoryBlock(InventoryStore *s, InventoryBlock *chainStart, InventoryBlock *block); */
 api_func void FreeInventoryBlockChain(InventoryStore *s, InventoryBlock *chainStart);
 
+api_func InventoryItem *FindItemInInventoryById(InventoryBlock *headBlock, int id);
 api_func void AddItemToInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem item, Entity *entityReference);
 api_func void RemoveItemFromInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem *item);
 

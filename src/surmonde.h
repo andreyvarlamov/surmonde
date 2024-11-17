@@ -30,6 +30,7 @@ struct GameState
     InventoryStore inventoryStore;
 
     Entity *entitiesWithOpenInventories[VIEWED_ENTITY_MAX];
+    Entity *entitiesWithOpenMachineUi[VIEWED_ENTITY_MAX];
     
     b32 isPaused;
 

@@ -11,12 +11,6 @@
 
 #include <imgui_internal.h>
 
-struct ItemDragAndDropPayload
-{
-    Entity *sourceEntity;
-    InventoryItem *item;
-};
-
 api_func void DrawInventoryUI(EntityStore *entityStore, InventoryStore *inventoryStore, Entity *e)
 {
     if (e->type == EntityType_None)
@@ -46,7 +40,6 @@ api_func void DrawInventoryUI(EntityStore *entityStore, InventoryStore *inventor
 
     int itemsInLine = 0;
     InventoryItemIterator it = GetInventoryItemIterator(inventoryStore, e->inventory);
-    static InventoryItem *itemDragged = NULL;
     b32 anyItemsRendered = false;
     for (InventoryItem *item = NextInventoryItem(&it);
          item != NULL;
@@ -65,8 +58,6 @@ api_func void DrawInventoryUI(EntityStore *entityStore, InventoryStore *inventor
         ImGui::ImageButton("", atlas.texture.id, size, uv0, uv1, bgCol, tintCol);
         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
         {
-            itemDragged = item;
-            
             ItemDragAndDropPayload payload;
             payload.item = item;
             payload.sourceEntity = e;

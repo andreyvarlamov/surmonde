@@ -7,6 +7,7 @@
 
 struct InventoryItem
 {
+    int id;
     InventoryItemSpec *spec;
     f32 condition;
 };

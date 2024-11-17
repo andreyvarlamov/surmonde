@@ -3,22 +3,23 @@
 
 #include "sav.h"
 
-struct InventoryItemSpec
-{
-    Sprite sprite;
-    char name[ENTITY_NAME_CHARS];
-};
-
 enum InventoryItemSpecType
 {
-    ITEM_TYPE_NONE = 0,
+    ItemType_None = 0,
 
-    ITEM_TYPE_RAW_STEAK,
-    ITEM_TYPE_BREAD_SLICE,
-    ITEM_TYPE_COOKED_STEAK,
-    ITEM_TYPE_TOAST,
+    ItemType_RawSteak,
+    ItemType_BreadSlice,
+    ItemType_CookedSteak,
+    ItemType_Toast,
     
-    ITEM_TYPE_COUNT
+    ItemType_Count
+};
+
+struct InventoryItemSpec
+{
+    InventoryItemSpecType type;
+    Sprite sprite;
+    char name[ENTITY_NAME_CHARS];
 };
 
 struct InventoryItemSpecStore

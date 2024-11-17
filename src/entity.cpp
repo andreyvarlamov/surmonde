@@ -575,7 +575,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
 
 #include "entity_machine.h"
 
-api_func void UpdateEntities(EntityStore *s, f32 dT)
+api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventoryStore)
 {
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
@@ -606,7 +606,7 @@ api_func void UpdateEntities(EntityStore *s, f32 dT)
 
             case EntityType_Machine:
             {
-                UpdateMachineEntity(e, dT);
+                UpdateMachineEntity(e, dT, inventoryStore);
             } break;
 
             default: InvalidCodePath; // Unhandled ENTITY_TYPE

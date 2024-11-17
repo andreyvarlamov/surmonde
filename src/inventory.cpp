@@ -1,10 +1,12 @@
 #include "inventory.h"
 
 #include "sav.h"
+#include "inventory_item.h"
 
 api_func InventoryStore MakeInventoryStore(int blockCount, MemoryArena *arena)
 {
-    InventoryStore s;
+    InventoryStore s = {};
+    s.itemIdSeed = 1;
     s.blockCount = blockCount;
     s.itemsPerBlock = ITEMS_PER_INVENTORY_BLOCK;
     s.blocks = MemoryArenaPushArrayAndZero(arena, s.blockCount, InventoryBlock);
@@ -37,6 +39,22 @@ api_func void FreeInventoryBlockChain(InventoryStore *s, InventoryBlock *headBlo
     }
     last->next = s->free;
     s->free = last;
+}
+
+api_func InventoryItem *FindItemInInventoryById(InventoryBlock *headBlock, int id)
+{
+    for (InventoryBlock *block = headBlock; block != NULL; block = block->next)
+    {
+        for (int i = 0; i < block->itemCount; i++)
+        {
+            InventoryItem *item = block->items + i;
+            if (item->id == id)
+            {
+                return item;
+            }
+        }
+    }
+    return NULL;
 }
 
 api_func void AddItemToInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem item, Entity *entityReference)

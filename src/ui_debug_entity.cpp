@@ -55,14 +55,14 @@ api_func void DrawDebugEntityUI(EntityStore *s, InventoryStore *inventoryStore, 
         }
     }
 
-    if ((e->type == EntityType_Actor || e->type == EntityType_ItemPickup) && ImGui::CollapsingHeader("Inventory"))
+    if (ImGui::CollapsingHeader("Inventory"))
     {
         ImGui::Text("Has Inventory Block: %s", e->inventory != NULL ? "true" : "false");
 
-        static InventoryItemSpecType selectedItem = (InventoryItemSpecType)(ITEM_TYPE_NONE + 1);
+        static InventoryItemSpecType selectedItem = (InventoryItemSpecType)(ItemType_None + 1);
         if (ImGui::BeginCombo("###ITEM_SELECTOR", GetInventoryItemSpecByType(selectedItem)->name))
         {
-            for (int i = ITEM_TYPE_NONE + 1; i < ITEM_TYPE_COUNT; i++)
+            for (int i = ItemType_None + 1; i < ItemType_Count; i++)
             {
                 bool isSelected = (selectedItem == (InventoryItemSpecType)i);
                 if (ImGui::Selectable(GetInventoryItemSpecByType((InventoryItemSpecType)i)->name, isSelected))
@@ -80,7 +80,7 @@ api_func void DrawDebugEntityUI(EntityStore *s, InventoryStore *inventoryStore, 
         ImGui::SameLine();
         if (ImGui::Button("Add Item"))
         {
-            AddItemToEntityInventory(e, inventoryStore, InstantiateInventoryItemFromSpec(selectedItem));
+            AddItemToEntityInventory(e, inventoryStore, InstantiateInventoryItemFromSpec(selectedItem, &inventoryStore->itemIdSeed));
         }
         
         InventoryItemIterator iterator = GetInventoryItemIterator(inventoryStore, e->inventory);
