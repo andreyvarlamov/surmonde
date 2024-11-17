@@ -17,7 +17,7 @@
 #include "inventory.h"
 #include "sprites.h"
 
-#include "ui_debug_actor.h"
+#include "ui_debug_entity.h"
 #include "ui_debug_inventory_store.h"
 #include "ui_inventory.h"
 
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
                     Entity *viewedEntity = gameState->viewedEntities[i];
                     if (viewedEntity != NULL)
                     {
-                        DrawDebugActorUI(&gameState->entityStore, &gameState->inventoryStore, viewedEntity);
+                        DrawDebugEntityUI(&gameState->entityStore, &gameState->inventoryStore, viewedEntity);
                     }
                 }
 
@@ -253,6 +253,6 @@ void AddEntityToSlot(Entity *e, Entity **slots, int slotCount)
 #include "inventory_item_spec.cpp"
 
 
-#include "ui_debug_actor.cpp"
+#include "ui_debug_entity.cpp"
 #include "ui_debug_inventory_store.cpp"
 #include "ui_inventory.cpp"

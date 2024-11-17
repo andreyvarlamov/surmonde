@@ -97,6 +97,7 @@ internal_func FindItemInInventoryResult findItemInInventory(InventoryBlock *head
 api_func void RemoveItemFromInventory(InventoryStore *s, InventoryBlock **headBlock, InventoryItem *item)
 {
     FindItemInInventoryResult foundItem = findItemInInventory(*headBlock, item);
+    Assert(foundItem.block != NULL);
 
     InventoryBlock *lastLast = NULL;
     InventoryBlock *last = NULL;

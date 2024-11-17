@@ -2,11 +2,10 @@
 
 ## Changelog
 
-- Imgui inventory actually drop items and inventories for multiple entities open
+- First version of Inventory UI
 
 ## Planned
 
-- Inventory UI
 - Container entities
 - Inventory UI drag and drop between different inventories
 

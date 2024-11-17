@@ -209,10 +209,10 @@ api_func void RemoveItemFromEntityInventory(Entity *e, InventoryStore *inventory
     }
 }
 
-api_func void PickUpItemFromItemPickup(EntityStore *s, Entity *itemPickup, Entity *entityPickingUp, InventoryStore *inventoryStore, InventoryItem *item)
+api_func void MoveItemFromEntityToEntity(Entity *sourceEntity, Entity *destEntity, InventoryStore *inventoryStore, InventoryItem *item)
 {
-    AddItemToEntityInventory(entityPickingUp, inventoryStore, *item);
-    RemoveItemFromEntityInventory(itemPickup, inventoryStore, item);
+    AddItemToEntityInventory(destEntity, inventoryStore, *item);
+    RemoveItemFromEntityInventory(sourceEntity, inventoryStore, item);
 }
 
 api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inventoryStore, InventoryItem *item)
