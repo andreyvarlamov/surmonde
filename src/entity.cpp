@@ -21,12 +21,14 @@ api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, Level *l
     return s;
 }
 
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, Sprite sprite, v4 color, CountedString name, b32 isBlocking, b32 isOpaque)
+api_func Entity MakeEntity(EntityType type, f32 x, f32 y, Level *level, Sprite sprite, v4 color, CountedString name, b32 isBlocking, b32 isOpaque)
 {
     Entity e = {};
     
     Assert(name.size < ENTITY_NAME_CHARS);
     Strcpy(e.name, name.string);
+
+    e.type = type;
 
     e.p = V2(x, y);
     e.level = level;
@@ -34,8 +36,6 @@ api_func Entity MakeEntity(f32 x, f32 y, Level *level, Sprite sprite, v4 color, 
     e.color = color;
     e.isBlocking = isBlocking;
     e.isOpaque = isOpaque;
-
-    e.type = ENTITY_TYPE_ACTOR;
 
     return e;
 }
@@ -98,6 +98,7 @@ api_func EntitySearchResult GetEntityOfTypeAt(EntityStore *s, EntityType type, v
 api_func Entity *AddActorEntity(EntityStore *s, f32 x, f32 y, Level *level, Sprite sprite, CountedString name)
 {
     Assert(s->entityCount < s->entityMax);
+    
     int id = s->entityCount;
     Entity *e = s->entities + s->entityCount++;
 
@@ -358,7 +359,8 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                 {
                     e->aiState.hasRandomTarget = false;
                 }
-            
+
+                #if 0
                 if (s->controlledEntity != NULL &&
                     s->controlledEntity->type == ENTITY_TYPE_ACTOR &&
                     canEntitySeePosition(s, e, s->controlledEntity->p))
@@ -368,6 +370,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                     e->aiState.type = ACTOR_AI_FOLLOW_ENTITY;
                     e->aiState.entityToFollow = s->controlledEntity;
                 }
+                #endif
             }
         } break;
 
@@ -592,6 +595,10 @@ api_func void UpdateEntities(EntityStore *s, f32 delta)
             } break;
 
             case ENTITY_TYPE_ITEM_PICKUP:
+            {
+            } break;
+
+            case ENTITY_TYPE_CONTAINER:
             {
             } break;
 

@@ -7,6 +7,7 @@ enum SpriteAtlasType
 {
     SPRITE_ATLAS_NONE = 0,
     
+    SPRITE_ATLAS_WORLD,
     SPRITE_ATLAS_ITEMS,
     SPRITE_ATLAS_CHARS,
 

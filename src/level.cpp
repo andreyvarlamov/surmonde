@@ -68,7 +68,7 @@ internal_func b32 doRoomsIntersect(Room a, Room b)
     return result;
 }
 
-internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlayer)
+internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlayer, v2 *whereToPlaceChest)
 {
     Tile grassTile = MakeTile(0, V4(1,1,1,1), 0);
     Tile dirtTile = MakeTile(1, V4(1,1,1,1), 0);
@@ -183,11 +183,13 @@ internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlaye
     }
 
     *whereToPlacePlayer = V2((f32)rooms[0].x + (f32)rooms[0].w * 0.5f, (f32)rooms[0].y + (f32)rooms[0].h * 0.5f);
+    *whereToPlaceChest = V2((f32)rooms[0].x + 1.5f, (f32)rooms[0].y + 1.5f);
 }
 
 api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType)
 {
     v2 playerPos = {};
+    v2 chestPos = {};
     switch (genType)
     {
         case LEVEL_EMPTY:
@@ -202,7 +204,7 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
 
         case LEVEL_CLASSIC_ROOMS:
         {
-            generateLevelClassicRooms(level, &playerPos);
+            generateLevelClassicRooms(level, &playerPos, &chestPos);
         } break;
 
         default: InvalidCodePath;
@@ -216,14 +218,25 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.speed = 10.0f;
     stats.health = 100.0f;
     stats.maxHealth = 100.0f;
-    Entity playerEntity = MakeEntity(playerPos.x, playerPos.y, level, MakeSprite(SPRITE_ATLAS_CHARS, 0), V4(1,1,1,1), MakeCountedString("Player"), false, false);
-    ConfigureActorEntity(&playerEntity, stats);
-    Entity *addedEntity = AddEntity(entityStore, playerEntity);
-    entityStore->controlledEntity = addedEntity;
+    Entity *player = AddActorEntity(entityStore,
+                                    playerPos.x, playerPos.y, level,
+                                    MakeSprite(SPRITE_ATLAS_CHARS, 0),
+                                    MakeCountedString("Player"));
+    ConfigureActorEntity(player, stats);
+    entityStore->controlledEntity = player;
 
-    Entity enemyEntity = MakeEntity(30.0f, 30.0f, level, MakeSprite(SPRITE_ATLAS_CHARS, 1), V4(1,1,1,1), MakeCountedString("Enemy"), true, true);
-    ConfigureActorEntity(&enemyEntity, stats);
-    AddEntity(entityStore, enemyEntity);
+    Entity *enemy = AddActorEntity(entityStore,
+                                   30.0f, 30.0f, level,
+                                   MakeSprite(SPRITE_ATLAS_CHARS, 1),
+                                   MakeCountedString("Enemy"));
+    ConfigureActorEntity(enemy, stats);
+
+    Entity chestBlueprint = MakeEntity(ENTITY_TYPE_CONTAINER,
+                                       chestPos.x, chestPos.y, level,
+                                       MakeSprite(SPRITE_ATLAS_WORLD, 16), V4(1,1,1,1),
+                                       MakeCountedString("Chest"),
+                                       true, false);
+    AddEntity(entityStore, chestBlueprint);
 }
 
 api_func void DrawLevel(Level *level)

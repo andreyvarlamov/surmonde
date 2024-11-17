@@ -12,6 +12,7 @@ api_func void InitializeSprites(SpriteAtlasStore *placeForStore, MemoryArena *ar
     _spriteAtlasStore->atlasCount = SPRITE_ATLAS_COUNT;
     _spriteAtlasStore->atlases = MemoryArenaPushArrayAndZero(arena, _spriteAtlasStore->atlasCount, SavTextureAtlas);
     
+    LOAD_ATLAS(SPRITE_ATLAS_WORLD, "res/textures/monde_atlas.png", 16, 16);
     LOAD_ATLAS(SPRITE_ATLAS_ITEMS, "res/textures/monde_atlas_items.png", 16, 16);
     LOAD_ATLAS(SPRITE_ATLAS_CHARS, "res/textures/monde_atlas_chars.png", 16, 16);
 }

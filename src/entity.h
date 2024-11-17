@@ -68,9 +68,10 @@ enum EntityType
 {
     ENTITY_TYPE_NONE,
     ENTITY_TYPE_ACTOR,
+    ENTITY_TYPE_CONTAINER,
     ENTITY_TYPE_ITEM_PICKUP
 };
-global_var char *EntityTypeString[] = {"None", "Actor", "Item Pickup"};
+global_var char *EntityTypeString[] = {"None", "Actor", "Container", "Item Pickup"};
 
 struct Entity
 {
@@ -127,7 +128,7 @@ inline b32 IsControlledEntity(EntityStore *s, Entity *e)
 }
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, Level *level);
-api_func Entity MakeEntity(f32 x, f32 y, Level *level, Sprite sprite, v4 color, CountedString name, b32 isBlocking, b32 isOpaque);
+api_func Entity MakeEntity(EntityType type, f32 x, f32 y, Level *level, Sprite sprite, v4 color, CountedString name, b32 isBlocking, b32 isOpaque);
 api_func void ConfigureActorEntity(Entity *e, ActorStats stats);
 api_func Entity *AddEntity(EntityStore *s, Entity e);
 
@@ -141,7 +142,7 @@ api_func EntitySearchResult GetEntityOfTypeAt(EntityStore *s, EntityType type, v
 
 api_func Entity *AddActorEntity(EntityStore *s, f32 x, f32 y, Level *level, Sprite sprite, CountedString name);
 api_func Entity *AddItemPickupEntity(EntityStore *s, f32 x, f32 y, Level *level);
-
+ 
 api_func b32 AnyBlockingEntityAtTile(EntityStore *s, v2i tile);
 api_func b32 AnyOpaqueEntityAtTile(EntityStore *s, v2i tile);
 api_func void ResetActorAI(Entity *e);

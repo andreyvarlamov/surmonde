@@ -2,12 +2,13 @@
 
 ## Changelog
 
-- First version of Inventory UI
+- Container entity
 
 ## Planned
 
-- Container entities
-- Inventory UI drag and drop between different inventories
+- Machine entity type
+- Campfire machine
+- Campfire processing items in its inventory, and replacing with cooked versions when done
 
 -----------------------
 
@@ -15,7 +16,6 @@
 
 ### First pass
 
-- Machines, processing, basic crafting
 - Game log
 - Moving between levels and storing existing levels; relation between world, level and entity store
 - Saving/loading
