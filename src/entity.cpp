@@ -630,15 +630,15 @@ api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventorySt
 
 api_func void DrawEntities(EntityStore *s)
 {
-    for (int currentAtlasI = SPRITE_ATLAS_NONE + 1; currentAtlasI < SPRITE_ATLAS_COUNT; currentAtlasI++)
+    for (int currentAtlasI = SpriteAtlasName_None + 1; currentAtlasI < SpriteAtlasName_Count; currentAtlasI++)
     {
-        SpriteAtlasType currentAtlasType = (SpriteAtlasType)currentAtlasI;
-        SavTextureAtlas currentAtlas = GetAtlasByType(currentAtlasType);
+        SpriteAtlasName currentAtlasName = (SpriteAtlasName)currentAtlasI;
+        SavTextureAtlas currentAtlas = GetAtlasByName(currentAtlasName);
 
         int entitiesToDraw = 0;
         for (int i = 0; i < s->entityCount; i++)
         {
-            if (s->entities[i].type != EntityType_None && s->entities[i].sprite.atlasType == currentAtlasType)
+            if (s->entities[i].type != EntityType_None && s->entities[i].sprite.atlasName == currentAtlasName)
             {
                 entitiesToDraw++;
             }
@@ -667,7 +667,7 @@ api_func void DrawEntities(EntityStore *s)
         for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
         {
             Entity *e = s->entities + entityIndex;
-            if (e->type == EntityType_None || e->sprite.atlasType != currentAtlasType)
+            if (e->type == EntityType_None || e->sprite.atlasName != currentAtlasName)
             {
                 continue;
             }

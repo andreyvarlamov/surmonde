@@ -9,32 +9,40 @@ global_var SpriteAtlasStore *_spriteAtlasStore;
 api_func void InitializeSprites(SpriteAtlasStore *placeForStore, MemoryArena *arena)
 {
     _spriteAtlasStore = placeForStore;
-    _spriteAtlasStore->atlasCount = SPRITE_ATLAS_COUNT;
+    _spriteAtlasStore->atlasCount = SpriteAtlasName_Count;
     _spriteAtlasStore->atlases = MemoryArenaPushArrayAndZero(arena, _spriteAtlasStore->atlasCount, SavTextureAtlas);
     
-    LOAD_ATLAS(SPRITE_ATLAS_WORLD, "res/textures/monde_atlas.png", 16, 16);
-    LOAD_ATLAS(SPRITE_ATLAS_ITEMS, "res/textures/monde_atlas_items.png", 16, 16);
-    LOAD_ATLAS(SPRITE_ATLAS_CHARS, "res/textures/monde_atlas_chars.png", 16, 16);
+    LOAD_ATLAS(SpriteAtlasName_World, "res/textures/monde_atlas.png", 16, 16);
+    LOAD_ATLAS(SpriteAtlasName_Items, "res/textures/monde_atlas_items.png", 16, 16);
+    LOAD_ATLAS(SpriteAtlasName_Chars, "res/textures/monde_atlas_chars.png", 16, 16);
 }
 
 api_func SavTextureAtlas GetAtlasForSprite(Sprite sprite)
 {
-    Assert(sprite.atlasType > SPRITE_ATLAS_NONE && sprite.atlasType < SPRITE_ATLAS_COUNT);
-    SavTextureAtlas atlas = _spriteAtlasStore->atlases[sprite.atlasType];
+    Assert(sprite.atlasName > SpriteAtlasName_None && sprite.atlasName < SpriteAtlasName_Count); // Sprite Atlas doesn't exist
+
+    SavTextureAtlas atlas = _spriteAtlasStore->atlases[sprite.atlasName];
+
+    Assert(atlas.texture.id > 0); // Sprite Atlas not initialized
+    
     return atlas;
 }
 
-api_func SavTextureAtlas GetAtlasByType(SpriteAtlasType type)
+api_func SavTextureAtlas GetAtlasByName(SpriteAtlasName name)
 {
-    Assert(type > SPRITE_ATLAS_NONE && type < SPRITE_ATLAS_COUNT);
-    SavTextureAtlas atlas = _spriteAtlasStore->atlases[type];
+    Assert(name > SpriteAtlasName_None && name < SpriteAtlasName_Count); // Sprite Atlas doesn't exist
+
+    SavTextureAtlas atlas = _spriteAtlasStore->atlases[name];
+
+    Assert(atlas.texture.id > 0); // Sprite Atlas not initialized
+    
     return atlas;
 }
 
-api_func Sprite MakeSprite(SpriteAtlasType atlasType, int atlasValue)
+api_func Sprite MakeSprite(SpriteAtlasName atlasName, int atlasValue)
 {
     Sprite sprite;
-    sprite.atlasType = atlasType;
+    sprite.atlasName = atlasName;
     sprite.atlasValue = atlasValue;
     return sprite;
 }

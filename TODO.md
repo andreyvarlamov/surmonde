@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Multiple level (wip)
+- Some misc sprite atlas and level refactors and fixes
 
 ## Planned
 
@@ -45,6 +45,7 @@
 - Different sprites for different states of entities ("animation")
 - ImGui input filtering - if a window is focused, it lets mouse events outside the window through, but it stops keyboard events until the window is unfocused. I only want to stop keyboard events if there's a keyboard shortcut that's possible in that window.
 - Logic for cycling game log entries, if going over the count limit
+- See about getting rid of tile px w and h in most of the places, except actually rendering
 
 ------------------------
 

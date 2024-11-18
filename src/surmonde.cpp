@@ -33,26 +33,21 @@ int main(int argc, char **argv)
 
     SetTargetFPS(60.0);
 
-    gameState->worldAtlas = SavLoadTextureAtlas("res/textures/monde_atlas.png", 16, 16);
-    SavSetTextureFilterMode(gameState->worldAtlas.texture, SAV_NEAREST);
-
     gameState->worldArena = AllocArena(Megabytes(8));
     
     InitializeSprites(&gameState->spriteAtlasStore, &gameState->worldArena);
     InitializeInventoryItemSpecStore(&gameState->inventoryItemSpecStore, &gameState->worldArena);
     InitializeGameLogState(&gameState->gameLogState);
-    AddGameLogEntry("Welcome to Surmonde!");
-    AddGameLogEntry("Haha indeed welcome. Today is %s", "Monday");
+    AddGameLogEntry("Welcome to %s!", "Surmonde");
 
-    
-    f32 tilePxW = gameState->worldAtlas.cellW * LEVEL_ATLAS_SCALE;
-    f32 tilePxH = gameState->worldAtlas.cellH * LEVEL_ATLAS_SCALE;
-
-    InitializeLevelSystem(gameState->worldAtlas, tilePxW, tilePxH, &gameState->worldArena);
+    f32 tilePxW = GetAtlasByName(SpriteAtlasName_World).cellW * LEVEL_ATLAS_SCALE;
+    f32 tilePxH = GetAtlasByName(SpriteAtlasName_World).cellH * LEVEL_ATLAS_SCALE;
     
     gameState->entityStore = MakeEntityStore(ENTITY_STORE_COUNT, &gameState->worldArena, tilePxW, tilePxH, LEVEL_WIDTH * LEVEL_HEIGHT);
     
     gameState->inventoryStore = MakeInventoryStore(INVENTORY_BLOCK_COUNT, &gameState->worldArena);
+
+    gameState->levelStore = MakeLevelStore(GetAtlasByName(SpriteAtlasName_World), tilePxW, tilePxH, &gameState->worldArena);
 
     gameState->currentLevel = GetLevelAtWorldPos(&gameState->levelStore, &gameState->entityStore, V2I(0, 0));
 

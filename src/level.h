@@ -37,12 +37,17 @@ enum LevelGenType
 
 struct LevelStore
 {
+    SavTextureAtlas worldAtlas;
+    f32 tilePxW;
+    f32 tilePxH;
+    MemoryArena *arena;
+
     int levelCount;
     v2i levelWorldPositions[LEVEL_STORE_MAX_LEVELS];
     Level levels[LEVEL_STORE_MAX_LEVELS];
 };
 
-api_func void InitializeLevelSystem(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *worldArena);
+api_func LevelStore MakeLevelStore(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *arena);
 api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i worldPos);
 
 api_func Level MakeLevel(v2i worldPos,

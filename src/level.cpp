@@ -22,17 +22,18 @@ api_func Level MakeLevel(v2i worldPos,
     return level;
 }
 
-global_var SavTextureAtlas _worldAtlas;
-global_var f32 _tilePxW;
-global_var f32 _tilePxH;
-global_var MemoryArena *_worldArena;
-
-api_func void InitializeLevelSystem(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *worldArena)
+api_func LevelStore MakeLevelStore(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *arena)
 {
-    _worldAtlas = atlas;
-    _tilePxW = tilePxW;
-    _tilePxH = tilePxH;
-    _worldArena = worldArena;
+    LevelStore s = {};
+
+    // TODO: This probably shouldn't store the atlas, or tile px dim, or the arena
+    
+    s.worldAtlas = atlas;
+    s.tilePxW = tilePxW;
+    s.tilePxH = tilePxH;
+    s.arena = arena;
+    
+    return s;
 }
 
 api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i worldPos)
@@ -51,7 +52,7 @@ api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i 
     {
         Level *level = s->levels + s->levelCount++;
 
-        *level = MakeLevel(worldPos, LEVEL_WIDTH, LEVEL_HEIGHT, &_worldAtlas, _tilePxW, _tilePxH, _worldArena);
+        *level = MakeLevel(worldPos, LEVEL_WIDTH, LEVEL_HEIGHT, &s->worldAtlas, s->tilePxW, s->tilePxH, s->arena);
         GenerateLevel(level, entityStore, LEVEL_CLASSIC_ROOMS);
         
         return level;
@@ -263,27 +264,27 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
     stats.maxHealth = 100.0f;
     Entity *player = AddActorEntity(entityStore,
                                     playerPos.x, playerPos.y, level,
-                                    MakeSprite(SPRITE_ATLAS_CHARS, 0),
+                                    MakeSprite(SpriteAtlasName_Chars, 0),
                                     MakeCountedString("Player"));
     ConfigureActorEntity(player, stats);
     entityStore->controlledEntity = player;
 
     Entity *enemy = AddActorEntity(entityStore,
                                    30.0f, 30.0f, level,
-                                   MakeSprite(SPRITE_ATLAS_CHARS, 1),
+                                   MakeSprite(SpriteAtlasName_Chars, 1),
                                    MakeCountedString("Enemy"));
     ConfigureActorEntity(enemy, stats);
 
     Entity chestBlueprint = MakeEntity(EntityType_Container,
                                        chestPos.x, chestPos.y, level,
-                                       MakeSprite(SPRITE_ATLAS_WORLD, 16), V4(1,1,1,1),
+                                       MakeSprite(SpriteAtlasName_World, 16), V4(1,1,1,1),
                                        MakeCountedString("Chest"),
                                        true, false);
     AddEntity(entityStore, chestBlueprint);
 
     Entity campfireBlueprint = MakeEntity(EntityType_Machine,
                                           campfirePos.x, campfirePos.y, level,
-                                          MakeSprite(SPRITE_ATLAS_WORLD, 17), V4(1,1,1,1),
+                                          MakeSprite(SpriteAtlasName_World, 17), V4(1,1,1,1),
                                           MakeCountedString("Campfire"),
                                           false, false);
     campfireBlueprint.machineData.machineType = MachineType_Campfire;

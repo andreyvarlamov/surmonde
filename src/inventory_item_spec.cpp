@@ -4,16 +4,16 @@
 
 global_var InventoryItemSpecStore *_inventoryItemSpecStore;
 
-internal_func InventoryItemSpec makeInventoryItemSpec(InventoryItemSpecType type, SpriteAtlasType atlasType, int atlasIndex, char *name)
+internal_func InventoryItemSpec makeInventoryItemSpec(InventoryItemSpecType type, SpriteAtlasName atlasName, int atlasIndex, char *name)
 {
     InventoryItemSpec spec;
     spec.type = type;
-    spec.sprite = MakeSprite(atlasType, atlasIndex);
+    spec.sprite = MakeSprite(atlasName, atlasIndex);
     Strcpy(spec.name, name);
     return spec;
 }
 
-#define DEFINE_ITEM_SPEC(TYPE, INDEX, NAME) _inventoryItemSpecStore->specs[TYPE] = makeInventoryItemSpec(TYPE, SPRITE_ATLAS_ITEMS, INDEX, NAME)
+#define DEFINE_ITEM_SPEC(TYPE, INDEX, NAME) _inventoryItemSpecStore->specs[TYPE] = makeInventoryItemSpec(TYPE, SpriteAtlasName_Items, INDEX, NAME)
 
 api_func void InitializeInventoryItemSpecStore(InventoryItemSpecStore *placeForStore, MemoryArena *arena)
 {
@@ -29,8 +29,11 @@ api_func void InitializeInventoryItemSpecStore(InventoryItemSpecStore *placeForS
 
 api_func InventoryItemSpec *GetInventoryItemSpecByType(InventoryItemSpecType type)
 {
-    Assert(type > ItemType_None && type < ItemType_Count);
+    Assert(type > ItemType_None && type < ItemType_Count); // Item Type doesn't exist
     InventoryItemSpec *result = _inventoryItemSpecStore->specs + (int)type;
+
+    Assert(result->type == type); // Item Type not initialized, or initialized incorrectly
+    
     return result;
 }
 
