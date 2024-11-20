@@ -6,6 +6,29 @@
 #include "tilemap.h"
 #include "entity.h"
 
+api_func LevelStore MakeLevelStore(i32 standardLevelWidth,
+                                   i32 standardLevelHeight,
+                                   SavTextureAtlas atlas,
+                                   f32 tilePxW,
+                                   f32 tilePxH,
+                                   MemoryArena *arena,
+                                   int maxLevelCount)
+{
+    LevelStore s = {};
+
+    // TODO: This probably shouldn't store the atlas, or tile px dim, or the arena
+    
+    s.standardLevelWidth = standardLevelWidth;
+    s.standardLevelHeight = standardLevelHeight;
+    s.worldAtlas = atlas;
+    s.tilePxW = tilePxW;
+    s.tilePxH = tilePxH;
+    s.arena = arena;
+    s.maxLevelCount = maxLevelCount;
+    
+    return s;
+}
+
 api_func Level MakeLevel(v2i worldPos,
                          int w, int h,
                          SavTextureAtlas *atlas,
@@ -18,28 +41,15 @@ api_func Level MakeLevel(v2i worldPos,
     level.h = h;
     level.levelTilemap = MakeTilemap(arena, atlas, tilePxW, tilePxH, w, h);
     level.tileFlags = MemoryArenaPushArrayAndZero(arena, w * h, u8);
+
+    // TODO: Shouldn't keep arenas from outside the level system inside the level
     level.arena = arena;
+    
     return level;
-}
-
-api_func LevelStore MakeLevelStore(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *arena)
-{
-    LevelStore s = {};
-
-    // TODO: This probably shouldn't store the atlas, or tile px dim, or the arena
-    
-    s.worldAtlas = atlas;
-    s.tilePxW = tilePxW;
-    s.tilePxH = tilePxH;
-    s.arena = arena;
-    
-    return s;
 }
 
 api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i worldPos)
 {
-    b32 foundLevel = false;
-    int foundFree = -1;
     for (int i = 0; i < s->levelCount; i++)
     {
         if (s->levelWorldPositions[i] == worldPos)
@@ -48,19 +58,29 @@ api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i 
         }
     }
 
-    if (!foundLevel)
-    {
-        Level *level = s->levels + s->levelCount++;
-
-        *level = MakeLevel(worldPos, LEVEL_WIDTH, LEVEL_HEIGHT, &s->worldAtlas, s->tilePxW, s->tilePxH, s->arena);
-        GenerateLevel(level, entityStore, LEVEL_CLASSIC_ROOMS);
+    // Level was not found, create a new one
+    
+    Assert(s->levelCount < s->maxLevelCount); // Out of level storage
         
-        return level;
-    }
+    Level *level = s->levels + s->levelCount++;
 
-    InvalidCodePath; // Could not find level at world pos, or could not allocate space for a new one.
+    *level = MakeLevel(worldPos, s->standardLevelWidth, s->standardLevelHeight, &s->worldAtlas, s->tilePxW, s->tilePxH, s->arena);
 
-    return NULL;
+    // Decide whether to add entities based on just whether it's world origin for now
+    b32 willAddEntities = (worldPos == V2I(0,0));
+    GenerateLevel(level, entityStore, LevelGenType_ClassicRooms, willAddEntities);
+        
+    return level;
+}
+
+api_func Level *GetCurrentLevel(LevelStore *s)
+{
+    return s->currentLevel;
+}
+
+api_func void SetCurrentLevel(LevelStore *s, Level *level)
+{
+    s->currentLevel = level;
 }
 
 internal_func void generateLevelEmpty(Level *level, v2 *whereToPlacePlayer)
@@ -229,24 +249,24 @@ internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlaye
     *whereToPlaceCampfire = V2(rooms[0].x + rooms[0].w - 1.5f, rooms[0].y + 1.5f);
 }
 
-api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType)
+api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType, b32 generateEntities)
 {
     v2 playerPos = {};
     v2 chestPos = {};
     v2 campfirePos = {};
     switch (genType)
     {
-        case LEVEL_EMPTY:
+        case LevelGenType_Empty:
         {
             generateLevelEmpty(level, &playerPos);
         } break;
         
-        case LEVEL_ONE_ROOM:
+        case LevelGenType_OneRoom:
         {
             generateLevelOneRoom(level, &playerPos);
         } break;
 
-        case LEVEL_CLASSIC_ROOMS:
+        case LevelGenType_ClassicRooms:
         {
             generateLevelClassicRooms(level, &playerPos, &chestPos, &campfirePos);
         } break;
@@ -254,41 +274,44 @@ api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType
         default: InvalidCodePath;
     }
 
-    // TODO: Maybe don't do this inside level gen
-    ActorStats stats = {};
-    stats.viewRadius = 30;
-    stats.attackReach = 1.0f;
-    stats.combatRadius = 2.0f;
-    stats.speed = 10.0f;
-    stats.health = 100.0f;
-    stats.maxHealth = 100.0f;
-    Entity *player = AddActorEntity(entityStore,
-                                    playerPos.x, playerPos.y, level,
-                                    MakeSprite(SpriteAtlasName_Chars, 0),
-                                    MakeCountedString("Player"));
-    ConfigureActorEntity(player, stats);
-    entityStore->controlledEntity = player;
+    if (generateEntities)
+    {
+        // TODO: Maybe don't do this inside level gen
+        ActorStats stats = {};
+        stats.viewRadius = 30;
+        stats.attackReach = 1.0f;
+        stats.combatRadius = 2.0f;
+        stats.speed = 10.0f;
+        stats.health = 100.0f;
+        stats.maxHealth = 100.0f;
+        Entity *player = AddActorEntity(entityStore,
+                                        playerPos.x, playerPos.y, level,
+                                        MakeSprite(SpriteAtlasName_Chars, 0),
+                                        MakeCountedString("Player"));
+        ConfigureActorEntity(player, stats);
+        entityStore->controlledEntity = player;
 
-    Entity *enemy = AddActorEntity(entityStore,
-                                   30.0f, 30.0f, level,
-                                   MakeSprite(SpriteAtlasName_Chars, 1),
-                                   MakeCountedString("Enemy"));
-    ConfigureActorEntity(enemy, stats);
+        Entity *enemy = AddActorEntity(entityStore,
+                                       30.0f, 30.0f, level,
+                                       MakeSprite(SpriteAtlasName_Chars, 1),
+                                       MakeCountedString("Enemy"));
+        ConfigureActorEntity(enemy, stats);
 
-    Entity chestBlueprint = MakeEntity(EntityType_Container,
-                                       chestPos.x, chestPos.y, level,
-                                       MakeSprite(SpriteAtlasName_World, 16), V4(1,1,1,1),
-                                       MakeCountedString("Chest"),
-                                       true, false);
-    AddEntity(entityStore, chestBlueprint);
+        Entity chestBlueprint = MakeEntity(EntityType_Container,
+                                           chestPos.x, chestPos.y, level,
+                                           MakeSprite(SpriteAtlasName_World, 16), V4(1,1,1,1),
+                                           MakeCountedString("Chest"),
+                                           true, false);
+        AddEntity(entityStore, chestBlueprint);
 
-    Entity campfireBlueprint = MakeEntity(EntityType_Machine,
-                                          campfirePos.x, campfirePos.y, level,
-                                          MakeSprite(SpriteAtlasName_World, 17), V4(1,1,1,1),
-                                          MakeCountedString("Campfire"),
-                                          false, false);
-    campfireBlueprint.machineData.machineType = MachineType_Campfire;
-    AddEntity(entityStore, campfireBlueprint);
+        Entity campfireBlueprint = MakeEntity(EntityType_Machine,
+                                              campfirePos.x, campfirePos.y, level,
+                                              MakeSprite(SpriteAtlasName_World, 17), V4(1,1,1,1),
+                                              MakeCountedString("Campfire"),
+                                              false, false);
+        campfireBlueprint.machineData.machineType = MachineType_Campfire;
+        AddEntity(entityStore, campfireBlueprint);
+    }
 }
 
 api_func void DrawLevel(Level *level)

@@ -6,6 +6,7 @@
 #include "navigation.h"
 #include "vision.h"
 #include "ui_game_log.h"
+#include "level.h"
 
 api_func EntityStore MakeEntityStore(int entityMax, MemoryArena *arena, f32 tilePxW, f32 tilePxH, int levelTileCount)
 {
@@ -576,11 +577,18 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
 
 #include "entity_machine.h"
 
-api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventoryStore)
+api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventoryStore, LevelStore *levelStore)
 {
+    Level *currentLevel = GetCurrentLevel(levelStore);
+    
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
         Entity *e = s->entities + entityIndex;
+
+        if (currentLevel != e->level)
+        {
+            continue;
+        }
 
         switch (e->type)
         {
@@ -628,8 +636,10 @@ api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventorySt
     }
 }
 
-api_func void DrawEntities(EntityStore *s)
+api_func void DrawEntities(EntityStore *s, LevelStore *levelStore)
 {
+    Level *currentLevel = GetCurrentLevel(levelStore);
+    
     for (int currentAtlasI = SpriteAtlasName_None + 1; currentAtlasI < SpriteAtlasName_Count; currentAtlasI++)
     {
         SpriteAtlasName currentAtlasName = (SpriteAtlasName)currentAtlasI;
@@ -638,10 +648,14 @@ api_func void DrawEntities(EntityStore *s)
         int entitiesToDraw = 0;
         for (int i = 0; i < s->entityCount; i++)
         {
-            if (s->entities[i].type != EntityType_None && s->entities[i].sprite.atlasName == currentAtlasName)
+            if (s->entities[i].type == EntityType_None ||
+                s->entities[i].level != currentLevel ||
+                s->entities[i].sprite.atlasName != currentAtlasName)
             {
-                entitiesToDraw++;
+                continue;
             }
+            
+            entitiesToDraw++;
         }
         
         if (entitiesToDraw == 0)
@@ -667,7 +681,9 @@ api_func void DrawEntities(EntityStore *s)
         for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
         {
             Entity *e = s->entities + entityIndex;
-            if (e->type == EntityType_None || e->sprite.atlasName != currentAtlasName)
+            if (e->type == EntityType_None ||
+                e->level != currentLevel ||
+                e->sprite.atlasName != currentAtlasName)
             {
                 continue;
             }
@@ -717,7 +733,8 @@ api_func void DrawEntities(EntityStore *s)
     for (int entityIndex = 0; entityIndex < s->entityCount; entityIndex++)
     {
         Entity *e = s->entities + entityIndex;
-        if (e->type == EntityType_None)
+        if (e->type == EntityType_None ||
+            e->level != currentLevel)
         {
             continue;
         }

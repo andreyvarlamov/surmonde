@@ -30,32 +30,46 @@ struct Level
 
 enum LevelGenType
 {
-    LEVEL_EMPTY,
-    LEVEL_ONE_ROOM,
-    LEVEL_CLASSIC_ROOMS
+    LevelGenType_Empty,
+    LevelGenType_OneRoom,
+    LevelGenType_ClassicRooms
 };
 
 struct LevelStore
 {
+    i32 standardLevelWidth;
+    i32 standardLevelHeight;
     SavTextureAtlas worldAtlas;
     f32 tilePxW;
     f32 tilePxH;
     MemoryArena *arena;
 
+    int maxLevelCount;
     int levelCount;
     v2i levelWorldPositions[LEVEL_STORE_MAX_LEVELS];
     Level levels[LEVEL_STORE_MAX_LEVELS];
+
+    Level *currentLevel;
 };
 
-api_func LevelStore MakeLevelStore(SavTextureAtlas atlas, f32 tilePxW, f32 tilePxH, MemoryArena *arena);
+api_func LevelStore MakeLevelStore(i32 standardLevelWidth,
+                                   i32 standardLevelHeight,
+                                   SavTextureAtlas atlas,
+                                   f32 tilePxW,
+                                   f32 tilePxH,
+                                   MemoryArena *arena,
+                                   int maxLevelCount);
+
 api_func Level *GetLevelAtWorldPos(LevelStore *s, EntityStore *entityStore, v2i worldPos);
+api_func Level *GetCurrentLevel(LevelStore *s);
+api_func void SetCurrentLevel(LevelStore *s, Level *level);
 
 api_func Level MakeLevel(v2i worldPos,
                          int w, int h,
 			 SavTextureAtlas *atlas,
 			 f32 tilePxW, f32 tilePxH,
 			 MemoryArena *arena);
-api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType);
+api_func void GenerateLevel(Level *level, EntityStore *entityStore, LevelGenType genType, b32 generateEntities);
 api_func void UpdateLevel(Level *level);
 api_func void DrawLevel(Level *level);
 api_func void DrawLevelOcclusion(Level *level, u8 *visibleTiles);

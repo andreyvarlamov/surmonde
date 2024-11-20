@@ -7,6 +7,7 @@
 #include "defines.h"
 #include "inventory.h"
 
+struct LevelStore;
 struct Level;
 struct Entity;
 
@@ -160,8 +161,8 @@ api_func void DropItemFromEntity(EntityStore *s, Entity *e, InventoryStore *inve
 api_func b32 OrderEntityMoveToTarget(Entity *e, v2 movementTarget);
 
 api_func void MoveEntity(EntityStore *s, Entity *e, v2 dp);
-api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventoryStore);
+api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventoryStore, LevelStore *levelStore);
 
-api_func void DrawEntities(EntityStore *s);
+api_func void DrawEntities(EntityStore *s, LevelStore *levelStore);
 
 #endif
