@@ -46,17 +46,23 @@
 - ImGui input filtering - if a window is focused, it lets mouse events outside the window through, but it stops keyboard events until the window is unfocused. I only want to stop keyboard events if there's a keyboard shortcut that's possible in that window.
 - Logic for cycling game log entries, if going over the count limit
 - See about getting rid of tile px w and h in most of the places, except actually rendering
+- Use ImGui::SetNextWindowSize, with ImGuiCond_FirstUseEver flag to set default sizes
+- ImGui::Begin returns false if window is collapsed, so I can early out
+- Use ImGui::MenuBar for something
+
+### Misc 2
+
+- Easy enum defintions + string values + get string helpers using X macros
+- All imgui windows handled in a doubly linked list of windows, regardless of type of menu
+- Also should be possible to close imgui windows using the x button, and that should update the window list accordingly
+- Also internal state of each window (e.g. some setting that changes how to view this or that) should be stored in those linked list nodes, instead of static variables in function; also current selection of valueboxes
+- EntityStore debug window
+- Common components for links to certain objects: for example for entities -- in AI debug menu, there's followed entity field, don't just do custom format string for that entity, but have some helper function that takes entity, and displays a **link!** to an entity, clicking on it brings up that entity's debug menu, or brings it forward and focuses it, if already open. Use that common component for all instances of showing an entity!
+- Think about keeping entity and inventory store pointers as global variables inside the inventory and entity modules, instead of passing around everywhere
 
 ------------------------
 
 ## SAV Backlog
 
 - SAV managing its own memory for rendering (collect data in ram before subbing to gpu ram) + simplifying passing vertex data from user code
-- Better string drawing/extending into a GUI library
 - My own printf/format string extensions. E.g. for v2, etc.
-- Memory Arena: dynamic arrays.
-  - Reserve size on a mother arena to make a "dynamic array" memory arena
-  - Push elements onto dynamic array one by one, keep track of count internally
-  - GetElement() -- checks bounds
-  - Iterator
-  - Potential problem: a lot of the times I want to deal with counts explicitly in user code

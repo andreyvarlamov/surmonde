@@ -86,11 +86,12 @@ internal_func b32 isUnblocked(Level *level, EntityStore *entityStore, v2i node)
 {
     i32 x = node.x;
     i32 y = node.y;
-    return ((x >= 0 && x < level->w) &&
-            (y >= 0 && y < level->h) &&
-            // !IsTileBlocked(level, x, y));
-            !IsTileBlocked(level, x, y) &&
-            !AnyBlockingEntityAtTile(entityStore, node));
+    b32 onApron = (x == -1 || y == -1 || x == level->w || y == level->h);
+    return (onApron || ((x >= 0 && x < level->w) &&
+                        (y >= 0 && y < level->h) &&
+                        // !IsTileBlocked(level, x, y));
+                        !IsTileBlocked(level, x, y) &&
+                        !AnyBlockingEntityAtTile(entityStore, node)));
 }
 
 internal_func Neighbors getNeighbors(Level *level, EntityStore *entityStore, int nodeI)
