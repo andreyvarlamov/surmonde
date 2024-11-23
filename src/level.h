@@ -7,8 +7,9 @@
 
 enum TileFlags
 {
-    TILE_BLOCKED = 0x1,
-    TILE_OPAQUE = 0x2,
+    TileFlags_Blocked = 0x1,
+    TileFlags_Opaque = 0x2,
+    TileFlags_Apron = 0x4
 };
 
 struct Tile
@@ -79,5 +80,6 @@ api_func void SetTile(Level *level, int i, Tile tile);
 api_func void SetTile(Level *level, int x, int y, Tile tile);
 api_func b32 IsTileBlocked(Level *level, int x, int y);
 api_func b32 IsTileOpaque(Level *level, int x, int y);
+api_func Direction4 IsTileApron(Level *level, int x, int y);
 
 #endif

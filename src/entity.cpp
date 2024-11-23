@@ -633,6 +633,12 @@ api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventorySt
         v2i tileP = GetTilePFromFloatP(s->controlledEntity->p);
         CalculateVision(s->controlledEntity->level, s, tileP, s->controlledEntity->stats.viewRadius, s->controlledEntityVisibleTiles);
         s->controlledEntity->isOpaque = oldIsOpaque;
+
+        Direction4 whichDirApronIsPlayerOn = IsTileApron(s->controlledEntity->level, (int)s->controlledEntity->p.x, (int)s->controlledEntity->p.y);
+        if (whichDirApronIsPlayerOn != Direction4_None)
+        {
+            TraceLog("Player is on %s apron.", Direction4_Strings[whichDirApronIsPlayerOn]);
+        }
     }
 }
 

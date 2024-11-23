@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     DDrawInit(&gameState->debugRenderArena);
 
     Tile floorTile = MakeTile(4, V4(1,1,1,1), 0);
-    Tile wallTile = MakeTile(3, V4(1,1,1,1), TILE_BLOCKED | TILE_OPAQUE);
+    Tile wallTile = MakeTile(3, V4(1,1,1,1), TileFlags_Blocked | TileFlags_Opaque);
 
     int debugEdge = 0;
     b32 debugEdgeTiles = false;

@@ -27,6 +27,21 @@
 - Computer (shell ui controlling digital signal outputs)
 - Computer player-created GUI
 
+### Later pass
+
+- Needs and desires :)
+- Limb-based health system
+- Fully continuous world; chunk-by-chunk background streaming
+- Any-angle pathing
+- Skills, attributes, abilities, etc.
+- Friendly NPCs. Dialog, trading
+- Cities, factions
+- Remote entity processing (low resolution processing of entities that are not fully loaded in)
+- Electrical circuit simulation. Optimize through a kind of mipmapping?
+- Coherent world generation
+- History generation
+- Fluid simulation
+
 ### Misc
 
 - Controlled Entity Vision. Should be possible to disable fully, not just visuals; meaning all tiles are actually considered visible
@@ -49,6 +64,9 @@
 - Use ImGui::SetNextWindowSize, with ImGuiCond_FirstUseEver flag to set default sizes
 - ImGui::Begin returns false if window is collapsed, so I can early out
 - Use ImGui::MenuBar for something
+- ImGui::TextLinkOpenURL
+- ImGui::Separator
+- Fix out of bounds navigation targets
 
 ### Misc 2
 

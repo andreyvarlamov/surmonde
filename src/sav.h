@@ -1245,7 +1245,7 @@ sav_func void StringFormat(char *format, StringBuffer outputBuffer, va_list varA
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
-sav_func b32 RandomChane(f32 chance);
+sav_func b32 RandomChance(f32 chance);
 sav_func v2 GetRandomVec(f32 length);
 
 #ifdef SAV_IMPLEMENTATION
@@ -3446,7 +3446,7 @@ sav_func f32 GetRandomFloat()
     return (rand() / (f32) RAND_MAX);
 }
 
-sav_func b32 RandomChane(f32 chance)
+sav_func b32 RandomChance(f32 chance)
 {
     i32 threshold = (i32)(RAND_MAX * chance);
     return rand() > threshold;

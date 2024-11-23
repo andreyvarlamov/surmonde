@@ -74,16 +74,36 @@ inline void ResetTimer(IngameTimer *timer)
     timer->isRunning = false;
 }
 
-inline b32 RandomChance(f32 chance)
-{
-    b32 result = GetRandomFloat() <= chance * 0.01f;
-    return result;
-}
-
 inline b32 CheckFlag(u32 flags, u32 checkAgainst)
 {
     b32 result = flags & checkAgainst;
     return result;
 }
+
+// TODO: Should this be here?
+
+enum Direction4
+{
+    Direction4_None,
+    Direction4_North,
+    Direction4_East,
+    Direction4_South,
+    Direction4_West
+};
+const char *Direction4_Strings[] = {"None", "North", "East", "South", "West"};
+
+enum Direction8
+{
+    Direction8_None,
+    Direction8_North,
+    Direction8_NorthEast,
+    Direction8_East,
+    Direction8_SouthEast,
+    Direction8_South,
+    Direction8_SouthWest,
+    Direction8_West,
+    Direction8_NorthWest
+};
+const char *Direction8_Strings[] = {"None", "North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West"};
 
 #endif

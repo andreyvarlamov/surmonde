@@ -85,6 +85,8 @@ api_func void SetCurrentLevel(LevelStore *s, Level *level)
 
 internal_func void generateLevelEmpty(Level *level, v2 *whereToPlacePlayer)
 {
+    InvalidCodePath; // not up to date
+    
     Tile floorTile = MakeTile(4, V4(1,1,1,1), 0);
     for (int i = 0; i < level->w * level->h; i++)
     {
@@ -96,8 +98,10 @@ internal_func void generateLevelEmpty(Level *level, v2 *whereToPlacePlayer)
 
 internal_func void generateLevelOneRoom(Level *level, v2 *whereToPlacePlayer)
 {
+    InvalidCodePath; // not up to date
+    
     Tile floorTile = MakeTile(4, V4(1,1,1,1), 0);
-    Tile wallTile = MakeTile(3, V4(1,1,1,1), TILE_BLOCKED | TILE_OPAQUE);
+    Tile wallTile = MakeTile(3, V4(1,1,1,1), TileFlags_Blocked | TileFlags_Opaque);
     for (int i = 0; i < level->w * level->h; i++)
     {
         SetTile(level, i, floorTile);
@@ -135,16 +139,40 @@ internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlaye
     Tile grassTile = MakeTile(0, V4(1,1,1,1), 0);
     Tile dirtTile = MakeTile(1, V4(1,1,1,1), 0);
     Tile stonePathTile = MakeTile(2, V4(1,1,1,1), 0);
-    Tile wallTile = MakeTile(3, V4(1,1,1,1), TILE_BLOCKED | TILE_OPAQUE);
+    Tile wallTile = MakeTile(3, V4(1,1,1,1), TileFlags_Blocked | TileFlags_Opaque);
+    Tile apronTile = MakeTile(3, V4(0,0,1,0.5f), TileFlags_Apron);
     
-    for (int i = 0; i < level->w * level->h; i++)
+    for (int y = 0; y < level->h; y++)
     {
-        SetTile(level, i, ((GetRandomFloat() > 0.5f) ? grassTile : dirtTile));
+        for (int x = 0; x < level->w; x++)
+        {
+            Tile *tile;
+            
+            b32 isApron = (y == 0 || x == 0 || y == level->h - 1 || x == level->w - 1);
+            if (isApron)
+            {
+                tile = &apronTile;
+            }
+            else if (RandomChance(0.5f))
+            {
+                tile = &grassTile;
+            }
+            else
+            {
+                tile = &dirtTile;
+            }
+            
+            SetTile(level, x, y, *tile);
+        }
     }
+        
+    
+    const int roomsMax = 50;
+    const int sizeMin = 6;
+    const int sizeMax = 20;
 
-    int roomsMax = 50;
-    int sizeMin = 6;
-    int sizeMax = 20;
+    // 1 for apron + 1 wall thickness + 1 for an extra open tile before end of level
+    const int roomCanvasPadding = 3;
 
     Room *rooms = MemoryArenaPushArray(level->arena, roomsMax, Room);
 
@@ -154,8 +182,8 @@ internal_func void generateLevelClassicRooms(Level *level, v2 *whereToPlacePlaye
         Room room;
         room.w = GetRandomValue(sizeMin, sizeMax);
         room.h = GetRandomValue(sizeMin, sizeMax);
-        room.x = GetRandomValue(2, level->w - room.w - 2);
-        room.y = GetRandomValue(2, level->h - room.h - 2);
+        room.x = GetRandomValue(0 + roomCanvasPadding, level->w - room.w - roomCanvasPadding);
+        room.y = GetRandomValue(0 + roomCanvasPadding, level->h - room.h - roomCanvasPadding);
 
         b32 intersects = false;
         for (int j = 0; j < roomCount; j++)
@@ -397,7 +425,7 @@ api_func void SetTile(Level *level, int i, Tile tile)
 
 api_func void SetTile(Level *level, int x, int y, Tile tile)
 {
-    Assert(x >= 0 && x < level->w && y >= 0 && y <= level->h);
+    Assert(x >= 0 && x < level->w && y >= 0 && y < level->h);
     int i = XYToIdx(level->w, x, y);
     level->tileFlags[i] = tile.flags;
     SetTileSprite(&level->levelTilemap, x, y, tile.sprite);
@@ -405,16 +433,56 @@ api_func void SetTile(Level *level, int x, int y, Tile tile)
 
 api_func b32 IsTileBlocked(Level *level, int x, int y)
 {
-    Assert(x >= 0 && x < level->w && y >= 0 && y <= level->h);
+    Assert(x >= 0 && x < level->w && y >= 0 && y < level->h);
     int i = XYToIdx(level->w, x, y);
-    b32 result = CheckFlag(level->tileFlags[i], TILE_BLOCKED);
+    b32 result = CheckFlag(level->tileFlags[i], TileFlags_Blocked);
     return result;
 }
 
 api_func b32 IsTileOpaque(Level *level, int x, int y)
 {
-    Assert(x >= 0 && x < level->w && y >= 0 && y <= level->h);
+    Assert(x >= 0 && x < level->w && y >= 0 && y < level->h);
     int i = XYToIdx(level->w, x, y);
-    b32 result = CheckFlag(level->tileFlags[i], TILE_OPAQUE);
+    b32 result = CheckFlag(level->tileFlags[i], TileFlags_Opaque);
+    return result;
+}
+
+api_func Direction4 IsTileApron(Level *level, int x, int y)
+{
+    Assert(x >= 0 && x < level->w && y >= 0 && y < level->h);
+    int i = XYToIdx(level->w, x, y);
+    b32 isApron = CheckFlag(level->tileFlags[i], TileFlags_Apron);
+
+    Direction4 result;
+
+    // TODO: This doesn't really work with Apron sizes larger than 1, which goes against having a special tile flag
+    if (isApron)
+    {
+        if (y == 0)
+        {
+            result = Direction4_North;
+        }
+        else if (x == level->w - 1)
+        {
+            result = Direction4_East;
+        }
+        else if (y == level->h - 1)
+        {
+            result = Direction4_South;
+        }
+        else if (x == 0)
+        {
+            result = Direction4_West;
+        }
+        else
+        {
+            result = Direction4_None;
+        }
+    }
+    else
+    {
+        result = Direction4_None;
+    }
+    
     return result;
 }
