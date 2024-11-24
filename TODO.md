@@ -2,11 +2,10 @@
 
 ## Changelog
 
-- Player moving between levels
+- Saving/loading: file io prep
 
 ## Planned
 
-- Saving/loading: file io prep
 - Saving level store
 - Saving level tile content
 - Saving entities

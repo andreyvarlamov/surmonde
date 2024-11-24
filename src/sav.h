@@ -1231,8 +1231,22 @@ sav_func v2 GetStringDimensions(const char *string, SavFont *font, f32 pointSize
 sav_func void DrawString(const char *string, SavFont *font, f32 pointSize, SavColor color, f32 x, f32 y, f32 maxWidth, MemoryArena *arena);
 sav_func void SavFreeFont(SavFont *font);
 
+struct SavFile
+{
+    void *file;
+};
+
+enum SavFileOpenType
+{
+    SavFileOpenType_Read,
+    SavFileOpenType_Write
+};
+
 sav_func char *SavReadTextFile(const char *path);
 sav_func void SavFreeString(char **text);
+sav_func SavFile SavOpenFile(const char *path, SavFileOpenType openType);
+sav_func void SavCloseFile(SavFile *file);
+sav_func void SavFilePrintFormat(SavFile file, const char *format, ...);
 
 sav_func const char *TextFormat(const char *format, ...);
 sav_func void TraceLog(const char *format, ...);
@@ -3358,6 +3372,49 @@ sav_func void SavFreeString(char **text)
 {
     free(*text);
     *text = 0;
+}
+
+sav_func SavFile SavOpenFile(const char *path, SavFileOpenType openType)
+{
+    FILE *file = NULL;
+    switch (openType)
+    {
+        case SavFileOpenType_Read:
+        {
+            fopen_s(&file, path, "r");
+        } break;
+
+        case SavFileOpenType_Write:
+        {
+            fopen_s(&file, path, "w");
+        } break;
+
+        default: InvalidCodePath; // Invalid SavFileOpenTYpe
+    }
+
+    if (file == NULL)
+    {
+        traceLogEngine("ERROR", "Failed to open file at %s", path);
+    }
+    Assert(file); // Failed to open file
+
+    SavFile result;
+    result.file = file;
+    return result;
+}
+
+sav_func void SavCloseFile(SavFile *file)
+{
+    fclose((FILE *)file->file);
+    file->file = NULL;
+}
+
+sav_func void SavFilePrintFormat(SavFile file, const char *format, ...)
+{
+    va_list varArgs;
+    va_start(varArgs, format);
+    vfprintf((FILE *)file.file, format, varArgs);
+    va_end(varArgs);
 }
 
 // SECTION Util
