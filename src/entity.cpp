@@ -259,10 +259,11 @@ internal_func f32 entitySetHealth(EntityStore *s, Entity *e, f32 health)
     return delta;
 }
 
-internal_func void resetActorOrder(ActorOrder *order)
+internal_func void resetActorOrder(Entity *e)
 {
-    order->type = ACTOR_ORDER_NONE;
-    order->isCompleted = false;
+    e->currentOrder.type = ACTOR_ORDER_NONE;
+    e->currentOrder.isCompleted = false;
+    e->steerTargetActive = false;
 }
 
 internal_func b32 orderMoveToTarget(Entity *e, v2 movementTarget)
@@ -272,7 +273,7 @@ internal_func b32 orderMoveToTarget(Entity *e, v2 movementTarget)
         b32 isCompleted = e->currentOrder.isCompleted;
         if (isCompleted)
         {
-            resetActorOrder(&e->currentOrder);
+            resetActorOrder(e);
         }
         return isCompleted;
     }
@@ -291,7 +292,7 @@ internal_func b32 orderFollowEntity(Entity *e, Entity *entityToFollow)
         b32 isCompleted = e->currentOrder.isCompleted;
         if (isCompleted)
         {
-            resetActorOrder(&e->currentOrder);
+            resetActorOrder(e);
         }
         return isCompleted;
     }
@@ -310,7 +311,7 @@ internal_func b32 orderAttackEntity(Entity *e, Entity *entityToAttack)
         b32 isCompleted = e->currentOrder.isCompleted;
         if (isCompleted)
         {
-            resetActorOrder(&e->currentOrder);
+            resetActorOrder(e);
         }
         return isCompleted;
     }
@@ -340,7 +341,7 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
     {
         case ACTOR_AI_INIT:
         {
-            resetActorOrder(&e->currentOrder);
+            resetActorOrder(e);
             e->aiState = {};
             e->aiState.type = ACTOR_AI_IDLE;
         } break;
@@ -393,12 +394,12 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
             
             if (e->aiState.entityToFollow->type == EntityType_None ||!canEntitySeePosition(s, e, s->controlledEntity->p))
             {
-                resetActorOrder(&e->currentOrder);
+                resetActorOrder(e);
                 e->aiState.type = ACTOR_AI_IDLE;
             }
             else if (IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
             {
-                resetActorOrder(&e->currentOrder);
+                resetActorOrder(e);
                 e->aiState.type = ACTOR_AI_COMBAT;
                 e->aiState.entityToAttack = e->aiState.entityToFollow;
             }
@@ -410,12 +411,12 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
             {
                 if (e->aiState.entityToAttack->type == EntityType_None)
                 {
-                    resetActorOrder(&e->currentOrder);
+                    resetActorOrder(e);
                     e->aiState.type = ACTOR_AI_IDLE;
                 }
                 else if (!IsInRange(e->p, e->aiState.entityToFollow->p, e->stats.attackReach))
                 {
-                    resetActorOrder(&e->currentOrder);
+                    resetActorOrder(e);
 
                     if (canEntitySeePosition(s, e, s->controlledEntity->p))
                     {
@@ -432,6 +433,8 @@ internal_func void processActorAI(EntityStore *s, Entity *e, f32 delta)
                     orderAttackEntity(e, e->aiState.entityToAttack);
                 }
             }
+
+            
         } break;
         
         default: InvalidCodePath; // Unhandled Actor AI state
@@ -577,7 +580,7 @@ internal_func void processActorOrders(EntityStore *s, Entity *e, f32 dT)
 
 #include "entity_machine.h"
 
-api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventoryStore, LevelStore *levelStore)
+api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventoryStore, LevelStore *levelStore, Camera2D *camera)
 {
     Level *currentLevel = GetCurrentLevel(levelStore);
     
@@ -637,7 +640,41 @@ api_func void UpdateEntities(EntityStore *s, f32 dT, InventoryStore *inventorySt
         Direction4 whichDirApronIsPlayerOn = IsTileApron(s->controlledEntity->level, (int)s->controlledEntity->p.x, (int)s->controlledEntity->p.y);
         if (whichDirApronIsPlayerOn != Direction4_None)
         {
-            TraceLog("Player is on %s apron.", Direction4_Strings[whichDirApronIsPlayerOn]);
+            Level *currentLevel = GetCurrentLevel(levelStore);
+            v2i nextWorldPos = currentLevel->worldPos + Direction4_Vectors[whichDirApronIsPlayerOn];
+            Level *nextLevel = GetLevelAtWorldPos(levelStore, s, nextWorldPos);
+            SetCurrentLevel(levelStore, nextLevel);
+            s->controlledEntity->level = nextLevel;
+
+            switch (whichDirApronIsPlayerOn)
+            {
+                case Direction4_North:
+                {
+                    s->controlledEntity->p.y = nextLevel->h - 1.5f;
+                } break;
+
+                case Direction4_East:
+                {
+                    s->controlledEntity->p.x = 0.0f         + 1.5f;
+                } break;
+
+                case Direction4_South:
+                {
+                    s->controlledEntity->p.y = 0.0f         + 1.5f;
+                } break;
+
+                case Direction4_West:
+                {
+                    s->controlledEntity->p.x = nextLevel->w - 1.5f;
+                } break;
+
+                default: InvalidCodePath;
+            }
+
+            ResetActorAI(s->controlledEntity);
+
+            v2 cameraTarget = V2(s->controlledEntity->p.x * s->tilePxW, s->controlledEntity->p.y * s->tilePxH);
+            CameraSetTarget(camera, cameraTarget);
         }
     }
 }

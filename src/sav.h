@@ -1179,6 +1179,7 @@ sav_func void CameraSetBounds(Camera2D *camera, f32 screenWidth, f32 screenHeigh
 sav_func void BeginCameraMode(Camera2D *camera);
 sav_func void EndCameraMode();
 sav_func void CameraMoveTarget(Camera2D *camera, v2 dP);
+sav_func void CameraSetTarget(Camera2D *camera, v2 p);
 sav_func v2 CameraWorldToScreen(Camera2D *camera, v2 world);
 sav_func v2 CameraScreenToWorld(Camera2D *camera, v2 screen);
 sav_func v2 CameraScreenToWorldRel(Camera2D *camera, v2 screenDelta);
@@ -2213,6 +2214,12 @@ sav_func void EndCameraMode()
 sav_func void CameraMoveTarget(Camera2D *camera, v2 dP)
 {
     camera->target -= dP;
+    cameraApplyBounds(camera);
+}
+
+sav_func void CameraSetTarget(Camera2D *camera, v2 p)
+{
+    camera->target = p;
     cameraApplyBounds(camera);
 }
 

@@ -2,11 +2,19 @@
 
 ## Changelog
 
-- Some misc sprite atlas and level refactors and fixes
+- Player moving between levels
 
 ## Planned
 
-- Moving between levels and storing existing levels; relation between world, level and entity store
+- Saving/loading: file io prep
+- Saving level store
+- Saving level tile content
+- Saving entities
+- Saving inventory blocks
+- Loading level store
+- Loading level tile content
+- Loading entities
+- Loading inventory blocks
 
 -----------------------
 
@@ -14,7 +22,7 @@
 
 ### First pass
 
-- Saving/loading
+ALMOST DONE!
 
 ### Second pass
 

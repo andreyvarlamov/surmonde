@@ -90,8 +90,9 @@ enum Direction4
     Direction4_South,
     Direction4_West
 };
-const char *Direction4_Strings[] = {"None", "North", "East", "South", "West"};
-
+global_var const char *Direction4_Strings[] = {"None", "North", "East", "South", "West"};
+global_var const v2i Direction4_Vectors[] = {{0,0}, {0,-1}, {1,0}, {0,1}, {-1,0}};
+ 
 enum Direction8
 {
     Direction8_None,
@@ -104,6 +105,6 @@ enum Direction8
     Direction8_West,
     Direction8_NorthWest
 };
-const char *Direction8_Strings[] = {"None", "North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West"};
+global_var const char *Direction8_Strings[] = {"None", "North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West"};
 
 #endif

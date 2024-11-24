@@ -185,7 +185,7 @@ int main(int argc, char **argv)
 
                 if (!gameState->isPaused)
                 {
-                    UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed(), &gameState->inventoryStore, &gameState->levelStore);
+                    UpdateEntities(&gameState->entityStore, (f32) GetDeltaFixed(), &gameState->inventoryStore, &gameState->levelStore, &gameState->camera);
                 }
 
                 if (KeyPressed(SDL_SCANCODE_B))
