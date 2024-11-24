@@ -16,12 +16,14 @@
 #include "debug_draw.h"
 #include "inventory.h"
 #include "sprites.h"
+#include "game_save.h"
 
 #include "ui_debug_entity.h"
 #include "ui_debug_inventory_store.h"
 #include "ui_inventory.h"
 #include "ui_machine.h"
 #include "ui_game_log.h"
+#include "ui_game_util.h"
 
 int main(int argc, char **argv)
 {
@@ -239,6 +241,7 @@ int main(int argc, char **argv)
                 }
 
                 DrawGameLog();
+                DrawGameUtilUI(gameState);
             } break;
         }
 
@@ -291,9 +294,11 @@ void AddEntityToSlot(Entity *e, Entity **slots, int slotCount)
 #include "inventory_item.cpp"
 #include "inventory_item_spec.cpp"
 #include "entity_machine.cpp"
+#include "game_save.cpp"
 
 #include "ui_debug_entity.cpp"
 #include "ui_debug_inventory_store.cpp"
 #include "ui_inventory.cpp"
 #include "ui_machine.cpp"
 #include "ui_game_log.cpp"
+#include "ui_game_util.cpp"

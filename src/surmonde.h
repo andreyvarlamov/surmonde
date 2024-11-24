@@ -1,3 +1,6 @@
+#ifndef SURMONDE_H
+#define SURMONDE_H
+
 #include "sav.h"
 #include "level.h"
 #include "entity.h"
@@ -43,3 +46,5 @@ struct GameState
 };
 
 void AddEntityToSlot(Entity *e, Entity **slots, int slotCount);
+
+#endif
