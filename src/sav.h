@@ -1243,10 +1243,11 @@ enum SavFileOpenType
 };
 
 sav_func char *SavReadTextFile(const char *path);
-sav_func void SavFreeString(char **text);
+sav_func void SavFree(void **data);
 sav_func SavFile SavOpenFile(const char *path, SavFileOpenType openType);
 sav_func void SavCloseFile(SavFile *file);
 sav_func void SavFilePrintFormat(SavFile file, const char *format, ...);
+sav_func void SavFileWriteBytes(SavFile file, void *data, size_t size);
 
 sav_func const char *TextFormat(const char *format, ...);
 sav_func void TraceLog(const char *format, ...);
@@ -1257,6 +1258,7 @@ sav_func void Memset(void *ptr, int value, size_t num);
 sav_func void Strcpy(char *dest, char *source);
 sav_func void StringFormat(char *format, StringBuffer outputBuffer, ...);
 sav_func void StringFormat(char *format, StringBuffer outputBuffer, va_list varArgs);
+sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize);
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
@@ -2047,8 +2049,10 @@ sav_func SavShader BuildCustomShader(const char *vertPath, const char *fragPath)
 
     u32 shaderID = buildShadersFromStr(vertSource, fragSource);
 
-    SavFreeString(&vertSource);
-    SavFreeString(&fragSource);
+    SavFree((void **)&vertSource);
+    SavFree((void **)&fragSource);
+    Assert(vertSource == NULL);
+    Assert(fragSource == NULL);
 
     SavShader result;
     result.id = shaderID;
@@ -3368,10 +3372,10 @@ sav_func char *SavReadTextFile(const char *path)
     return 0;
 }
 
-sav_func void SavFreeString(char **text)
+sav_func void SavFree(void **data)
 {
-    free(*text);
-    *text = 0;
+    free(*data);
+    *data = 0;
 }
 
 sav_func SavFile SavOpenFile(const char *path, SavFileOpenType openType)
@@ -3415,6 +3419,11 @@ sav_func void SavFilePrintFormat(SavFile file, const char *format, ...)
     va_start(varArgs, format);
     vfprintf((FILE *)file.file, format, varArgs);
     va_end(varArgs);
+}
+
+sav_func void SavFileWriteBytes(SavFile file, void *data, size_t size)
+{
+    fwrite(data, sizeof(u8), size, (FILE *)file.file);
 }
 
 // SECTION Util
@@ -3493,6 +3502,53 @@ sav_func void StringFormat(char *format, StringBuffer outputBuffer, ...)
 sav_func void StringFormat(char *format, StringBuffer outputBuffer, va_list varArgs)
 {
    vsnprintf(outputBuffer.string, outputBuffer.size, format, varArgs);
+}
+
+sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
+{
+    local_persist const char base64Chars[] = 
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789+/";
+
+    // NOTE: Make every 3 octets into 4 sextets, ultimately -- size * 8 / 6 => size * 4 / 3;
+    //       also with padding - we want the number of bytes to be a multiple of three;
+    //       e.g. if 7 bytes, we will pad it so that we cover 9 bytes -- 12 octets
+    //            (8 + 2) / 3 = 3 -- integer division will "truncate" anything over a multiple of three
+    //            (9 + 2) / 3 = 3 -- same here, 9 is already a multiple of three, but adding 2 to it is ok
+    size_t encodedLength = 4 * (size + 2) / 3;
+
+    u8 *encodedData = (u8 *)malloc(encodedLength + 1); // 1 extra for null terminator
+    if (encodedData == NULL)
+    {
+        InvalidCodePath; // Could not allocate for output data
+        return NULL;
+    }
+
+    size_t inputI = 0;
+    size_t encodedI = 0;
+
+    while (inputI < size)
+    {
+        u32 octetA = data[inputI++];
+        // NOTE: It could be that octet A, or octet B, was the last one, in which case we will need to pad
+        u32 octetB = ((inputI < size) ? data[inputI++] : 0);
+        u32 octetC = ((inputI < size) ? data[inputI++] : 0);
+
+        u32 tripleOctet = ((octetA << 16) | (octetB << 8) | (octetC));
+
+        encodedData[encodedI++] = base64Chars[(tripleOctet >> 18) & 0x3F]; // top 6-bits of the triple octet
+        encodedData[encodedI++] = base64Chars[(tripleOctet >> 12) & 0x3F]; // next 6-bits of the triple octet...
+        encodedData[encodedI++] = ((inputI > size + 1) ? '=' : base64Chars[(tripleOctet >> 6)  & 0x3F]); // if we had 2 padded octets, the last 2 sextets will be padding '='
+        encodedData[encodedI++] = ((inputI > size) ? '=' : base64Chars[(tripleOctet >> 0)  & 0x3F]); // if we had 1 padded octet, the last 1 sextet will be padding '='
+    }
+
+    encodedData[encodedLength] = '\0';
+    return encodedData;
+}
+
+sav_func void SavBase64Decode()
+{
 }
 
 // SECTION Random

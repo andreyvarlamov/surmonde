@@ -19,6 +19,31 @@ api_func void DrawGameUtilUI(GameState *gameState)
     {
         LoadGame();
     }
+
+    local_persist b32 encoded = false;
+    local_persist char inputBuf[128] = {};
+    local_persist u8 *encodedData = NULL;
+    if (ImGui::InputText("Base64 Input", inputBuf, 128))
+    {
+        TraceLog("Base64 Input changed");
+    }
+    if (ImGui::Button("Base64 Encode"))
+    {
+        SavFree((void **)&encodedData);
+        size_t charCount = 0; char *inputI = inputBuf; while (*inputI++) charCount++;
+        size_t encodedSize = 0;
+        encodedData = SavBase64Encode((u8 *)&inputBuf[0], charCount, &encodedSize);
+    }
+
+    if (ImGui::Button("Base64 Decode"))
+    {
+        // SavBase64Decode();
+    }
+
+    if (encodedData != NULL)
+    {
+        ImGui::Text("Base64 Result: %s", encodedData);
+    }
     
     ImGui::End();
 }

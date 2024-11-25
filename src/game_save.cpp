@@ -11,20 +11,20 @@ api_func void SaveGame(GameState *gameState)
     {
         Level *level = gameState->levelStore.levels + levelI;
         Tilemap *tilemap = &level->levelTilemap;
+        size_t count = (size_t)level->w * (size_t)level->h;
 
-        SavFilePrintFormat(file, "begin level %d, %d\n", level->worldPos.x, level->worldPos.y);
-        for (int tileI = 0; tileI < level->w * level->h; tileI++)
-        {
-            SavFilePrintFormat(file,
-                               "    tile %d, %0.3f, %0.3f, %0.3f, %0.3f, %u\n",
-                               tilemap->atlasValues[tileI],
-                               tilemap->colors[tileI].r,
-                               tilemap->colors[tileI].g,
-                               tilemap->colors[tileI].b,
-                               tilemap->colors[tileI].a,
-                               level->tileFlags[tileI]);
-        }
-        SavFilePrintFormat(file, "end\n");
+        SavFilePrintFormat(file, "level %d, %d\n", level->worldPos.x, level->worldPos.y);
+
+        SavFilePrintFormat(file, "atlas values:\n");
+        SavFileWriteBytes(file, tilemap->atlasValues, count * sizeof(*tilemap->atlasValues));
+
+        SavFilePrintFormat(file, "\ncolors:\n");
+        SavFileWriteBytes(file, tilemap->colors, count * sizeof(*tilemap->colors));
+
+        SavFilePrintFormat(file, "\nflags:\n");
+        SavFileWriteBytes(file, level->tileFlags, count * sizeof(*level->tileFlags));
+        
+        SavFilePrintFormat(file, "\nend\n");
     }
 
     SavCloseFile(&file);

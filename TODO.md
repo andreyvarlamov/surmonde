@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Saving/loading: file io prep
+- Base64 encoding (WIP)
 
 ## Planned
 
