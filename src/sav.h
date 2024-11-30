@@ -3516,7 +3516,7 @@ sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
     //       e.g. if 7 bytes, we will pad it so that we cover 9 bytes -- 12 octets
     //            (8 + 2) / 3 = 3 -- integer division will "truncate" anything over a multiple of three
     //            (9 + 2) / 3 = 3 -- same here, 9 is already a multiple of three, but adding 2 to it is ok
-    size_t encodedLength = 4 * (size + 2) / 3;
+    size_t encodedLength = 4 * ((size + 2) / 3);
 
     u8 *encodedData = (u8 *)malloc(encodedLength + 1); // 1 extra for null terminator
     if (encodedData == NULL)
@@ -3532,8 +3532,8 @@ sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
     {
         u32 octetA = data[inputI++];
         // NOTE: It could be that octet A, or octet B, was the last one, in which case we will need to pad
-        u32 octetB = ((inputI < size) ? data[inputI++] : 0);
-        u32 octetC = ((inputI < size) ? data[inputI++] : 0);
+        u32 octetB = ((inputI < size) ? data[inputI] : 0); inputI++;
+        u32 octetC = ((inputI < size) ? data[inputI] : 0); inputI++;
 
         u32 tripleOctet = ((octetA << 16) | (octetB << 8) | (octetC));
 
@@ -3543,12 +3543,15 @@ sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
         encodedData[encodedI++] = ((inputI > size) ? '=' : base64Chars[(tripleOctet >> 0)  & 0x3F]); // if we had 1 padded octet, the last 1 sextet will be padding '='
     }
 
+    Assert(encodedI == encodedLength);
+
     encodedData[encodedLength] = '\0';
     return encodedData;
 }
 
-sav_func void SavBase64Decode()
+sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedSize, size_t *outSize)
 {
+    
 }
 
 // SECTION Random
