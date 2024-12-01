@@ -25,17 +25,32 @@ ALMOST DONE!
 
 ### Second pass
 
-- Systematize crafting
+Not sure if this should be done in 2nd pass:
+
 - Lighting
+- Signal-controlled light entities
+- Christmas lights demo
+
+This is the main mechanic of the game to me, and I want to focus on main mechanics for 2nd pass:
+
 - Piping
 - Power
 - Digital signal
-- Universal chem synth idea
+- Universal chem synth demo
 - Computer (shell ui controlling digital signal outputs)
-- Computer player-created GUI
+
+But... The lighting stuff is thematic for Christmas... Can look cool in a demo.
+And the Christmas lights demo is a more simplified start on the "network" mechanics.
+And all "network" mechanics - fluid pipes, power lines, digital signals - are fundamentally similar.
+
+The downside is that the lighting mechanic itself needs to be implemented,
+which is a step away from focusing on the main mechanics for 2nd pass.
+And I could get side tracked by it for quite a while.
 
 ### Later pass
 
+- Computer player-created GUI
+- Systematize crafting
 - Needs and desires :)
 - Limb-based health system
 - Fully continuous world; chunk-by-chunk background streaming

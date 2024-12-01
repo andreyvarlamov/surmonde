@@ -3506,7 +3506,7 @@ sav_func void StringFormat(char *format, StringBuffer outputBuffer, va_list varA
 
 sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
 {
-    local_persist const char base64Chars[] = 
+    local_persist const u8 base64Chars[] = 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789+/";
@@ -3549,9 +3549,66 @@ sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
     return encodedData;
 }
 
-sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedSize, size_t *outSize)
+struct Base64ReverseLookup
 {
+    u8 d[256];
+};
+internal_func inline Base64ReverseLookup constructBase64ReverseLookup()
+{
+    Base64ReverseLookup lookup = {};
     
+    u8 decodedByte = 0x0;
+    for (u8 encodedByte = 'A'; encodedByte <= 'Z'; encodedByte++)
+    {
+        lookup.d[encodedByte] = decodedByte++;
+    }
+    for (int encodedByte = 'a'; encodedByte <= 'z'; encodedByte++)
+    {
+        lookup.d[encodedByte] = decodedByte++;
+    }
+    for (int encodedByte = '0'; encodedByte <= '9'; encodedByte++)
+    {
+        lookup.d[encodedByte] = decodedByte++;
+    }
+    lookup.d['+'] = decodedByte++;
+    lookup.d['/'] = decodedByte++;
+
+    Assert(decodedByte == 0x40);
+
+    return lookup;
+}
+
+sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outSize)
+{
+    local_persist Base64ReverseLookup reverseLookup = constructBase64ReverseLookup();
+
+    size_t decodedLength = encodedLength / 4 * 3;
+
+    u8 *decodedData = (u8 *)malloc(decodedLength + 1);
+    if (decodedData == NULL)
+    {
+        InvalidCodePath;
+        return NULL;
+    }
+
+    size_t decodedI = 0;
+    size_t encodedI = 0;
+    
+    while (encodedI < encodedLength)
+    {
+        u32 sextetA = reverseLookup.d[encodedData[encodedI++]];
+        u32 sextetB = reverseLookup.d[encodedData[encodedI++]];
+        u32 sextetC = reverseLookup.d[encodedData[encodedI++]];
+        u32 sextetD = reverseLookup.d[encodedData[encodedI++]];
+
+        u32 quadSextet = ((sextetA << 18) | (sextetB << 12) | (sextetC << 6) | (sextetD << 0));
+
+        decodedData[decodedI++] = (quadSextet >> 16) & 0xFF;
+        decodedData[decodedI++] = (quadSextet >> 8) & 0xFF;
+        decodedData[decodedI++] = (quadSextet >> 0) & 0xFF;;
+    }
+
+    return decodedData;
 }
 
 // SECTION Random
