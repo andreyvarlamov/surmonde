@@ -1259,6 +1259,7 @@ sav_func void Strcpy(char *dest, char *source);
 sav_func void StringFormat(char *format, StringBuffer outputBuffer, ...);
 sav_func void StringFormat(char *format, StringBuffer outputBuffer, va_list varArgs);
 sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize);
+sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outSize, b32 nullTerminate);
 
 sav_func int GetRandomValue(int min, int max);
 sav_func f32 GetRandomFloat();
@@ -3546,6 +3547,8 @@ sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
     Assert(encodedI == encodedLength);
 
     encodedData[encodedLength] = '\0';
+    *outSize = encodedLength;
+    
     return encodedData;
 }
 
@@ -3555,8 +3558,11 @@ struct Base64ReverseLookup
 };
 internal_func inline Base64ReverseLookup constructBase64ReverseLookup()
 {
-    Base64ReverseLookup lookup = {};
-    
+    Base64ReverseLookup lookup;
+    for (int i = 0; i < 256; i++)
+    {
+        lookup.d[i] = (u8)~0; // Set each byte to sentinel 0xFF (-1 if it was signed)
+    }
     u8 decodedByte = 0x0;
     for (u8 encodedByte = 'A'; encodedByte <= 'Z'; encodedByte++)
     {
@@ -3572,19 +3578,28 @@ internal_func inline Base64ReverseLookup constructBase64ReverseLookup()
     }
     lookup.d['+'] = decodedByte++;
     lookup.d['/'] = decodedByte++;
+    lookup.d['='] = 0;
 
     Assert(decodedByte == 0x40);
 
     return lookup;
 }
 
-sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outSize)
+sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outSize, b32 nullTerminate)
 {
     local_persist Base64ReverseLookup reverseLookup = constructBase64ReverseLookup();
 
-    size_t decodedLength = encodedLength / 4 * 3;
+    size_t pad = 0;
+    if (encodedLength >= 2 && encodedData[encodedLength - 2] == '=') pad++;
+    if (encodedLength >= 1 && encodedData[encodedLength - 1] == '=') pad++;
+    size_t decodedLength = encodedLength / 4 * 3 - pad;
+    if (decodedLength <= 0)
+    {
+        InvalidCodePath;
+        return NULL;
+    }
 
-    u8 *decodedData = (u8 *)malloc(decodedLength + 1);
+    u8 *decodedData = (u8 *)malloc(decodedLength + nullTerminate ? 1 : 0);
     if (decodedData == NULL)
     {
         InvalidCodePath;
@@ -3596,17 +3611,21 @@ sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outS
     
     while (encodedI < encodedLength)
     {
-        u32 sextetA = reverseLookup.d[encodedData[encodedI++]];
-        u32 sextetB = reverseLookup.d[encodedData[encodedI++]];
-        u32 sextetC = reverseLookup.d[encodedData[encodedI++]];
-        u32 sextetD = reverseLookup.d[encodedData[encodedI++]];
+        #define DECODE_SEXTET_AND_ASSERT(NAME) u8 NAME##_encoded = encodedData[encodedI++]; Assert(NAME##_encoded != 0xFF); u32 NAME = reverseLookup.d[NAME##_encoded];
+        DECODE_SEXTET_AND_ASSERT(sextetA);
+        DECODE_SEXTET_AND_ASSERT(sextetB);
+        DECODE_SEXTET_AND_ASSERT(sextetC);
+        DECODE_SEXTET_AND_ASSERT(sextetD);
+        #undef DECODE_SEXTET_AND_ASSERT
 
         u32 quadSextet = ((sextetA << 18) | (sextetB << 12) | (sextetC << 6) | (sextetD << 0));
 
-        decodedData[decodedI++] = (quadSextet >> 16) & 0xFF;
-        decodedData[decodedI++] = (quadSextet >> 8) & 0xFF;
-        decodedData[decodedI++] = (quadSextet >> 0) & 0xFF;;
+        if (decodedI < decodedLength) decodedData[decodedI++] = (quadSextet >> 16) & 0xFF;
+        if (decodedI < decodedLength) decodedData[decodedI++] = (quadSextet >> 8)  & 0xFF;
+        if (decodedI < decodedLength) decodedData[decodedI++] = (quadSextet >> 0)  & 0xFF;
     }
+
+    *outSize = decodedLength;
 
     return decodedData;
 }

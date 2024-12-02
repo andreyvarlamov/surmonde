@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- Base64 encoding (WIP)
+- Base64 encoding/decoding (WIP)
 
 ## Planned
 
