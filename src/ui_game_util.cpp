@@ -37,10 +37,11 @@ api_func void DrawGameUtilUI(GameState *gameState)
         encodedData = SavBase64Encode((u8 *)&inputBuf[0], charCount, &encodedSize);
     }
 
-    if (ImGui::Button("Base64 Decode"))
+    if (ImGui::Button("Base64 Decode") && encodedData != NULL)
     {
         SavFree((void **)&decodedData);
-        decodedData = SavBase64Decode(encodedData, encodedSize, &decodedSize, true);
+        size_t charCount = 0; u8 *inputI = encodedData; while (*inputI++) charCount++;
+        decodedData = SavBase64Decode(encodedData, charCount, &decodedSize, true);
     }
 
     if (encodedData != NULL)

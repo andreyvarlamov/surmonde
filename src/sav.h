@@ -3512,6 +3512,12 @@ sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789+/";
 
+    if (data == NULL || size < 1)
+    {
+        InvalidCodePath;
+        return NULL;
+    }
+
     // NOTE: Make every 3 octets into 4 sextets, ultimately -- size * 8 / 6 => size * 4 / 3;
     //       also with padding - we want the number of bytes to be a multiple of three;
     //       e.g. if 7 bytes, we will pad it so that we cover 9 bytes -- 12 octets
@@ -3547,7 +3553,7 @@ sav_func u8 *SavBase64Encode(u8 *data, size_t size, size_t *outSize)
     Assert(encodedI == encodedLength);
 
     encodedData[encodedLength] = '\0';
-    *outSize = encodedLength;
+    if(outSize != NULL) *outSize = encodedLength;
     
     return encodedData;
 }
@@ -3589,9 +3595,15 @@ sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outS
 {
     local_persist Base64ReverseLookup reverseLookup = constructBase64ReverseLookup();
 
+    if (encodedData == NULL || encodedLength < 2)
+    {
+        InvalidCodePath;
+        return NULL;
+    }
+
     size_t pad = 0;
-    if (encodedLength >= 2 && encodedData[encodedLength - 2] == '=') pad++;
-    if (encodedLength >= 1 && encodedData[encodedLength - 1] == '=') pad++;
+    if (encodedData[encodedLength - 2] == '=') pad++;
+    if (encodedData[encodedLength - 1] == '=') pad++;
     size_t decodedLength = encodedLength / 4 * 3 - pad;
     if (decodedLength <= 0)
     {
@@ -3611,12 +3623,16 @@ sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outS
     
     while (encodedI < encodedLength)
     {
-        #define DECODE_SEXTET_AND_ASSERT(NAME) u8 NAME##_encoded = encodedData[encodedI++]; Assert(NAME##_encoded != 0xFF); u32 NAME = reverseLookup.d[NAME##_encoded];
+#define DECODE_SEXTET_AND_ASSERT(NAME) u8 NAME##_encoded = (encodedI < encodedLength) ? encodedData[encodedI++] : '\0'; \
+    u32 NAME = reverseLookup.d[NAME##_encoded];                         \
+    Assert(NAME != 0xFF); // Invalid byte encountered
+        
         DECODE_SEXTET_AND_ASSERT(sextetA);
         DECODE_SEXTET_AND_ASSERT(sextetB);
         DECODE_SEXTET_AND_ASSERT(sextetC);
         DECODE_SEXTET_AND_ASSERT(sextetD);
-        #undef DECODE_SEXTET_AND_ASSERT
+
+#undef DECODE_SEXTET_AND_ASSERT
 
         u32 quadSextet = ((sextetA << 18) | (sextetB << 12) | (sextetC << 6) | (sextetD << 0));
 
@@ -3625,7 +3641,11 @@ sav_func u8 *SavBase64Decode(u8 *encodedData, size_t encodedLength, size_t *outS
         if (decodedI < decodedLength) decodedData[decodedI++] = (quadSextet >> 0)  & 0xFF;
     }
 
-    *outSize = decodedLength;
+    Assert(decodedI == decodedLength);
+    
+    decodedData[decodedLength] = '\0';
+
+    if (outSize != NULL) *outSize = decodedLength;
 
     return decodedData;
 }
