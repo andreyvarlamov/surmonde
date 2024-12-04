@@ -2,12 +2,12 @@
 
 ## Changelog
 
-- Base64 encoding/decoding (WIP)
+- Base64 encoding/decoding - done
+- Saving level store (WIP)
+- Saving level tile content (WIP
 
 ## Planned
 
-- Saving level store
-- Saving level tile content
 - Saving entities
 - Saving inventory blocks
 - Loading level store

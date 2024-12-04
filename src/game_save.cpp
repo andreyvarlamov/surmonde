@@ -16,7 +16,9 @@ api_func void SaveGame(GameState *gameState)
         SavFilePrintFormat(file, "level %d, %d\n", level->worldPos.x, level->worldPos.y);
 
         SavFilePrintFormat(file, "atlas values:\n");
-        SavFileWriteBytes(file, tilemap->atlasValues, count * sizeof(*tilemap->atlasValues));
+        size_t encodedSize = 0;
+        u8 *encodedData = SavBase64Encode((u8 *)tilemap->atlasValues, count * sizeof(*tilemap->atlasValues), &encodedSize);
+        SavFileWriteBytes(file, encodedData, encodedSize);
 
         SavFilePrintFormat(file, "\ncolors:\n");
         SavFileWriteBytes(file, tilemap->colors, count * sizeof(*tilemap->colors));

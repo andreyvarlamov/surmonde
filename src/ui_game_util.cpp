@@ -20,39 +20,45 @@ api_func void DrawGameUtilUI(GameState *gameState)
         LoadGame();
     }
 
-    local_persist b32 encoded = false;
+    ImGui::Separator();
+
+    ImGui::Text("Base64 Test");
+
     local_persist char inputBuf[128] = {};
+    local_persist char encodedBuf[128] = {};
+    local_persist char decodedBuf[128] = {};
+    
     local_persist size_t encodedSize = 0;
     local_persist u8 *encodedData = NULL;
+
     local_persist size_t decodedSize = 0;
     local_persist u8 *decodedData = NULL;
-    if (ImGui::InputText("Base64 Input", inputBuf, 128))
-    {
-        TraceLog("Base64 Input changed");
-    }
-    if (ImGui::Button("Base64 Encode"))
+
+    ImGui::InputText("Input", inputBuf, 128);
+    if (ImGui::Button("Encode"))
     {
         SavFree((void **)&encodedData);
         size_t charCount = 0; char *inputI = inputBuf; while (*inputI++) charCount++;
         encodedData = SavBase64Encode((u8 *)&inputBuf[0], charCount, &encodedSize);
+        Assert(encodedSize < 128);
+        strcpy((char *)encodedBuf, (char *)encodedData);
     }
 
-    if (ImGui::Button("Base64 Decode") && encodedData != NULL)
+    ImGui::InputText("Encoded", encodedBuf, 128);
+    
+    if (ImGui::Button("Decode"))
     {
         SavFree((void **)&decodedData);
-        size_t charCount = 0; u8 *inputI = encodedData; while (*inputI++) charCount++;
-        decodedData = SavBase64Decode(encodedData, charCount, &decodedSize, true);
+        size_t charCount = 0; char *inputI = encodedBuf; while (*inputI++) charCount++;
+        decodedData = SavBase64Decode((u8 *)&encodedBuf[0], charCount, &decodedSize, true);
+        Assert(decodedSize < 128);
+        Assert(decodedData[decodedSize] == '\0');
+        strcpy((char *)decodedBuf, (char *)decodedData);
     }
 
-    if (encodedData != NULL)
-    {
-        ImGui::InputText("Base64 Encoded", (char *)encodedData, encodedSize);
-    }
-    
-    if (decodedData != NULL)
-    {
-        ImGui::InputText("Base64 Decoded", (char *)decodedData, decodedSize);
-    }
+    ImGui::InputText("Decoded", decodedBuf, 128);
+
+    ImGui::Separator();
 
     ImGui::End();
 }
