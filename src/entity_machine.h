@@ -9,6 +9,7 @@ enum MachineType
     MachineType_None,
     MachineType_Campfire
 };
+global_var char *MachineTypeString[] = {"None", "Campfire"};
 
 struct EntityDataMachine
 {

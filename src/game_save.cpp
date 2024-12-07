@@ -3,6 +3,35 @@
 #include "sav.h"
 #include "surmonde.h"
 
+internal_func void serializeColor(SavFile file, v4 color, const char *prefix)
+{
+    SavFilePrintFormat(file, "%s_r: %0.5f\n", prefix, color.r);
+    SavFilePrintFormat(file, "%s_g: %0.5f\n", prefix, color.g);
+    SavFilePrintFormat(file, "%s_b: %0.5f\n", prefix, color.b);
+    SavFilePrintFormat(file, "%s_a: %0.5f\n", prefix, color.a);
+}
+
+internal_func void serializeActorStats(SavFile file, ActorStats stats)
+{
+    SavFilePrintFormat(file, "view_radius: %0.5f\n", stats.viewRadius);
+    SavFilePrintFormat(file, "attack_reach: %0.5f\n", stats.attackReach);
+    SavFilePrintFormat(file, "speed: %0.5f\n", stats.speed);
+    SavFilePrintFormat(file, "combat_radius: %0.5f\n", stats.combatRadius);
+    SavFilePrintFormat(file, "health: %0.5f\n", stats.health);
+    SavFilePrintFormat(file, "max_health: %0.5f\n", stats.maxHealth);
+}
+
+internal_func void serializeMachineData(SavFile file, EntityDataMachine *machineData)
+{
+    SavFilePrintFormat(file, "machine_type: %s\n", MachineTypeString[machineData->machineType]);
+    SavFilePrintFormat(file, "begin processed_items_timers\n");
+    for (int i = 0; i < machineData->processedItemCount; i++)
+    {
+        SavFilePrintFormat(file, "%d, %0.5f\n", machineData->processedItemIds[i], machineData->processedItemTimers[i]);
+    }
+    SavFilePrintFormat(file, "end processed_items_timers\n");
+}
+
 internal_func void serializeEntity(SavFile file, Entity *entity)
 {
     SavFilePrintFormat(file, "begin entity\n");
@@ -11,6 +40,19 @@ internal_func void serializeEntity(SavFile file, Entity *entity)
     SavFilePrintFormat(file, "p_x: %0.5f\n", entity->p.x);
     SavFilePrintFormat(file, "p_y: %0.5f\n", entity->p.y);
     SavFilePrintFormat(file, "yawDeg: %0.5f\n", entity->yawDeg);
+    SavFilePrintFormat(file, "sprite_name: %s\n", SpriteAtlasNameString[entity->sprite.atlasName]);
+    SavFilePrintFormat(file, "atlas_value: %d\n", entity->sprite.atlasValue);
+    serializeColor(file, entity->color, "color");
+    SavFilePrintFormat(file, "name: %s\n", entity->name);
+    serializeActorStats(file, entity->stats);
+    // TODO: ai state
+    // TODO: actor order
+    SavFilePrintFormat(file, "steer_target_active: %d\n", entity->steerTargetActive);
+    SavFilePrintFormat(file, "steer_target: %0.5f\n", entity->steerTarget);
+    serializeMachineData(file, &entity->machineData);
+    SavFilePrintFormat(file, "is_paused: %d\n", entity->isPaused);
+    SavFilePrintFormat(file, "is_blocking: %d\n", entity->isBlocking);
+    SavFilePrintFormat(file, "is_opaque: %d\n", entity->isOpaque);
     
     SavFilePrintFormat(file, "end entity\n");
 }

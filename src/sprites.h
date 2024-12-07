@@ -13,6 +13,7 @@ enum SpriteAtlasName
 
     SpriteAtlasName_Count
 };
+global_var char *SpriteAtlasNameString[] = {"None", "World", "Items", "Chars"};
 
 struct SpriteAtlasStore
 {

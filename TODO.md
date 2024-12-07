@@ -2,18 +2,12 @@
 
 ## Changelog
 
-- Saving level store
-- Saving level tile content
 - Saving entities (WIP)
 
 ## Planned
 
-- Saving entities
-- Saving inventory blocks
-- Loading level store
-- Loading level tile content
-- Loading entities
-- Loading inventory blocks
+- Drop the save system for now. It's too boring and kind of pointless for now lol. And I'm starting to get burnt out. I thought it would be more fun...
+- Think about which version of the second pass to do. And maybe simple lighting will be still pass 1...
 
 -----------------------
 
